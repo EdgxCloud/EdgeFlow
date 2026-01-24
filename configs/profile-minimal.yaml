@@ -1,0 +1,143 @@
+# EdgeFlow Minimal Profile Configuration
+# Target: Raspberry Pi Zero / Zero W (512MB RAM)
+# Use Case: Basic sensor monitoring, simple automation
+
+profile:
+  name: minimal
+  description: "Ultra-compact build for resource-constrained IoT boards"
+  target_boards: ["Pi Zero", "Pi Zero W", "Pi Zero 2 W"]
+  max_binary_size: 10485760  # 10MB
+  max_ram_usage: 83886080     # 80MB
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+  max_connections: 20
+
+modules:
+  # Core module (always enabled)
+  core:
+    enabled: true
+    nodes:
+      - inject      # Timer/manual trigger
+      - debug       # Console output
+      - function    # JavaScript execution
+      - if          # Conditional routing
+      - delay       # Time delay
+      - change      # Property manipulation
+      - switch      # Multi-way routing
+
+  # Network module (lite mode)
+  network:
+    enabled: true
+    mode: lite  # Reduced features for low memory
+    nodes:
+      - http-in
+      - http-out
+      - mqtt-in
+      - mqtt-out
+    features:
+      websocket: false      # Disabled to save memory
+      tcp: false
+      udp: false
+      tls: false            # Use plain connections
+
+  # GPIO module (essential for IoT)
+  gpio:
+    enabled: true
+    nodes:
+      - gpio-in
+      - gpio-out
+      - pwm
+    features:
+      i2c: false            # Disabled to save memory
+      spi: false
+      interrupts: false
+
+  # Disabled modules
+  messaging:
+    enabled: false
+
+  database:
+    enabled: false
+
+  ai:
+    enabled: false
+
+  industrial:
+    enabled: false
+
+  advanced:
+    enabled: false
+
+  ui_advanced:
+    enabled: false
+
+  collaboration:
+    enabled: false
+
+ui:
+  mode: lite
+  features:
+    basic_editor: true
+    simple_debug: true
+    minimap: false          # Disabled to save resources
+    execution_viz: false
+    expression_editor: false
+    subflows: false
+  theme: light              # Single theme to reduce bundle size
+
+storage:
+  type: sqlite
+  path: ./data/edgeflow.db
+  in_memory: false
+  cache_size: 1024          # 1MB cache (minimal)
+
+context:
+  storage: memory           # Only memory context (no file/redis)
+  max_size: 1048576         # 1MB max context size
+
+performance:
+  max_flows: 5
+  max_nodes_per_flow: 20
+  max_executions_per_second: 10
+  execution_queue_size: 10
+  worker_pool_size: 2
+  gc_interval: 60s          # More frequent GC to free memory
+
+logging:
+  level: warn               # Reduced logging
+  output: stdout
+  max_size: 1048576         # 1MB log file
+  max_backups: 1
+  compress: true
+
+metrics:
+  enabled: true
+  prometheus: false         # Disabled to save memory
+  collection_interval: 60s
+
+security:
+  jwt:
+    enabled: false          # Disabled for minimal build
+  api_keys:
+    enabled: false
+  encryption:
+    enabled: false
+
+health_checks:
+  enabled: true
+  interval: 60s
+  checks:
+    - database
+    - memory
+    - disk
+
+# Resource limits
+resources:
+  memory_limit: 67108864    # 64MB hard limit
+  disk_limit: 104857600     # 100MB disk
+  auto_disable_on_low_memory: true
+  low_memory_threshold: 10485760  # 10MB free

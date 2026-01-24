@@ -1,0 +1,45 @@
+{
+  "id": "example-flow-1",
+  "name": "Example Flow",
+  "description": "A simple example flow with inject and debug nodes",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "inject-1",
+      "type": "inject",
+      "name": "Inject Message",
+      "position": {
+        "x": 100,
+        "y": 100
+      },
+      "config": {
+        "interval": "5s",
+        "payload": {
+          "message": "Hello from EdgeFlow!",
+          "timestamp": "{{timestamp}}"
+        },
+        "topic": "test/message"
+      }
+    },
+    {
+      "id": "debug-1",
+      "type": "debug",
+      "name": "Debug Output",
+      "position": {
+        "x": 400,
+        "y": 100
+      },
+      "config": {
+        "output_to": "console",
+        "complete": false
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1",
+      "source_id": "inject-1",
+      "target_id": "debug-1"
+    }
+  ]
+}

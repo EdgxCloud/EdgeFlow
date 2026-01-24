@@ -1,0 +1,76 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build artifacts
+dist/
+build/
+
+# Test files
+*.test
+coverage.out
+coverage.html
+
+# Dependency directories
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Logs
+*.log
+logs/
+
+# Temp files
+tmp/
+temp/
+
+# Frontend
+web/node_modules/
+web/dist/
+web/.cache/
+web/.parcel-cache/
+
+# Air (hot reload)
+tmp/
+
+# Config overrides
+configs/local.yaml
+configs/*.local.yaml
+
+# Credentials
+credentials/
+*.pem
+*.key
+*.crt
+
+# Backup files
+*.bak
+*.backup
+
+# Generated docs
+docs/swagger/

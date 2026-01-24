@@ -1,0 +1,347 @@
+{
+  "app": {
+    "name": "EdgeFlow",
+    "tagline": "IoT Automation Platform"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "workflows": "Workflows",
+    "editor": "Editor",
+    "executions": "Executions",
+    "settings": "Settings",
+    "modules": "Modules"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome to EdgeFlow",
+    "overview": "System Overview",
+    "stats": {
+      "totalFlows": "Total Workflows",
+      "activeFlows": "Active Workflows",
+      "totalNodes": "Total Nodes",
+      "executions": "Executions Today"
+    },
+    "systemHealth": {
+      "title": "System Health",
+      "cpu": "CPU Usage",
+      "memory": "Memory",
+      "disk": "Disk",
+      "uptime": "Uptime",
+      "status": {
+        "healthy": "Healthy",
+        "warning": "Warning",
+        "critical": "Critical"
+      }
+    },
+    "recentFlows": {
+      "title": "Recent Workflows",
+      "noFlows": "No workflows yet",
+      "createFirst": "Create your first workflow"
+    }
+  },
+  "workflows": {
+    "title": "Workflows",
+    "new": "New Workflow",
+    "search": "Search workflows...",
+    "filter": {
+      "all": "All",
+      "running": "Running",
+      "stopped": "Stopped",
+      "error": "Error"
+    },
+    "actions": {
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "export": "Export",
+      "delete": "Delete",
+      "run": "Run",
+      "stop": "Stop"
+    },
+    "status": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "error": "Error"
+    },
+    "empty": "No workflows found",
+    "nodes": "{{count}} nodes",
+    "connections": "{{count}} connections"
+  },
+  "editor": {
+    "title": "Workflow Editor",
+    "toolbar": {
+      "deploy": "Deploy",
+      "run": "Run",
+      "stop": "Stop",
+      "debug": "Debug",
+      "import": "Import",
+      "export": "Export",
+      "save": "Save",
+      "undo": "Undo",
+      "redo": "Redo"
+    },
+    "palette": {
+      "title": "Node Palette",
+      "search": "Search nodes...",
+      "recent": "Recently Used",
+      "categories": {
+        "core": "Core",
+        "hardware": "Hardware",
+        "network": "Network",
+        "storage": "Storage",
+        "integration": "Integration",
+        "function": "Function"
+      }
+    },
+    "properties": {
+      "title": "Properties",
+      "tabs": {
+        "properties": "Properties",
+        "appearance": "Appearance"
+      },
+      "noNode": "Select a node to edit properties"
+    },
+    "debug": {
+      "title": "Debug",
+      "clear": "Clear",
+      "filter": "Filter",
+      "levels": {
+        "all": "All",
+        "info": "Info",
+        "debug": "Debug",
+        "warn": "Warning",
+        "error": "Error"
+      },
+      "noMessages": "No debug messages",
+      "copy": "Copy"
+    },
+    "canvas": {
+      "empty": "Drag nodes from the palette to get started",
+      "zoom": "Zoom",
+      "fit": "Fit View"
+    }
+  },
+  "executions": {
+    "title": "Execution History",
+    "filter": {
+      "status": "Status",
+      "flow": "Workflow",
+      "dateRange": "Date Range"
+    },
+    "columns": {
+      "id": "ID",
+      "flow": "Workflow",
+      "status": "Status",
+      "startTime": "Start Time",
+      "duration": "Duration",
+      "actions": "Actions"
+    },
+    "status": {
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "empty": "No executions found",
+    "viewLogs": "View Logs"
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "general": "General",
+      "appearance": "Appearance",
+      "notifications": "Notifications",
+      "security": "Security",
+      "database": "Database"
+    },
+    "general": {
+      "title": "General Settings",
+      "language": "Language",
+      "timezone": "Timezone",
+      "autoSave": "Auto-save",
+      "autoSaveInterval": "Auto-save interval (seconds)"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "theme": "Theme",
+      "themes": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+      },
+      "accentColor": "Accent Color"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "enableEmail": "Email notifications",
+      "enablePush": "Push notifications",
+      "notifyOnError": "Notify on errors",
+      "notifyOnSuccess": "Notify on success"
+    },
+    "security": {
+      "title": "Security",
+      "changePassword": "Change Password",
+      "apiKeys": "API Keys",
+      "sessions": "Active Sessions",
+      "twoFactor": "Two-Factor Authentication"
+    },
+    "database": {
+      "title": "Database",
+      "type": "Database Type",
+      "host": "Host",
+      "port": "Port",
+      "name": "Database Name",
+      "backup": "Backup",
+      "restore": "Restore"
+    }
+  },
+  "deploy": {
+    "title": "Deploy Workflow",
+    "mode": {
+      "title": "Deploy Mode",
+      "full": "Full",
+      "fullDesc": "Stop all flows and deploy all changes",
+      "modified": "Modified Flows",
+      "modifiedDesc": "Deploy only modified flows",
+      "flow": "This Flow",
+      "flowDesc": "Deploy only this flow"
+    },
+    "confirm": "Deploy",
+    "cancel": "Cancel",
+    "deploying": "Deploying...",
+    "success": "Deployment successful",
+    "error": "Deployment failed: {{message}}"
+  },
+  "nodes": {
+    "core": {
+      "inject": "Inject",
+      "debug": "Debug",
+      "function": "Function",
+      "if": "If",
+      "delay": "Delay",
+      "exec": "Exec",
+      "python": "Python",
+      "template": "Template",
+      "switch": "Switch",
+      "change": "Change",
+      "range": "Range",
+      "split": "Split",
+      "join": "Join",
+      "catch": "Catch",
+      "status": "Status",
+      "complete": "Complete"
+    },
+    "hardware": {
+      "gpioIn": "GPIO In",
+      "gpioOut": "GPIO Out",
+      "pwm": "PWM",
+      "servo": "Servo",
+      "i2c": "I2C",
+      "spi": "SPI",
+      "serial": "Serial",
+      "dht": "DHT Sensor",
+      "ds18b20": "DS18B20",
+      "bmp280": "BMP280",
+      "sht3x": "SHT3X",
+      "hcsr04": "HC-SR04"
+    },
+    "network": {
+      "httpRequest": "HTTP Request",
+      "httpIn": "HTTP In",
+      "httpResponse": "HTTP Response",
+      "mqttIn": "MQTT In",
+      "mqttOut": "MQTT Out",
+      "websocket": "WebSocket",
+      "tcp": "TCP",
+      "udp": "UDP",
+      "jsonParser": "JSON",
+      "xmlParser": "XML",
+      "csvParser": "CSV",
+      "yamlParser": "YAML"
+    },
+    "storage": {
+      "mysql": "MySQL",
+      "postgresql": "PostgreSQL",
+      "mongodb": "MongoDB",
+      "redis": "Redis",
+      "file": "File"
+    },
+    "integration": {
+      "telegram": "Telegram",
+      "email": "Email",
+      "slack": "Slack",
+      "discord": "Discord",
+      "openai": "OpenAI",
+      "anthropic": "Anthropic",
+      "ollama": "Ollama"
+    }
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "close": "Close",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "apply": "Apply",
+    "reset": "Reset",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "skip": "Skip"
+  },
+  "errors": {
+    "generic": "An error occurred",
+    "network": "Network error",
+    "notFound": "Not found",
+    "unauthorized": "Unauthorized",
+    "forbidden": "Forbidden",
+    "serverError": "Server error",
+    "validation": "Validation error",
+    "required": "This field is required"
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Welcome to EdgeFlow",
+      "description": "Let's get you started with your first workflow"
+    },
+    "palette": {
+      "title": "Node Palette",
+      "description": "Drag nodes from here to the canvas to build your workflow"
+    },
+    "canvas": {
+      "title": "Workflow Canvas",
+      "description": "Connect nodes together to create automation flows"
+    },
+    "properties": {
+      "title": "Node Properties",
+      "description": "Configure each node's settings here"
+    },
+    "deploy": {
+      "title": "Deploy",
+      "description": "Click deploy to activate your workflow"
+    }
+  },
+  "sampleFlows": {
+    "title": "Sample Workflows",
+    "categories": {
+      "basic": "Basic",
+      "iot": "IoT",
+      "integration": "Integration",
+      "automation": "Automation"
+    },
+    "import": "Import",
+    "preview": "Preview"
+  }
+}

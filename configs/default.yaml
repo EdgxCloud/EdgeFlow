@@ -1,0 +1,64 @@
+# EdgeFlow Configuration
+# Copy this file to local.yaml for local overrides
+
+# Server settings
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+
+# Database settings
+database:
+  driver: sqlite
+  path: "./data/edgeflow.db"
+  # For PostgreSQL:
+  # driver: postgres
+  # host: localhost
+  # port: 5432
+  # user: edgeflow
+  # password: secret
+  # dbname: edgeflow
+  # sslmode: disable
+
+# Logging settings
+logging:
+  level: info  # debug, info, warn, error
+  format: json  # json, console
+  output: stdout  # stdout, file
+  file_path: "./logs/edgeflow.log"
+
+# Engine settings
+engine:
+  max_concurrent_executions: 100
+  execution_timeout: 5m
+  retry_attempts: 3
+  retry_delay: 5s
+
+# WebSocket settings
+websocket:
+  enabled: true
+  ping_interval: 30s
+
+# Security settings
+security:
+  enabled: false  # Set to true in production
+  jwt_secret: "change-me-in-production"
+  jwt_expiry: 24h
+  api_key_enabled: false
+
+# Hardware settings (for Raspberry Pi)
+hardware:
+  gpio_enabled: false  # Auto-detected on Pi
+  i2c_enabled: false
+  spi_enabled: false
+
+# Scheduler settings
+scheduler:
+  enabled: true
+  timezone: "Asia/Tehran"
+
+# Metrics settings
+metrics:
+  enabled: false
+  prometheus_port: 9090

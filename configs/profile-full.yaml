@@ -1,0 +1,344 @@
+# EdgeFlow Full Profile Configuration
+# Target: Raspberry Pi 4 / 5 (4-8GB RAM)
+# Use Case: Development, complex automation, AI processing, team collaboration
+
+profile:
+  name: full
+  description: "Full-featured build with all capabilities"
+  target_boards: ["Pi 4 (4GB+)", "Pi 5", "x86_64 servers"]
+  max_binary_size: 41943040  # 40MB
+  max_ram_usage: 419430400   # 400MB
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  read_timeout: 120s
+  write_timeout: 120s
+  max_connections: 200
+  http2: true
+  compression: true
+
+modules:
+  # Core module (all features)
+  core:
+    enabled: true
+    nodes:
+      - inject
+      - debug
+      - function
+      - if
+      - delay
+      - change
+      - switch
+      - template
+      - range
+      - split
+      - join
+      - batch
+      - sort
+      - catch
+      - status
+      - complete
+
+  # Network module (full)
+  network:
+    enabled: true
+    mode: full
+    nodes:
+      - http-in
+      - http-out
+      - mqtt-in
+      - mqtt-out
+      - websocket-in
+      - websocket-out
+      - tcp-in
+      - tcp-out
+      - udp-in
+      - udp-out
+      - watch
+      - file-in
+      - file-out
+    features:
+      tls: true
+      http2: true
+      json_parser: true
+      xml_parser: true
+      csv_parser: true
+      yaml_parser: true
+      compression: true
+
+  # GPIO module (full)
+  gpio:
+    enabled: true
+    nodes:
+      - gpio-in
+      - gpio-out
+      - pwm
+      - i2c
+      - spi
+      - serial
+    features:
+      i2c: true
+      spi: true
+      interrupts: true
+      onewire: true
+      sensors:
+        - dht
+        - ds18b20
+        - bmp280
+        - sht3x
+        - aht20
+        - hcsr04      # Ultrasonic
+
+  # Messaging module (all services)
+  messaging:
+    enabled: true
+    services:
+      - telegram
+      - email
+      - slack
+      - discord
+      - sms
+      - webhook
+
+  # Database module (all drivers)
+  database:
+    enabled: true
+    drivers:
+      - mysql
+      - postgresql
+      - mongodb
+      - redis
+      - sqlite
+    features:
+      connection_pooling: true
+      max_connections: 50
+      query_caching: true
+
+  # AI module
+  ai:
+    enabled: true
+    providers:
+      - openai
+      - anthropic
+      - ollama       # Local LLM
+    features:
+      text_processing: true
+      embeddings: true
+      vision: true
+      streaming: true
+
+  # Industrial module (all protocols)
+  industrial:
+    enabled: true
+    protocols:
+      - modbus-tcp
+      - modbus-rtu
+      - opcua
+      - knx
+      - bacnet
+      - profinet
+
+  # Advanced module
+  advanced:
+    enabled: true
+    features:
+      - subflows
+      - link_nodes
+      - expression_editor
+      - environment_variables
+      - groups
+      - junctions
+      - context_persistence
+
+  # UI Advanced module
+  ui_advanced:
+    enabled: true
+    features:
+      - multiple_tabs
+      - advanced_debug
+      - execution_visualization
+      - breakpoints
+      - step_debugging
+      - wire_animations
+      - node_search
+      - flow_diff
+      - template_gallery
+
+  # Collaboration module
+  collaboration:
+    enabled: true
+    features:
+      - multi_user
+      - real_time_sync
+      - git_integration
+      - comments
+      - annotations
+      - version_control
+      - change_tracking
+
+ui:
+  mode: advanced
+  features:
+    basic_editor: true
+    simple_debug: true
+    advanced_debug: true
+    minimap: true
+    execution_tracking: true
+    execution_visualization: true
+    expression_editor: true
+    subflows: true
+    templates: true
+    collaboration: true
+    breakpoints: true
+    profiler: true
+  themes:
+    - light
+    - dark
+    - auto
+
+storage:
+  type: sqlite
+  path: ./data/edgeflow.db
+  in_memory: false
+  cache_size: 102400        # 100MB cache
+  wal_mode: true            # Write-Ahead Logging for performance
+  backup:
+    enabled: true
+    interval: 24h
+    retention: 7
+
+context:
+  storage: hybrid           # Memory + file + optional Redis
+  memory:
+    enabled: true
+    max_size: 52428800      # 50MB
+  file:
+    enabled: true
+    path: ./data/context
+    sync_interval: 10s
+  redis:
+    enabled: false          # Optional
+    host: localhost
+    port: 6379
+  max_size: 104857600       # 100MB total
+
+performance:
+  max_flows: 100
+  max_nodes_per_flow: 500
+  max_executions_per_second: 200
+  execution_queue_size: 200
+  worker_pool_size: 8       # Multi-core utilization
+  gc_interval: 300s
+  parallel_execution: true
+  optimization_level: 2
+
+logging:
+  level: debug
+  output: both              # stdout + file
+  file: ./logs/edgeflow.log
+  max_size: 52428800        # 50MB per log file
+  max_backups: 10
+  compress: true
+  structured: true          # JSON logs
+  trace_sampling: 0.1       # 10% trace sampling
+
+metrics:
+  enabled: true
+  prometheus: true
+  endpoint: /metrics
+  collection_interval: 15s
+  detailed: true
+  custom_metrics: true
+  exporters:
+    - prometheus
+    - influxdb            # Optional
+    - grafana_cloud       # Optional
+
+security:
+  jwt:
+    enabled: true
+    secret_key: ${JWT_SECRET_KEY}
+    expiration: 24h
+    refresh_enabled: true
+  api_keys:
+    enabled: true
+    max_keys_per_user: 10
+  encryption:
+    enabled: true
+    password: ${ENCRYPTION_PASSWORD}
+    algorithm: aes-256-gcm
+  rbac:
+    enabled: true
+    roles:
+      - admin
+      - developer
+      - operator
+      - viewer
+  tls:
+    enabled: false          # Optional
+    cert: ./certs/server.crt
+    key: ./certs/server.key
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 1000
+  cors:
+    enabled: true
+    allowed_origins: ["*"]
+
+health_checks:
+  enabled: true
+  interval: 15s
+  checks:
+    - database
+    - memory
+    - disk
+    - goroutines
+    - cpu
+    - network
+  endpoints:
+    liveness: /health/live
+    readiness: /health/ready
+
+# Resource limits
+resources:
+  memory_limit: 419430400   # 400MB soft limit
+  memory_hard_limit: 838860800  # 800MB hard limit
+  disk_limit: 5368709120    # 5GB disk
+  cpu_limit: 0              # No limit (use all available)
+  auto_disable_on_low_memory: true
+  low_memory_threshold: 104857600  # 100MB free
+
+# Auto-scaling
+auto_scale:
+  enabled: true
+  rules:
+    - condition: memory_usage > 85%
+      action: increase_gc_frequency
+    - condition: cpu_usage > 90%
+      action: throttle_executions
+    - condition: queue_depth > 150
+      action: increase_workers
+
+# Development features
+development:
+  hot_reload: true
+  profiling: true
+  debug_mode: false         # Disabled in production
+  verbose_errors: true
+  source_maps: true
+
+# Monitoring & Observability
+monitoring:
+  tracing:
+    enabled: false          # Optional (OpenTelemetry)
+    endpoint: http://localhost:4318
+  profiling:
+    enabled: true
+    pprof_port: 6060
+  alerts:
+    enabled: false          # Optional
+    channels:
+      - email
+      - slack
+      - webhook

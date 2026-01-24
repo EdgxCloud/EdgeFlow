@@ -1,0 +1,245 @@
+# EdgeFlow Build Configuration
+# Defines build profiles and module configurations for different target boards
+
+version: "0.1.0"
+
+# Build profiles for different board capabilities
+profiles:
+  minimal:
+    name: "Minimal Profile"
+    description: "For Raspberry Pi Zero, BeagleBone (512MB RAM)"
+    target_boards:
+      - "Raspberry Pi Zero W"
+      - "Raspberry Pi Zero 2 W"
+      - "BeagleBone Black"
+      - "BeagleBone Green"
+    memory_limit_mb: 512
+    disk_limit_mb: 100
+    target_binary_size_mb: 10
+    target_ram_usage_mb: 50
+    enabled_modules:
+      - core
+    build_tags:
+      - minimal
+    ldflags: "-w -s"  # Strip debug info
+    optimization: "-trimpath"
+
+  standard:
+    name: "Standard Profile"
+    description: "For Raspberry Pi 3, Orange Pi (1GB RAM)"
+    target_boards:
+      - "Raspberry Pi 3B"
+      - "Raspberry Pi 3B+"
+      - "Orange Pi"
+      - "Banana Pi"
+    memory_limit_mb: 1024
+    disk_limit_mb: 200
+    target_binary_size_mb: 20
+    target_ram_usage_mb: 200
+    enabled_modules:
+      - core
+      - network
+      - gpio
+      - database
+    build_tags:
+      - standard
+      - network
+      - gpio
+      - database
+    ldflags: "-w -s"
+    optimization: "-trimpath"
+
+  full:
+    name: "Full Profile"
+    description: "For Raspberry Pi 4/5, Jetson Nano (2GB+ RAM)"
+    target_boards:
+      - "Raspberry Pi 4B (2GB+)"
+      - "Raspberry Pi 5"
+      - "NVIDIA Jetson Nano"
+      - "NVIDIA Jetson Orin Nano"
+      - "Asus Tinker Board"
+    memory_limit_mb: 2048
+    disk_limit_mb: 400
+    target_binary_size_mb: 35
+    target_ram_usage_mb: 400
+    enabled_modules:
+      - core
+      - network
+      - gpio
+      - database
+      - messaging
+      - ai
+      - industrial
+      - advanced
+    build_tags:
+      - full
+      - network
+      - gpio
+      - database
+      - messaging
+      - ai
+      - industrial
+      - advanced
+    ldflags: "-w"  # Keep some debug info
+    optimization: ""
+
+# Module definitions
+modules:
+  core:
+    name: "Core Nodes"
+    description: "Essential nodes (inject, debug, function, if, delay)"
+    required: true
+    memory_mb: 5
+    disk_mb: 2
+    build_tag: ""  # Always included
+    source_files:
+      - "internal/nodes/core/**/*.go"
+    dependencies: []
+
+  network:
+    name: "Network Module"
+    description: "HTTP, WebSocket, MQTT, TCP/UDP nodes"
+    required: false
+    memory_mb: 15
+    disk_mb: 8
+    build_tag: "network"
+    source_files:
+      - "internal/nodes/network/**/*.go"
+    dependencies:
+      - core
+
+  gpio:
+    name: "GPIO Module"
+    description: "GPIO, I2C, SPI, PWM control"
+    required: false
+    memory_mb: 10
+    disk_mb: 5
+    build_tag: "gpio"
+    source_files:
+      - "internal/nodes/gpio/**/*.go"
+    dependencies:
+      - core
+
+  database:
+    name: "Database Module"
+    description: "SQLite, PostgreSQL, MongoDB, InfluxDB nodes"
+    required: false
+    memory_mb: 30
+    disk_mb: 15
+    build_tag: "database"
+    source_files:
+      - "internal/nodes/database/**/*.go"
+    dependencies:
+      - core
+
+  messaging:
+    name: "Messaging Module"
+    description: "Telegram, Email, SMS, Webhook nodes"
+    required: false
+    memory_mb: 20
+    disk_mb: 10
+    build_tag: "messaging"
+    source_files:
+      - "internal/nodes/messaging/**/*.go"
+    dependencies:
+      - core
+      - network
+
+  ai:
+    name: "AI/ML Module"
+    description: "TensorFlow Lite, OpenCV, Image Recognition"
+    required: false
+    memory_mb: 100
+    disk_mb: 50
+    build_tag: "ai"
+    source_files:
+      - "internal/nodes/ai/**/*.go"
+    dependencies:
+      - core
+
+  industrial:
+    name: "Industrial Module"
+    description: "Modbus, OPC-UA, industrial protocols"
+    required: false
+    memory_mb: 25
+    disk_mb: 12
+    build_tag: "industrial"
+    source_files:
+      - "internal/nodes/industrial/**/*.go"
+    dependencies:
+      - core
+      - network
+
+  advanced:
+    name: "Advanced Module"
+    description: "Custom scripting, advanced transformations"
+    required: false
+    memory_mb: 15
+    disk_mb: 8
+    build_tag: "advanced"
+    source_files:
+      - "internal/nodes/advanced/**/*.go"
+    dependencies:
+      - core
+
+# Platform-specific build settings
+platforms:
+  linux-arm64:
+    goos: linux
+    goarch: arm64
+    cgo_enabled: 1
+    cc: aarch64-linux-gnu-gcc
+    description: "Raspberry Pi 4/5 (64-bit)"
+
+  linux-arm:
+    goos: linux
+    goarch: arm
+    goarm: 7
+    cgo_enabled: 1
+    cc: arm-linux-gnueabihf-gcc
+    description: "Raspberry Pi 3/Zero (32-bit)"
+
+  linux-amd64:
+    goos: linux
+    goarch: amd64
+    cgo_enabled: 1
+    description: "Linux AMD64 (development)"
+
+  darwin-arm64:
+    goos: darwin
+    goarch: arm64
+    cgo_enabled: 1
+    description: "macOS Apple Silicon (development)"
+
+  darwin-amd64:
+    goos: darwin
+    goarch: amd64
+    cgo_enabled: 1
+    description: "macOS Intel (development)"
+
+# Build optimizations
+optimizations:
+  minimal:
+    - "Strip debug symbols (-w -s)"
+    - "Remove file paths (-trimpath)"
+    - "Disable cgo where possible"
+    - "Use static linking"
+    - "Compress with upx"
+
+  standard:
+    - "Strip debug symbols (-w -s)"
+    - "Remove file paths (-trimpath)"
+    - "Optimize for size"
+
+  full:
+    - "Keep debug symbols for production debugging"
+    - "Optimize for performance"
+
+# Testing configuration
+testing:
+  unit_coverage_target: 70
+  integration_coverage_target: 60
+  test_tags:
+    - unit
+    - integration
+    - e2e

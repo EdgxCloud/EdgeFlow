@@ -1,0 +1,601 @@
+{
+  "name": "Raspberry Pi 5 IoT Demo - Complete Automation",
+  "description": "Comprehensive workflow for Raspberry Pi 5 (4GB) demonstrating GPIO control, temperature monitoring, MQTT, HTTP APIs, and automation logic",
+  "platform": "raspberry-pi-5",
+  "memory": "4GB",
+  "nodes": [
+    {
+      "id": "inject-1",
+      "type": "inject",
+      "name": "Every 30 Seconds Trigger",
+      "x": 100,
+      "y": 100,
+      "config": {
+        "interval": 30,
+        "payload": {
+          "timestamp": "{{timestamp}}",
+          "device": "raspberry-pi-5"
+        },
+        "repeat": true,
+        "cron": "",
+        "once": false
+      }
+    },
+    {
+      "id": "gpio-temp-1",
+      "type": "ds18b20",
+      "name": "DS18B20 Temperature Sensor",
+      "x": 300,
+      "y": 100,
+      "config": {
+        "pin": "GPIO4",
+        "sensorId": "28-00000xxxxx",
+        "unit": "celsius",
+        "precision": 2,
+        "interval": 30000
+      },
+      "wires": [["function-1", "mqtt-out-1"]]
+    },
+    {
+      "id": "function-1",
+      "type": "function",
+      "name": "Process Temperature Data",
+      "x": 500,
+      "y": 100,
+      "config": {
+        "code": "// Process temperature reading\nconst temp = msg.payload.temperature;\nconst timestamp = new Date().toISOString();\n\n// Create processed message\nmsg.payload = {\n  device: 'raspberry-pi-5',\n  sensor: 'ds18b20',\n  temperature: temp,\n  unit: 'celsius',\n  timestamp: timestamp,\n  status: temp > 30 ? 'warning' : 'normal'\n};\n\n// Add alert if temperature is high\nif (temp > 35) {\n  msg.alert = true;\n  msg.alertLevel = 'critical';\n} else if (temp > 30) {\n  msg.alert = true;\n  msg.alertLevel = 'warning';\n}\n\nreturn msg;"
+      },
+      "wires": [["switch-1", "debug-1"]]
+    },
+    {
+      "id": "switch-1",
+      "type": "switch",
+      "name": "Temperature Router",
+      "x": 700,
+      "y": 100,
+      "config": {
+        "property": "payload.temperature",
+        "rules": [
+          {
+            "type": "gt",
+            "value": 35,
+            "output": 0
+          },
+          {
+            "type": "between",
+            "value": [25, 35],
+            "output": 1
+          },
+          {
+            "type": "lt",
+            "value": 25,
+            "output": 2
+          }
+        ]
+      },
+      "wires": [
+        ["gpio-out-1", "http-alert-1"],
+        ["gpio-out-2"],
+        ["gpio-out-3"]
+      ]
+    },
+    {
+      "id": "gpio-out-1",
+      "type": "gpio-out",
+      "name": "Red LED (High Temp)",
+      "x": 900,
+      "y": 50,
+      "config": {
+        "pin": 17,
+        "mode": "output",
+        "initialState": "low",
+        "pwm": false,
+        "description": "BCM GPIO17 - Red LED for high temperature alert"
+      }
+    },
+    {
+      "id": "gpio-out-2",
+      "type": "gpio-out",
+      "name": "Yellow LED (Normal)",
+      "x": 900,
+      "y": 100,
+      "config": {
+        "pin": 27,
+        "mode": "output",
+        "initialState": "low",
+        "pwm": false,
+        "description": "BCM GPIO27 - Yellow LED for normal temperature"
+      }
+    },
+    {
+      "id": "gpio-out-3",
+      "type": "gpio-out",
+      "name": "Green LED (Low Temp)",
+      "x": 900,
+      "y": 150,
+      "config": {
+        "pin": 22,
+        "mode": "output",
+        "initialState": "low",
+        "pwm": false,
+        "description": "BCM GPIO22 - Green LED for low temperature"
+      }
+    },
+    {
+      "id": "http-alert-1",
+      "type": "http-request",
+      "name": "Send Alert to API",
+      "x": 900,
+      "y": 200,
+      "config": {
+        "method": "POST",
+        "url": "https://api.example.com/alerts",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer YOUR_API_TOKEN"
+        },
+        "body": "{{payload}}",
+        "timeout": 5000,
+        "retry": 3
+      },
+      "wires": [["debug-2"]]
+    },
+    {
+      "id": "mqtt-out-1",
+      "type": "mqtt-out",
+      "name": "Publish to MQTT",
+      "x": 500,
+      "y": 200,
+      "config": {
+        "broker": "mqtt://localhost:1883",
+        "topic": "home/raspberry-pi-5/temperature",
+        "qos": 1,
+        "retain": true,
+        "clientId": "raspberry-pi-5-sensor",
+        "username": "",
+        "password": "",
+        "cleanSession": true
+      }
+    },
+    {
+      "id": "mqtt-in-1",
+      "type": "mqtt-in",
+      "name": "Subscribe to Commands",
+      "x": 100,
+      "y": 300,
+      "config": {
+        "broker": "mqtt://localhost:1883",
+        "topic": "home/raspberry-pi-5/commands/#",
+        "qos": 1,
+        "clientId": "raspberry-pi-5-subscriber",
+        "username": "",
+        "password": ""
+      },
+      "wires": [["function-2"]]
+    },
+    {
+      "id": "function-2",
+      "type": "function",
+      "name": "Parse MQTT Command",
+      "x": 300,
+      "y": 300,
+      "config": {
+        "code": "// Parse incoming MQTT command\nconst topic = msg.topic;\nconst payload = msg.payload;\n\n// Extract command from topic\nconst topicParts = topic.split('/');\nconst command = topicParts[topicParts.length - 1];\n\n// Process command\nif (command === 'relay') {\n  msg.payload = {\n    pin: payload.pin || 23,\n    state: payload.state || 'toggle'\n  };\n  msg.target = 'relay';\n} else if (command === 'pwm') {\n  msg.payload = {\n    pin: payload.pin || 18,\n    dutyCycle: payload.dutyCycle || 50\n  };\n  msg.target = 'pwm';\n}\n\nreturn msg;"
+      },
+      "wires": [["switch-2"]]
+    },
+    {
+      "id": "switch-2",
+      "type": "switch",
+      "name": "Command Router",
+      "x": 500,
+      "y": 300,
+      "config": {
+        "property": "target",
+        "rules": [
+          {
+            "type": "eq",
+            "value": "relay",
+            "output": 0
+          },
+          {
+            "type": "eq",
+            "value": "pwm",
+            "output": 1
+          }
+        ]
+      },
+      "wires": [
+        ["gpio-out-4"],
+        ["pwm-1"]
+      ]
+    },
+    {
+      "id": "gpio-out-4",
+      "type": "gpio-out",
+      "name": "Relay Control",
+      "x": 700,
+      "y": 280,
+      "config": {
+        "pin": 23,
+        "mode": "output",
+        "initialState": "low",
+        "pwm": false,
+        "failsafe": "low",
+        "description": "BCM GPIO23 - Relay for external device control"
+      }
+    },
+    {
+      "id": "pwm-1",
+      "type": "pwm",
+      "name": "PWM Fan Control",
+      "x": 700,
+      "y": 320,
+      "config": {
+        "pin": 18,
+        "frequency": 25000,
+        "dutyCycle": 50,
+        "mode": "hardware",
+        "description": "BCM GPIO18 - Hardware PWM for cooling fan"
+      }
+    },
+    {
+      "id": "gpio-in-1",
+      "type": "gpio-in",
+      "name": "Motion Sensor (PIR)",
+      "x": 100,
+      "y": 450,
+      "config": {
+        "pin": 24,
+        "mode": "input",
+        "pullMode": "down",
+        "edge": "both",
+        "debounce": 50,
+        "description": "BCM GPIO24 - PIR motion sensor input"
+      },
+      "wires": [["function-3", "debug-3"]]
+    },
+    {
+      "id": "function-3",
+      "type": "function",
+      "name": "Motion Detection Logic",
+      "x": 300,
+      "y": 450,
+      "config": {
+        "code": "// Motion detection processing\nconst state = msg.payload;\nconst timestamp = new Date().toISOString();\n\nmsg.payload = {\n  sensor: 'pir-motion',\n  motion: state === 1,\n  timestamp: timestamp,\n  location: 'room-1'\n};\n\n// Only trigger on motion detected (rising edge)\nif (state === 1) {\n  msg.triggerAction = true;\n}\n\nreturn msg;"
+      },
+      "wires": [["delay-1"]]
+    },
+    {
+      "id": "delay-1",
+      "type": "delay",
+      "name": "Debounce 2 Seconds",
+      "x": 500,
+      "y": 450,
+      "config": {
+        "delay": 2000,
+        "mode": "rate-limit",
+        "rate": 1,
+        "rateUnit": "second"
+      },
+      "wires": [["http-request-1", "mqtt-out-2"]]
+    },
+    {
+      "id": "http-request-1",
+      "type": "http-request",
+      "name": "Log Motion Event",
+      "x": 700,
+      "y": 450,
+      "config": {
+        "method": "POST",
+        "url": "http://192.168.1.100:3000/api/events",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{{payload}}",
+        "timeout": 3000
+      }
+    },
+    {
+      "id": "mqtt-out-2",
+      "type": "mqtt-out",
+      "name": "Publish Motion Event",
+      "x": 700,
+      "y": 500,
+      "config": {
+        "broker": "mqtt://localhost:1883",
+        "topic": "home/raspberry-pi-5/motion",
+        "qos": 1,
+        "retain": false
+      }
+    },
+    {
+      "id": "bmp280-1",
+      "type": "bmp280",
+      "name": "BMP280 Pressure/Temp",
+      "x": 100,
+      "y": 600,
+      "config": {
+        "i2cBus": 1,
+        "address": "0x76",
+        "readInterval": 60000,
+        "temperatureOversampling": "x2",
+        "pressureOversampling": "x16"
+      },
+      "wires": [["function-4"]]
+    },
+    {
+      "id": "function-4",
+      "type": "function",
+      "name": "Weather Data Processor",
+      "x": 300,
+      "y": 600,
+      "config": {
+        "code": "// Process BMP280 sensor data\nconst temp = msg.payload.temperature;\nconst pressure = msg.payload.pressure;\nconst timestamp = new Date().toISOString();\n\n// Calculate altitude (approximate)\nconst seaLevelPressure = 1013.25;\nconst altitude = 44330 * (1 - Math.pow(pressure / seaLevelPressure, 1/5.255));\n\nmsg.payload = {\n  device: 'raspberry-pi-5',\n  sensor: 'bmp280',\n  temperature: Math.round(temp * 100) / 100,\n  pressure: Math.round(pressure * 100) / 100,\n  altitude: Math.round(altitude * 100) / 100,\n  timestamp: timestamp\n};\n\nreturn msg;"
+      },
+      "wires": [["mqtt-out-3", "file-out-1"]]
+    },
+    {
+      "id": "mqtt-out-3",
+      "type": "mqtt-out",
+      "name": "Publish Weather Data",
+      "x": 500,
+      "y": 600,
+      "config": {
+        "broker": "mqtt://localhost:1883",
+        "topic": "home/raspberry-pi-5/weather",
+        "qos": 1,
+        "retain": true
+      }
+    },
+    {
+      "id": "file-out-1",
+      "type": "file-out",
+      "name": "Log to CSV File",
+      "x": 500,
+      "y": 650,
+      "config": {
+        "filename": "/home/pi/logs/weather-data.csv",
+        "mode": "append",
+        "encoding": "utf8",
+        "createDir": true,
+        "format": "csv"
+      }
+    },
+    {
+      "id": "inject-2",
+      "type": "inject",
+      "name": "Daily Cleanup (2 AM)",
+      "x": 100,
+      "y": 750,
+      "config": {
+        "interval": 0,
+        "cron": "0 2 * * *",
+        "payload": {
+          "action": "cleanup"
+        },
+        "once": false
+      },
+      "wires": [["function-5"]]
+    },
+    {
+      "id": "function-5",
+      "type": "function",
+      "name": "Cleanup Old Logs",
+      "x": 300,
+      "y": 750,
+      "config": {
+        "code": "// Cleanup logic for old log files\nconst fs = require('fs');\nconst path = require('path');\nconst logDir = '/home/pi/logs';\nconst maxAgeDays = 30;\n\nmsg.payload = {\n  action: 'cleanup',\n  directory: logDir,\n  maxAgeDays: maxAgeDays,\n  timestamp: new Date().toISOString()\n};\n\nreturn msg;"
+      },
+      "wires": [["debug-4"]]
+    },
+    {
+      "id": "debug-1",
+      "type": "debug",
+      "name": "Temperature Debug",
+      "x": 700,
+      "y": 50,
+      "config": {
+        "output": "console",
+        "active": true,
+        "complete": "payload"
+      }
+    },
+    {
+      "id": "debug-2",
+      "type": "debug",
+      "name": "Alert Response",
+      "x": 1100,
+      "y": 200,
+      "config": {
+        "output": "console",
+        "active": true,
+        "complete": "true"
+      }
+    },
+    {
+      "id": "debug-3",
+      "type": "debug",
+      "name": "Motion Debug",
+      "x": 300,
+      "y": 500,
+      "config": {
+        "output": "sidebar",
+        "active": true,
+        "complete": "payload"
+      }
+    },
+    {
+      "id": "debug-4",
+      "type": "debug",
+      "name": "Cleanup Debug",
+      "x": 500,
+      "y": 750,
+      "config": {
+        "output": "console",
+        "active": true
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "inject-1",
+      "target": "gpio-temp-1"
+    },
+    {
+      "source": "gpio-temp-1",
+      "target": "function-1"
+    },
+    {
+      "source": "gpio-temp-1",
+      "target": "mqtt-out-1"
+    },
+    {
+      "source": "function-1",
+      "target": "switch-1"
+    },
+    {
+      "source": "function-1",
+      "target": "debug-1"
+    },
+    {
+      "source": "switch-1",
+      "sourceOutput": 0,
+      "target": "gpio-out-1"
+    },
+    {
+      "source": "switch-1",
+      "sourceOutput": 0,
+      "target": "http-alert-1"
+    },
+    {
+      "source": "switch-1",
+      "sourceOutput": 1,
+      "target": "gpio-out-2"
+    },
+    {
+      "source": "switch-1",
+      "sourceOutput": 2,
+      "target": "gpio-out-3"
+    },
+    {
+      "source": "http-alert-1",
+      "target": "debug-2"
+    },
+    {
+      "source": "mqtt-in-1",
+      "target": "function-2"
+    },
+    {
+      "source": "function-2",
+      "target": "switch-2"
+    },
+    {
+      "source": "switch-2",
+      "sourceOutput": 0,
+      "target": "gpio-out-4"
+    },
+    {
+      "source": "switch-2",
+      "sourceOutput": 1,
+      "target": "pwm-1"
+    },
+    {
+      "source": "gpio-in-1",
+      "target": "function-3"
+    },
+    {
+      "source": "gpio-in-1",
+      "target": "debug-3"
+    },
+    {
+      "source": "function-3",
+      "target": "delay-1"
+    },
+    {
+      "source": "delay-1",
+      "target": "http-request-1"
+    },
+    {
+      "source": "delay-1",
+      "target": "mqtt-out-2"
+    },
+    {
+      "source": "bmp280-1",
+      "target": "function-4"
+    },
+    {
+      "source": "function-4",
+      "target": "mqtt-out-3"
+    },
+    {
+      "source": "function-4",
+      "target": "file-out-1"
+    },
+    {
+      "source": "inject-2",
+      "target": "function-5"
+    },
+    {
+      "source": "function-5",
+      "target": "debug-4"
+    }
+  ],
+  "settings": {
+    "executionMode": "async",
+    "errorHandling": "retry",
+    "maxRetries": 3,
+    "logLevel": "info",
+    "autoStart": true
+  },
+  "hardware": {
+    "platform": "raspberry-pi-5",
+    "memory": "4GB",
+    "gpio": {
+      "used_pins": [4, 17, 18, 22, 23, 24, 27],
+      "i2c_bus": 1,
+      "spi_enabled": false,
+      "uart_enabled": false
+    }
+  },
+  "documentation": {
+    "description": "This comprehensive workflow demonstrates the full capabilities of EdgeFlow on Raspberry Pi 5 (4GB).",
+    "features": [
+      "DS18B20 temperature monitoring (GPIO4)",
+      "BMP280 barometric pressure and temperature sensor (I2C)",
+      "Motion detection with PIR sensor (GPIO24)",
+      "RGB LED status indicators (GPIO17, 22, 27)",
+      "Relay control via MQTT commands (GPIO23)",
+      "PWM fan control (GPIO18)",
+      "MQTT publish/subscribe for IoT integration",
+      "HTTP API integration for alerts and logging",
+      "File logging with CSV format",
+      "Automated daily cleanup tasks"
+    ],
+    "wiring": {
+      "GPIO4": "DS18B20 temperature sensor (1-Wire)",
+      "GPIO17": "Red LED (high temperature alert)",
+      "GPIO18": "PWM output for cooling fan",
+      "GPIO22": "Green LED (low temperature)",
+      "GPIO23": "Relay control output",
+      "GPIO24": "PIR motion sensor input",
+      "GPIO27": "Yellow LED (normal temperature)",
+      "I2C (SDA/SCL)": "BMP280 pressure sensor at address 0x76"
+    },
+    "mqtt_topics": {
+      "publish": [
+        "home/raspberry-pi-5/temperature",
+        "home/raspberry-pi-5/weather",
+        "home/raspberry-pi-5/motion"
+      ],
+      "subscribe": [
+        "home/raspberry-pi-5/commands/#"
+      ]
+    },
+    "performance": {
+      "memory_usage": "~250MB typical",
+      "cpu_usage": "~5-10% typical",
+      "suitable_for": "Raspberry Pi 5 4GB with active cooling"
+    }
+  }
+}

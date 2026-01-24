@@ -1,0 +1,205 @@
+# EdgeFlow Standard Profile Configuration
+# Target: Raspberry Pi 3B / 3B+ / 4 (1-2GB RAM)
+# Use Case: Smart home hub, data collection, industrial monitoring
+
+profile:
+  name: standard
+  description: "Balanced build for typical IoT applications"
+  target_boards: ["Pi 3B", "Pi 3B+", "Pi 4 (1-2GB)"]
+  max_binary_size: 20971520  # 20MB
+  max_ram_usage: 209715200   # 200MB
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  read_timeout: 60s
+  write_timeout: 60s
+  max_connections: 50
+
+modules:
+  # Core module
+  core:
+    enabled: true
+    nodes:
+      - inject
+      - debug
+      - function
+      - if
+      - delay
+      - change
+      - switch
+      - template    # Added for standard
+      - range       # Added for standard
+      - split       # Added for standard
+      - join        # Added for standard
+
+  # Network module (full)
+  network:
+    enabled: true
+    mode: full
+    nodes:
+      - http-in
+      - http-out
+      - mqtt-in
+      - mqtt-out
+      - websocket-in
+      - websocket-out
+      - tcp-in
+      - tcp-out
+      - udp-in
+      - udp-out
+      - watch       # File system watcher
+    features:
+      tls: true
+      json_parser: true
+      xml_parser: true
+      csv_parser: true
+
+  # GPIO module (full)
+  gpio:
+    enabled: true
+    nodes:
+      - gpio-in
+      - gpio-out
+      - pwm
+      - i2c
+    features:
+      i2c: true
+      spi: false          # Still disabled for standard
+      interrupts: true
+      sensors:
+        - dht           # Temperature/humidity
+        - ds18b20       # 1-Wire temperature
+
+  # Messaging module
+  messaging:
+    enabled: true
+    services:
+      - telegram
+      - email
+      - slack
+    features:
+      discord: false    # Optional
+      sms: false        # Optional
+
+  # Database module
+  database:
+    enabled: true
+    drivers:
+      - mysql
+      - redis
+    features:
+      postgresql: false  # Optional
+      mongodb: false     # Optional
+      connection_pooling: true
+      max_connections: 10
+
+  # Industrial module
+  industrial:
+    enabled: true
+    protocols:
+      - modbus-tcp
+      - modbus-rtu
+    features:
+      opcua: false      # Heavy, disabled for standard
+      knx: false
+      bacnet: false
+
+  # Disabled modules for standard
+  ai:
+    enabled: false
+
+  advanced:
+    enabled: false
+
+  ui_advanced:
+    enabled: false
+
+  collaboration:
+    enabled: false
+
+ui:
+  mode: standard
+  features:
+    basic_editor: true
+    simple_debug: true
+    advanced_debug: true
+    minimap: true
+    execution_tracking: true
+    expression_editor: false  # Requires advanced module
+    subflows: false           # Requires advanced module
+    templates: false
+  themes:
+    - light
+    - dark
+
+storage:
+  type: sqlite
+  path: ./data/edgeflow.db
+  in_memory: false
+  cache_size: 10240         # 10MB cache
+
+context:
+  storage: memory           # Memory + optional file
+  file_backend:
+    enabled: false          # Can be enabled manually
+    path: ./data/context
+  max_size: 10485760        # 10MB max context
+
+performance:
+  max_flows: 20
+  max_nodes_per_flow: 100
+  max_executions_per_second: 50
+  execution_queue_size: 50
+  worker_pool_size: 4
+  gc_interval: 120s
+
+logging:
+  level: info
+  output: stdout
+  file: ./logs/edgeflow.log
+  max_size: 10485760        # 10MB per log file
+  max_backups: 3
+  compress: true
+
+metrics:
+  enabled: true
+  prometheus: true
+  endpoint: /metrics
+  collection_interval: 30s
+
+security:
+  jwt:
+    enabled: true
+    secret_key: ${JWT_SECRET_KEY}
+    expiration: 24h
+  api_keys:
+    enabled: true
+  encryption:
+    enabled: true
+    password: ${ENCRYPTION_PASSWORD}
+
+health_checks:
+  enabled: true
+  interval: 30s
+  checks:
+    - database
+    - memory
+    - disk
+    - goroutines
+
+# Resource limits
+resources:
+  memory_limit: 209715200   # 200MB soft limit
+  disk_limit: 1073741824    # 1GB disk
+  auto_disable_on_low_memory: true
+  low_memory_threshold: 52428800  # 50MB free
+
+# Auto-scaling
+auto_scale:
+  enabled: true
+  rules:
+    - condition: memory_usage > 80%
+      action: disable_non_essential_features
+    - condition: cpu_usage > 90%
+      action: throttle_executions
