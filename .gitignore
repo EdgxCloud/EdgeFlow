@@ -74,3 +74,20 @@ credentials/
 
 # Generated docs
 docs/swagger/
+
+# Runtime generated files
+node-types.json
+temp_flows.json
+temp_nodes.json
+test-subflow.json
+
+# Claude Code settings
+.claude/
+
+# Development artifacts
+edgeflow/
+edgeflow-starter.zip
+
+# Temporary Windows files
+nul
+C\357\200\272UsersADMINI~1AppDataLocalTempnode-types-response.json
