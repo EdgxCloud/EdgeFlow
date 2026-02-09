@@ -1416,5 +1416,76 @@ func RegisterAllNodes(registry *node.Registry) error {
 		return err
 	}
 
+	// ============================================
+	// CAMERA NODE
+	// ============================================
+
+	// Pi Camera
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "pi-camera",
+		Name:        "Pi Camera",
+		Category:    node.NodeTypeInput,
+		Description: "Capture photos and video from Raspberry Pi Camera (CSI/USB)",
+		Icon:        "camera",
+		Color:       "#e11d48",
+		Properties: []node.PropertySchema{
+			{Name: "mode", Label: "Mode", Type: "select", Default: "photo", Options: []string{"photo", "video", "detect"}, Description: "Capture mode"},
+			{Name: "width", Label: "Width", Type: "number", Default: 1920, Description: "Image width in pixels"},
+			{Name: "height", Label: "Height", Type: "number", Default: 1080, Description: "Image height in pixels"},
+			{Name: "quality", Label: "Quality", Type: "number", Default: 85, Description: "JPEG quality (1-100)"},
+			{Name: "format", Label: "Format", Type: "select", Default: "jpeg", Options: []string{"jpeg", "png", "bmp"}, Description: "Image format"},
+			{Name: "rotation", Label: "Rotation", Type: "select", Default: "0", Options: []string{"0", "90", "180", "270"}, Description: "Image rotation degrees"},
+			{Name: "hflip", Label: "Horizontal Flip", Type: "boolean", Default: false, Description: "Flip image horizontally"},
+			{Name: "vflip", Label: "Vertical Flip", Type: "boolean", Default: false, Description: "Flip image vertically"},
+			{Name: "exposure", Label: "Exposure", Type: "select", Default: "auto", Options: []string{"auto", "short", "long"}, Description: "Exposure mode"},
+			{Name: "awb", Label: "White Balance", Type: "select", Default: "auto", Options: []string{"auto", "daylight", "cloudy", "tungsten", "fluorescent"}, Description: "Auto white balance mode"},
+			{Name: "duration", Label: "Video Duration (s)", Type: "number", Default: 5, Description: "Video recording duration in seconds"},
+			{Name: "outputDir", Label: "Output Directory", Type: "string", Default: "/tmp/edgeflow-camera", Description: "Directory for captured files"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Trigger", Type: "any", Description: "Trigger capture"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "any", Description: "Captured image/video data"},
+		},
+		Factory: func() node.Executor { return NewCameraExecutor() },
+	}); err != nil {
+		return err
+	}
+
+	// ============================================
+	// AUDIO NODE
+	// ============================================
+
+	// Audio (ALSA)
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "audio",
+		Name:        "Audio",
+		Category:    node.NodeTypeInput,
+		Description: "Record and play audio via ALSA (microphone, speaker, USB audio)",
+		Icon:        "mic",
+		Color:       "#7c3aed",
+		Properties: []node.PropertySchema{
+			{Name: "operation", Label: "Operation", Type: "select", Default: "detect", Options: []string{"record", "play", "detect", "volume"}, Description: "Audio operation"},
+			{Name: "device", Label: "ALSA Device", Type: "string", Default: "default", Description: "ALSA device name (e.g., hw:0,0, plughw:0,0, default)"},
+			{Name: "format", Label: "Format", Type: "select", Default: "wav", Options: []string{"wav", "raw"}, Description: "Audio format"},
+			{Name: "sampleRate", Label: "Sample Rate", Type: "select", Default: "44100", Options: []string{"8000", "16000", "22050", "44100", "48000"}, Description: "Sample rate in Hz"},
+			{Name: "channels", Label: "Channels", Type: "select", Default: "1", Options: []string{"1", "2"}, Description: "Audio channels (mono/stereo)"},
+			{Name: "bitDepth", Label: "Bit Depth", Type: "select", Default: "16", Options: []string{"8", "16", "24", "32"}, Description: "Sample bit depth"},
+			{Name: "duration", Label: "Duration (s)", Type: "number", Default: 5, Description: "Recording duration in seconds"},
+			{Name: "volume", Label: "Volume (%)", Type: "number", Default: 75, Description: "Playback volume (0-100)"},
+			{Name: "outputDir", Label: "Output Directory", Type: "string", Default: "/tmp/edgeflow-audio", Description: "Directory for recordings"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Trigger or audio file path"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "any", Description: "Audio data or device info"},
+		},
+		Factory: func() node.Executor { return NewAudioExecutor() },
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
