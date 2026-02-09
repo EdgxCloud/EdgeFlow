@@ -50,7 +50,7 @@ func (e *OllamaExecutor) Init(config map[string]interface{}) error {
 		ollamaConfig.BaseURL = "http://localhost:11434"
 	}
 	if ollamaConfig.Model == "" {
-		ollamaConfig.Model = "llama2"
+		ollamaConfig.Model = "gemma3:1b"
 	}
 	if ollamaConfig.Temperature == 0 {
 		ollamaConfig.Temperature = 0.7

@@ -158,10 +158,11 @@ func RegisterAllNodes(registry *node.Registry) error {
 			{
 				Name:        "model",
 				Label:       "Model",
-				Type:        "string",
-				Default:     "llama2",
+				Type:        "select",
+				Default:     "gemma3:1b",
 				Required:    false,
-				Description: "Model name",
+				Options:     []string{"gemma3:1b", "gemma3:270m", "gemma3:4b", "tinyllama", "phi3:mini", "qwen2:0.5b", "llama3:8b"},
+				Description: "Ollama model (gemma3:1b recommended for Raspberry Pi)",
 			},
 			{
 				Name:        "temperature",
