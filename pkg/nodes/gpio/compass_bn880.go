@@ -5,6 +5,7 @@ package gpio
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -13,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"farhotech.com/iot-edge/pkg/node"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/i2c"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/conn/v3/uart"
@@ -83,13 +84,7 @@ type BN880Executor struct {
 	magZ       int16
 }
 
-func init() {
-	node.RegisterType("compass_bn880", func() node.Executor {
-		return &BN880Executor{}
-	})
-}
-
-func (e *BN880Executor) Init(config json.RawMessage) error {
+func (e *BN880Executor) Init(config map[string]interface{}) error {
 	e.config = BN880Config{
 		SerialPort:     "/dev/ttyAMA0",
 		BaudRate:       9600,
@@ -104,7 +99,11 @@ func (e *BN880Executor) Init(config json.RawMessage) error {
 	}
 
 	if config != nil {
-		if err := json.Unmarshal(config, &e.config); err != nil {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		if err := json.Unmarshal(configJSON, &e.config); err != nil {
 			return fmt.Errorf("failed to parse BN880 config: %w", err)
 		}
 	}
@@ -411,12 +410,12 @@ func (e *BN880Executor) getCardinalDirection(heading float64) string {
 	return directions[index]
 }
 
-func (e *BN880Executor) Execute(msg *node.Message) (*node.Message, error) {
+func (e *BN880Executor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if err := e.initHardware(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	action := "read"
@@ -436,11 +435,11 @@ func (e *BN880Executor) Execute(msg *node.Message) (*node.Message, error) {
 	case "calibrate":
 		return e.handleCalibrate(msg)
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return node.Message{}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
-func (e *BN880Executor) readAll() (*node.Message, error) {
+func (e *BN880Executor) readAll() (node.Message, error) {
 	// Read GPS data
 	timeout := time.After(2 * time.Second)
 	sentences := 0
@@ -460,10 +459,10 @@ func (e *BN880Executor) readAll() (*node.Message, error) {
 
 	// Read compass data
 	if err := e.readCompass(); err != nil {
-		return nil, fmt.Errorf("failed to read compass: %w", err)
+		return node.Message{}, fmt.Errorf("failed to read compass: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			// GPS data
 			"latitude":   e.latitude,
@@ -486,7 +485,7 @@ func (e *BN880Executor) readAll() (*node.Message, error) {
 	}, nil
 }
 
-func (e *BN880Executor) readGPS() (*node.Message, error) {
+func (e *BN880Executor) readGPS() (node.Message, error) {
 	timeout := time.After(2 * time.Second)
 	sentences := 0
 	for sentences < 5 {
@@ -503,7 +502,7 @@ func (e *BN880Executor) readGPS() (*node.Message, error) {
 		}
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"latitude":   e.latitude,
 			"longitude":  e.longitude,
@@ -518,12 +517,12 @@ func (e *BN880Executor) readGPS() (*node.Message, error) {
 	}, nil
 }
 
-func (e *BN880Executor) readCompassData() (*node.Message, error) {
+func (e *BN880Executor) readCompassData() (node.Message, error) {
 	if err := e.readCompass(); err != nil {
-		return nil, fmt.Errorf("failed to read compass: %w", err)
+		return node.Message{}, fmt.Errorf("failed to read compass: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"heading":     e.heading,
 			"cardinal":    e.getCardinalDirection(e.heading),
@@ -536,10 +535,10 @@ func (e *BN880Executor) readCompassData() (*node.Message, error) {
 	}, nil
 }
 
-func (e *BN880Executor) handleCalibrate(msg *node.Message) (*node.Message, error) {
+func (e *BN880Executor) handleCalibrate(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	if declination, ok := payload["declination"].(float64); ok {
@@ -556,7 +555,7 @@ func (e *BN880Executor) handleCalibrate(msg *node.Message) (*node.Message, error
 		e.config.CalibrationZ = calZ
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":        "calibrated",
 			"declination":   e.config.DeclinationDeg,

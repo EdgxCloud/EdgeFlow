@@ -4,12 +4,13 @@
 package gpio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
-	"farhotech.com/iot-edge/pkg/node"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/gpio"
 	"periph.io/x/conn/v3/gpio/gpioreg"
 	"periph.io/x/host/v3"
@@ -70,13 +71,7 @@ type RF433Executor struct {
 	receiveTime  time.Time
 }
 
-func init() {
-	node.RegisterType("rf433", func() node.Executor {
-		return &RF433Executor{}
-	})
-}
-
-func (e *RF433Executor) Init(config json.RawMessage) error {
+func (e *RF433Executor) Init(config map[string]interface{}) error {
 	e.config = RF433Config{
 		TxPin:        "GPIO17",
 		RxPin:        "GPIO27",
@@ -88,7 +83,11 @@ func (e *RF433Executor) Init(config json.RawMessage) error {
 	}
 
 	if config != nil {
-		if err := json.Unmarshal(config, &e.config); err != nil {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		if err := json.Unmarshal(configJSON, &e.config); err != nil {
 			return fmt.Errorf("failed to parse RF433 config: %w", err)
 		}
 	}
@@ -225,12 +224,12 @@ func (e *RF433Executor) transmitTriState(code string) error {
 	return nil
 }
 
-func (e *RF433Executor) Execute(msg *node.Message) (*node.Message, error) {
+func (e *RF433Executor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if err := e.initHardware(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	action := "status"
@@ -252,14 +251,14 @@ func (e *RF433Executor) Execute(msg *node.Message) (*node.Message, error) {
 	case "status":
 		return e.handleStatus()
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return node.Message{}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
-func (e *RF433Executor) handleSend(msg *node.Message) (*node.Message, error) {
+func (e *RF433Executor) handleSend(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	var code uint64
@@ -271,10 +270,10 @@ func (e *RF433Executor) handleSend(msg *node.Message) (*node.Message, error) {
 		// Parse hex string
 		_, err := fmt.Sscanf(c, "%x", &code)
 		if err != nil {
-			return nil, fmt.Errorf("invalid code format: %w", err)
+			return node.Message{}, fmt.Errorf("invalid code format: %w", err)
 		}
 	} else {
-		return nil, fmt.Errorf("code required")
+		return node.Message{}, fmt.Errorf("code required")
 	}
 
 	if b, ok := payload["bit_length"].(float64); ok {
@@ -282,10 +281,10 @@ func (e *RF433Executor) handleSend(msg *node.Message) (*node.Message, error) {
 	}
 
 	if err := e.transmit(code, bitLength); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":       "sent",
 			"code":         code,
@@ -299,29 +298,29 @@ func (e *RF433Executor) handleSend(msg *node.Message) (*node.Message, error) {
 	}, nil
 }
 
-func (e *RF433Executor) handleSendTriState(msg *node.Message) (*node.Message, error) {
+func (e *RF433Executor) handleSendTriState(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	code, ok := payload["code"].(string)
 	if !ok {
-		return nil, fmt.Errorf("tri-state code string required")
+		return node.Message{}, fmt.Errorf("tri-state code string required")
 	}
 
 	// Validate tri-state code
 	for _, c := range code {
 		if c != '0' && c != '1' && c != 'F' && c != 'f' {
-			return nil, fmt.Errorf("invalid tri-state character: %c (use 0, 1, or F)", c)
+			return node.Message{}, fmt.Errorf("invalid tri-state character: %c (use 0, 1, or F)", c)
 		}
 	}
 
 	if err := e.transmitTriState(code); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":       "sent",
 			"code":         code,
@@ -334,31 +333,31 @@ func (e *RF433Executor) handleSendTriState(msg *node.Message) (*node.Message, er
 	}, nil
 }
 
-func (e *RF433Executor) handleSendBinary(msg *node.Message) (*node.Message, error) {
+func (e *RF433Executor) handleSendBinary(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	code, ok := payload["code"].(string)
 	if !ok {
-		return nil, fmt.Errorf("binary code string required")
+		return node.Message{}, fmt.Errorf("binary code string required")
 	}
 
 	// Validate binary code
 	var value uint64
 	for i, c := range code {
 		if c != '0' && c != '1' {
-			return nil, fmt.Errorf("invalid binary character at position %d: %c", i, c)
+			return node.Message{}, fmt.Errorf("invalid binary character at position %d: %c", i, c)
 		}
 		value = (value << 1) | uint64(c-'0')
 	}
 
 	if err := e.transmit(value, len(code)); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":       "sent",
 			"code":         code,
@@ -374,10 +373,10 @@ func (e *RF433Executor) handleSendBinary(msg *node.Message) (*node.Message, erro
 	}, nil
 }
 
-func (e *RF433Executor) handleConfigure(msg *node.Message) (*node.Message, error) {
+func (e *RF433Executor) handleConfigure(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	if protocol, ok := payload["protocol"].(float64); ok {
@@ -400,7 +399,7 @@ func (e *RF433Executor) handleConfigure(msg *node.Message) (*node.Message, error
 		e.config.BitLength = int(bitLength)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":       "configured",
 			"protocol":     e.config.Protocol,
@@ -411,8 +410,8 @@ func (e *RF433Executor) handleConfigure(msg *node.Message) (*node.Message, error
 	}, nil
 }
 
-func (e *RF433Executor) handleStatus() (*node.Message, error) {
-	return &node.Message{
+func (e *RF433Executor) handleStatus() (node.Message, error) {
+	return node.Message{
 		Payload: map[string]interface{}{
 			"tx_pin":       e.config.TxPin,
 			"rx_pin":       e.config.RxPin,

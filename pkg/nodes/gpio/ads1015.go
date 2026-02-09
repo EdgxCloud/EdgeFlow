@@ -4,12 +4,13 @@
 package gpio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
-	"farhotech.com/iot-edge/pkg/node"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/i2c"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/host/v3"
@@ -103,13 +104,7 @@ type ADS1015Executor struct {
 	drConfig    uint16
 }
 
-func init() {
-	node.RegisterType("ads1015", func() node.Executor {
-		return &ADS1015Executor{}
-	})
-}
-
-func (e *ADS1015Executor) Init(config json.RawMessage) error {
+func (e *ADS1015Executor) Init(config map[string]interface{}) error {
 	e.config = ADS1015Config{
 		I2CBus:       "/dev/i2c-1",
 		Address:      ads1015DefaultAddr,
@@ -120,7 +115,11 @@ func (e *ADS1015Executor) Init(config json.RawMessage) error {
 	}
 
 	if config != nil {
-		if err := json.Unmarshal(config, &e.config); err != nil {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		if err := json.Unmarshal(configJSON, &e.config); err != nil {
 			return fmt.Errorf("failed to parse ADS1015 config: %w", err)
 		}
 	}
@@ -318,12 +317,12 @@ func (e *ADS1015Executor) readDifferential(posChannel, negChannel int) (int16, f
 	return raw, voltage, nil
 }
 
-func (e *ADS1015Executor) Execute(msg *node.Message) (*node.Message, error) {
+func (e *ADS1015Executor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if err := e.initHardware(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	action := "read"
@@ -347,14 +346,14 @@ func (e *ADS1015Executor) Execute(msg *node.Message) (*node.Message, error) {
 	case "configure":
 		return e.handleConfigure(msg)
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return node.Message{}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
-func (e *ADS1015Executor) handleReadChannel(channel int) (*node.Message, error) {
+func (e *ADS1015Executor) handleReadChannel(channel int) (node.Message, error) {
 	raw, voltage, err := e.readChannel(channel)
 	if err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	percentage := (voltage / e.config.VRef) * 100
@@ -365,7 +364,7 @@ func (e *ADS1015Executor) handleReadChannel(channel int) (*node.Message, error) 
 		percentage = 0
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"channel":    channel,
 			"raw":        raw,
@@ -377,7 +376,7 @@ func (e *ADS1015Executor) handleReadChannel(channel int) (*node.Message, error) 
 	}, nil
 }
 
-func (e *ADS1015Executor) handleReadAll() (*node.Message, error) {
+func (e *ADS1015Executor) handleReadAll() (node.Message, error) {
 	channels := make([]map[string]interface{}, 4)
 
 	for ch := 0; ch < 4; ch++ {
@@ -406,7 +405,7 @@ func (e *ADS1015Executor) handleReadAll() (*node.Message, error) {
 		}
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"channels":  channels,
 			"gain":      e.config.Gain,
@@ -415,10 +414,10 @@ func (e *ADS1015Executor) handleReadAll() (*node.Message, error) {
 	}, nil
 }
 
-func (e *ADS1015Executor) handleReadDifferential(msg *node.Message) (*node.Message, error) {
+func (e *ADS1015Executor) handleReadDifferential(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	posChannel := 0
@@ -433,10 +432,10 @@ func (e *ADS1015Executor) handleReadDifferential(msg *node.Message) (*node.Messa
 
 	raw, voltage, err := e.readDifferential(posChannel, negChannel)
 	if err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"positive":  posChannel,
 			"negative":  negChannel,
@@ -448,10 +447,10 @@ func (e *ADS1015Executor) handleReadDifferential(msg *node.Message) (*node.Messa
 	}, nil
 }
 
-func (e *ADS1015Executor) handleConfigure(msg *node.Message) (*node.Message, error) {
+func (e *ADS1015Executor) handleConfigure(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	if gain, ok := payload["gain"].(string); ok {
@@ -502,7 +501,7 @@ func (e *ADS1015Executor) handleConfigure(msg *node.Message) (*node.Message, err
 		e.config.VRef = vref
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":    "configured",
 			"gain":      e.config.Gain,

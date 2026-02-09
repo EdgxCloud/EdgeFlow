@@ -4,12 +4,13 @@
 package gpio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
-	"farhotech.com/iot-edge/pkg/node"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/i2c"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/host/v3"
@@ -69,13 +70,7 @@ type VEML7700Executor struct {
 	resolution      float64 // lux per count
 }
 
-func init() {
-	node.RegisterType("veml7700", func() node.Executor {
-		return &VEML7700Executor{}
-	})
-}
-
-func (e *VEML7700Executor) Init(config json.RawMessage) error {
+func (e *VEML7700Executor) Init(config map[string]interface{}) error {
 	e.config = VEML7700Config{
 		I2CBus:          "/dev/i2c-1",
 		Address:         veml7700DefaultAddr,
@@ -86,7 +81,11 @@ func (e *VEML7700Executor) Init(config json.RawMessage) error {
 	}
 
 	if config != nil {
-		if err := json.Unmarshal(config, &e.config); err != nil {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		if err := json.Unmarshal(configJSON, &e.config); err != nil {
 			return fmt.Errorf("failed to parse VEML7700 config: %w", err)
 		}
 	}
@@ -262,12 +261,12 @@ func (e *VEML7700Executor) autoAdjustGain(rawALS uint16) bool {
 	return false
 }
 
-func (e *VEML7700Executor) Execute(msg *node.Message) (*node.Message, error) {
+func (e *VEML7700Executor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if err := e.initHardware(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	action := "read"
@@ -285,19 +284,19 @@ func (e *VEML7700Executor) Execute(msg *node.Message) (*node.Message, error) {
 	case "set_threshold":
 		return e.handleSetThreshold(msg)
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return node.Message{}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
-func (e *VEML7700Executor) readLight() (*node.Message, error) {
+func (e *VEML7700Executor) readLight() (node.Message, error) {
 	rawALS, err := e.readALS()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read ALS: %w", err)
+		return node.Message{}, fmt.Errorf("failed to read ALS: %w", err)
 	}
 
 	rawWhite, err := e.readWhite()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read white channel: %w", err)
+		return node.Message{}, fmt.Errorf("failed to read white channel: %w", err)
 	}
 
 	// Auto-adjust gain if enabled
@@ -322,7 +321,7 @@ func (e *VEML7700Executor) readLight() (*node.Message, error) {
 		gainStr = "1/4"
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"lux":              lux,
 			"raw_als":          rawALS,
@@ -335,10 +334,10 @@ func (e *VEML7700Executor) readLight() (*node.Message, error) {
 	}, nil
 }
 
-func (e *VEML7700Executor) handleConfigure(msg *node.Message) (*node.Message, error) {
+func (e *VEML7700Executor) handleConfigure(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	if gain, ok := payload["gain"].(string); ok {
@@ -378,10 +377,10 @@ func (e *VEML7700Executor) handleConfigure(msg *node.Message) (*node.Message, er
 
 	e.updateResolution()
 	if err := e.configure(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":  "configured",
 			"message": "VEML7700 configuration updated",
@@ -389,25 +388,25 @@ func (e *VEML7700Executor) handleConfigure(msg *node.Message) (*node.Message, er
 	}, nil
 }
 
-func (e *VEML7700Executor) handleSetThreshold(msg *node.Message) (*node.Message, error) {
+func (e *VEML7700Executor) handleSetThreshold(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	if high, ok := payload["high"].(float64); ok {
 		if err := e.writeRegister(veml7700RegALSWH, uint16(high)); err != nil {
-			return nil, fmt.Errorf("failed to set high threshold: %w", err)
+			return node.Message{}, fmt.Errorf("failed to set high threshold: %w", err)
 		}
 	}
 
 	if low, ok := payload["low"].(float64); ok {
 		if err := e.writeRegister(veml7700RegALSWL, uint16(low)); err != nil {
-			return nil, fmt.Errorf("failed to set low threshold: %w", err)
+			return node.Message{}, fmt.Errorf("failed to set low threshold: %w", err)
 		}
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":  "threshold_set",
 			"message": "Threshold values configured",

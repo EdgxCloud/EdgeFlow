@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -103,6 +104,10 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 	if h.moduleAPI != nil {
 		moduleRoutes.Delete("/:name", h.moduleAPI.UninstallModule)
 	}
+
+	// Setup/wizard routes
+	api.Post("/setup", h.saveSetup)
+	api.Get("/setup", h.getSetup)
 
 	// Resource routes
 	api.Get("/resources/stats", h.getResourceStats)
@@ -912,6 +917,80 @@ func (h *Handler) getResourceStats(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
+}
+
+// ============================================
+// Setup/Wizard Handlers
+// ============================================
+
+const setupConfigFile = "./data/setup-config.json"
+
+// saveSetup saves the device setup configuration from the wizard
+func (h *Handler) saveSetup(c *fiber.Ctx) error {
+	var config map[string]interface{}
+	if err := c.BodyParser(&config); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid setup configuration",
+		})
+	}
+
+	// Add metadata
+	config["setupCompletedAt"] = time.Now().Format(time.RFC3339)
+	config["version"] = "0.1.0"
+
+	// Ensure data directory exists
+	if err := os.MkdirAll(filepath.Dir(setupConfigFile), 0755); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to create data directory: %v", err),
+		})
+	}
+
+	// Save config to file
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to marshal config",
+		})
+	}
+
+	if err := os.WriteFile(setupConfigFile, data, 0644); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to save config: %v", err),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Setup configuration saved successfully",
+		"config":  config,
+	})
+}
+
+// getSetup retrieves the current device setup configuration
+func (h *Handler) getSetup(c *fiber.Ctx) error {
+	data, err := os.ReadFile(setupConfigFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return c.JSON(fiber.Map{
+				"configured": false,
+				"config":     nil,
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to read config: %v", err),
+		})
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(data, &config); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to parse config",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"configured": true,
+		"config":     config,
+	})
 }
 
 // ============================================

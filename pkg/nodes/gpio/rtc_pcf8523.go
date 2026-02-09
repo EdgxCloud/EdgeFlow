@@ -4,12 +4,13 @@
 package gpio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
-	"farhotech.com/iot-edge/pkg/node"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/i2c"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/host/v3"
@@ -59,13 +60,7 @@ type PCF8523Executor struct {
 	initialized bool
 }
 
-func init() {
-	node.RegisterType("rtc_pcf8523", func() node.Executor {
-		return &PCF8523Executor{}
-	})
-}
-
-func (e *PCF8523Executor) Init(config json.RawMessage) error {
+func (e *PCF8523Executor) Init(config map[string]interface{}) error {
 	e.config = PCF8523Config{
 		I2CBus:     "/dev/i2c-1",
 		Address:    pcf8523DefaultAddr,
@@ -74,7 +69,11 @@ func (e *PCF8523Executor) Init(config json.RawMessage) error {
 	}
 
 	if config != nil {
-		if err := json.Unmarshal(config, &e.config); err != nil {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		if err := json.Unmarshal(configJSON, &e.config); err != nil {
 			return fmt.Errorf("failed to parse PCF8523 config: %w", err)
 		}
 	}
@@ -298,12 +297,12 @@ func (e *PCF8523Executor) setClockOutput(frequency string) error {
 	return e.writeRegister(pcf8523RegTmrClkout, tmrClkout)
 }
 
-func (e *PCF8523Executor) Execute(msg *node.Message) (*node.Message, error) {
+func (e *PCF8523Executor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if err := e.initHardware(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	action := "read"
@@ -329,19 +328,19 @@ func (e *PCF8523Executor) Execute(msg *node.Message) (*node.Message, error) {
 	case "set_clockout":
 		return e.handleSetClockout(msg)
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return node.Message{}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
-func (e *PCF8523Executor) handleRead() (*node.Message, error) {
+func (e *PCF8523Executor) handleRead() (node.Message, error) {
 	dt, err := e.readDateTime()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read datetime: %w", err)
+		return node.Message{}, fmt.Errorf("failed to read datetime: %w", err)
 	}
 
 	switchover, batteryLow, _ := e.getBatteryStatus()
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"datetime":            dt.Format(time.RFC3339),
 			"year":                dt.Year(),
@@ -358,10 +357,10 @@ func (e *PCF8523Executor) handleRead() (*node.Message, error) {
 	}, nil
 }
 
-func (e *PCF8523Executor) handleSet(msg *node.Message) (*node.Message, error) {
+func (e *PCF8523Executor) handleSet(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	var setTime time.Time
@@ -370,19 +369,19 @@ func (e *PCF8523Executor) handleSet(msg *node.Message) (*node.Message, error) {
 		var err error
 		setTime, err = time.Parse(time.RFC3339, dtStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid datetime format: %w", err)
+			return node.Message{}, fmt.Errorf("invalid datetime format: %w", err)
 		}
 	} else if unix, ok := payload["unix"].(float64); ok {
 		setTime = time.Unix(int64(unix), 0).UTC()
 	} else {
-		return nil, fmt.Errorf("datetime or unix timestamp required")
+		return node.Message{}, fmt.Errorf("datetime or unix timestamp required")
 	}
 
 	if err := e.writeDateTime(setTime); err != nil {
-		return nil, fmt.Errorf("failed to set datetime: %w", err)
+		return node.Message{}, fmt.Errorf("failed to set datetime: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":   "time_set",
 			"datetime": setTime.Format(time.RFC3339),
@@ -390,14 +389,14 @@ func (e *PCF8523Executor) handleSet(msg *node.Message) (*node.Message, error) {
 	}, nil
 }
 
-func (e *PCF8523Executor) handleSync() (*node.Message, error) {
+func (e *PCF8523Executor) handleSync() (node.Message, error) {
 	now := time.Now().UTC()
 
 	if err := e.writeDateTime(now); err != nil {
-		return nil, fmt.Errorf("failed to sync datetime: %w", err)
+		return node.Message{}, fmt.Errorf("failed to sync datetime: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":   "synced",
 			"datetime": now.Format(time.RFC3339),
@@ -405,13 +404,13 @@ func (e *PCF8523Executor) handleSync() (*node.Message, error) {
 	}, nil
 }
 
-func (e *PCF8523Executor) handleBatteryStatus() (*node.Message, error) {
+func (e *PCF8523Executor) handleBatteryStatus() (node.Message, error) {
 	switchover, batteryLow, err := e.getBatteryStatus()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read battery status: %w", err)
+		return node.Message{}, fmt.Errorf("failed to read battery status: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"battery_switchover": switchover,
 			"battery_low":        batteryLow,
@@ -419,10 +418,10 @@ func (e *PCF8523Executor) handleBatteryStatus() (*node.Message, error) {
 	}, nil
 }
 
-func (e *PCF8523Executor) handleSetAlarm(msg *node.Message) (*node.Message, error) {
+func (e *PCF8523Executor) handleSetAlarm(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	minute := -1
@@ -440,10 +439,10 @@ func (e *PCF8523Executor) handleSetAlarm(msg *node.Message) (*node.Message, erro
 	}
 
 	if err := e.setAlarm(minute, hour, day, true); err != nil {
-		return nil, fmt.Errorf("failed to set alarm: %w", err)
+		return node.Message{}, fmt.Errorf("failed to set alarm: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status": "alarm_set",
 			"minute": minute,
@@ -453,22 +452,22 @@ func (e *PCF8523Executor) handleSetAlarm(msg *node.Message) (*node.Message, erro
 	}, nil
 }
 
-func (e *PCF8523Executor) handleDisableAlarm() (*node.Message, error) {
+func (e *PCF8523Executor) handleDisableAlarm() (node.Message, error) {
 	if err := e.setAlarm(0, 0, 0, false); err != nil {
-		return nil, fmt.Errorf("failed to disable alarm: %w", err)
+		return node.Message{}, fmt.Errorf("failed to disable alarm: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status": "alarm_disabled",
 		},
 	}, nil
 }
 
-func (e *PCF8523Executor) handleSetClockout(msg *node.Message) (*node.Message, error) {
+func (e *PCF8523Executor) handleSetClockout(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	frequency := "off"
@@ -477,10 +476,10 @@ func (e *PCF8523Executor) handleSetClockout(msg *node.Message) (*node.Message, e
 	}
 
 	if err := e.setClockOutput(frequency); err != nil {
-		return nil, fmt.Errorf("failed to set clock output: %w", err)
+		return node.Message{}, fmt.Errorf("failed to set clock output: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":    "clockout_set",
 			"frequency": frequency,

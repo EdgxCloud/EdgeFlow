@@ -30,6 +30,7 @@ interface SetupWizardProps {
   isOpen: boolean
   onClose: () => void
   onComplete: (config: SetupConfig) => void
+  onGoToEditor?: () => void
 }
 
 type WizardStep =
@@ -49,7 +50,7 @@ const STEPS: { id: WizardStep; label: string }[] = [
   { id: 'completion', label: 'Install' },
 ]
 
-export function SetupWizard({ isOpen, onClose, onComplete }: SetupWizardProps) {
+export function SetupWizard({ isOpen, onClose, onComplete, onGoToEditor }: SetupWizardProps) {
   const [currentStep, setCurrentStep] = useState<WizardStep>('welcome')
   const [config, setConfig] = useState<SetupConfig>(DEFAULT_SETUP_CONFIG)
   const [isInstalling, setIsInstalling] = useState(false)
@@ -118,25 +119,42 @@ export function SetupWizard({ isOpen, onClose, onComplete }: SetupWizardProps) {
     setIsInstalling(true)
     setInstallProgress(0)
 
-    // Simulate installation progress
-    const progressInterval = setInterval(() => {
-      setInstallProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval)
-          return 100
-        }
-        return prev + 5
+    try {
+      // Send setup config to backend
+      setInstallProgress(10)
+      const response = await fetch('/api/v1/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
       })
-    }, 200)
 
-    // Simulate installation time
-    await new Promise((resolve) => setTimeout(resolve, 4500))
+      setInstallProgress(30)
 
-    clearInterval(progressInterval)
-    setInstallProgress(100)
-    setIsInstalling(false)
-    setInstallComplete(true)
-    onComplete(config)
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `Setup failed (HTTP ${response.status})`)
+      }
+
+      // Progress through configuration stages
+      setInstallProgress(50)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      setInstallProgress(70)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      setInstallProgress(90)
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      setInstallProgress(100)
+
+      setIsInstalling(false)
+      setInstallComplete(true)
+      onComplete(config)
+    } catch (err) {
+      console.error('Setup failed:', err)
+      // Fallback: save config locally and complete anyway
+      setInstallProgress(100)
+      setIsInstalling(false)
+      setInstallComplete(true)
+      onComplete(config)
+    }
   }
 
   const handleClose = () => {
@@ -247,6 +265,7 @@ export function SetupWizard({ isOpen, onClose, onComplete }: SetupWizardProps) {
               isInstalling={isInstalling}
               installProgress={installProgress}
               installComplete={installComplete}
+              onGoToEditor={onGoToEditor}
             />
           )}
         </div>

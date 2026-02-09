@@ -4,12 +4,13 @@
 package gpio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
-	"farhotech.com/iot-edge/pkg/node"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/i2c"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/host/v3"
@@ -58,13 +59,7 @@ type PCF8591Executor struct {
 	dacValue    byte
 }
 
-func init() {
-	node.RegisterType("pcf8591", func() node.Executor {
-		return &PCF8591Executor{}
-	})
-}
-
-func (e *PCF8591Executor) Init(config json.RawMessage) error {
+func (e *PCF8591Executor) Init(config map[string]interface{}) error {
 	e.config = PCF8591Config{
 		I2CBus:       "/dev/i2c-1",
 		Address:      pcf8591DefaultAddr,
@@ -75,7 +70,11 @@ func (e *PCF8591Executor) Init(config json.RawMessage) error {
 	}
 
 	if config != nil {
-		if err := json.Unmarshal(config, &e.config); err != nil {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		if err := json.Unmarshal(configJSON, &e.config); err != nil {
 			return fmt.Errorf("failed to parse PCF8591 config: %w", err)
 		}
 	}
@@ -202,12 +201,12 @@ func (e *PCF8591Executor) writeDACVoltage(voltage float64) error {
 	return e.writeDAC(value)
 }
 
-func (e *PCF8591Executor) Execute(msg *node.Message) (*node.Message, error) {
+func (e *PCF8591Executor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if err := e.initHardware(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	action := "read"
@@ -233,19 +232,19 @@ func (e *PCF8591Executor) Execute(msg *node.Message) (*node.Message, error) {
 	case "status":
 		return e.handleStatus()
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return node.Message{}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
-func (e *PCF8591Executor) handleReadChannel(channel int) (*node.Message, error) {
+func (e *PCF8591Executor) handleReadChannel(channel int) (node.Message, error) {
 	raw, voltage, err := e.readChannel(channel)
 	if err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	percentage := (voltage / e.config.VRef) * 100
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"channel":    channel,
 			"raw":        raw,
@@ -257,10 +256,10 @@ func (e *PCF8591Executor) handleReadChannel(channel int) (*node.Message, error) 
 	}, nil
 }
 
-func (e *PCF8591Executor) handleReadAll() (*node.Message, error) {
+func (e *PCF8591Executor) handleReadAll() (node.Message, error) {
 	raw, voltages, err := e.readAllChannels()
 	if err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	channels := make([]map[string]interface{}, 4)
@@ -273,7 +272,7 @@ func (e *PCF8591Executor) handleReadAll() (*node.Message, error) {
 		}
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"channels":   channels,
 			"vref":       e.config.VRef,
@@ -283,14 +282,14 @@ func (e *PCF8591Executor) handleReadAll() (*node.Message, error) {
 	}, nil
 }
 
-func (e *PCF8591Executor) handleWriteDAC(msg *node.Message) (*node.Message, error) {
+func (e *PCF8591Executor) handleWriteDAC(msg node.Message) (node.Message, error) {
 	if !e.config.DACEnabled {
-		return nil, fmt.Errorf("DAC is not enabled in configuration")
+		return node.Message{}, fmt.Errorf("DAC is not enabled in configuration")
 	}
 
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	var err error
@@ -313,14 +312,14 @@ func (e *PCF8591Executor) handleWriteDAC(msg *node.Message) (*node.Message, erro
 		dacValue = byte((p / 100.0) * 255)
 		err = e.writeDACVoltage(dacVoltage)
 	} else {
-		return nil, fmt.Errorf("value, voltage, or percentage required")
+		return node.Message{}, fmt.Errorf("value, voltage, or percentage required")
 	}
 
 	if err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":     "dac_set",
 			"raw":        dacValue,
@@ -331,10 +330,10 @@ func (e *PCF8591Executor) handleWriteDAC(msg *node.Message) (*node.Message, erro
 	}, nil
 }
 
-func (e *PCF8591Executor) handleConfigure(msg *node.Message) (*node.Message, error) {
+func (e *PCF8591Executor) handleConfigure(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	if mode, ok := payload["input_mode"].(string); ok {
@@ -359,7 +358,7 @@ func (e *PCF8591Executor) handleConfigure(msg *node.Message) (*node.Message, err
 		e.config.VRef = vref
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":      "configured",
 			"input_mode":  e.config.InputMode,
@@ -369,8 +368,8 @@ func (e *PCF8591Executor) handleConfigure(msg *node.Message) (*node.Message, err
 	}, nil
 }
 
-func (e *PCF8591Executor) handleStatus() (*node.Message, error) {
-	return &node.Message{
+func (e *PCF8591Executor) handleStatus() (node.Message, error) {
+	return node.Message{
 		Payload: map[string]interface{}{
 			"address":     fmt.Sprintf("0x%02X", e.config.Address),
 			"input_mode":  e.config.InputMode,

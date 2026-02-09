@@ -4,12 +4,13 @@
 package gpio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
-	"farhotech.com/iot-edge/pkg/node"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/gpio"
 	"periph.io/x/conn/v3/gpio/gpioreg"
 	"periph.io/x/host/v3"
@@ -37,13 +38,7 @@ type RCWL0516Executor struct {
 	motionCount uint64
 }
 
-func init() {
-	node.RegisterType("rcwl0516", func() node.Executor {
-		return &RCWL0516Executor{}
-	})
-}
-
-func (e *RCWL0516Executor) Init(config json.RawMessage) error {
+func (e *RCWL0516Executor) Init(config map[string]interface{}) error {
 	e.config = RCWL0516Config{
 		Pin:            "GPIO17",
 		ActiveHigh:     true,
@@ -54,7 +49,11 @@ func (e *RCWL0516Executor) Init(config json.RawMessage) error {
 	}
 
 	if config != nil {
-		if err := json.Unmarshal(config, &e.config); err != nil {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		if err := json.Unmarshal(configJSON, &e.config); err != nil {
 			return fmt.Errorf("failed to parse RCWL0516 config: %w", err)
 		}
 	}
@@ -97,12 +96,12 @@ func (e *RCWL0516Executor) readMotion() bool {
 	return level == gpio.Low
 }
 
-func (e *RCWL0516Executor) Execute(msg *node.Message) (*node.Message, error) {
+func (e *RCWL0516Executor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if err := e.initHardware(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	action := "read"
@@ -122,17 +121,17 @@ func (e *RCWL0516Executor) Execute(msg *node.Message) (*node.Message, error) {
 	case "status":
 		return e.getStatus()
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return node.Message{}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
-func (e *RCWL0516Executor) readState() (*node.Message, error) {
+func (e *RCWL0516Executor) readState() (node.Message, error) {
 	currentState := e.readMotion()
 	now := time.Now()
 
 	// Debounce
 	if now.Sub(e.lastChange) < time.Duration(e.config.DebounceMs)*time.Millisecond {
-		return &node.Message{
+		return node.Message{
 			Payload: map[string]interface{}{
 				"motion":       e.lastState,
 				"triggered":    false,
@@ -165,7 +164,7 @@ func (e *RCWL0516Executor) readState() (*node.Message, error) {
 		}
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"motion":             currentState,
 			"triggered":          triggered,
@@ -177,11 +176,11 @@ func (e *RCWL0516Executor) readState() (*node.Message, error) {
 	}, nil
 }
 
-func (e *RCWL0516Executor) resetCount() (*node.Message, error) {
+func (e *RCWL0516Executor) resetCount() (node.Message, error) {
 	oldCount := e.motionCount
 	e.motionCount = 0
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":     "count_reset",
 			"old_count":  oldCount,
@@ -191,10 +190,10 @@ func (e *RCWL0516Executor) resetCount() (*node.Message, error) {
 	}, nil
 }
 
-func (e *RCWL0516Executor) handleConfigure(msg *node.Message) (*node.Message, error) {
+func (e *RCWL0516Executor) handleConfigure(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	if activeHigh, ok := payload["active_high"].(bool); ok {
@@ -207,7 +206,7 @@ func (e *RCWL0516Executor) handleConfigure(msg *node.Message) (*node.Message, er
 		e.config.HoldTimeMs = int(holdTime)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":       "configured",
 			"active_high":  e.config.ActiveHigh,
@@ -217,8 +216,8 @@ func (e *RCWL0516Executor) handleConfigure(msg *node.Message) (*node.Message, er
 	}, nil
 }
 
-func (e *RCWL0516Executor) getStatus() (*node.Message, error) {
-	return &node.Message{
+func (e *RCWL0516Executor) getStatus() (node.Message, error) {
+	return node.Message{
 		Payload: map[string]interface{}{
 			"pin":          e.config.Pin,
 			"active_high":  e.config.ActiveHigh,

@@ -5,6 +5,7 @@ package gpio
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -12,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"farhotech.com/iot-edge/pkg/node"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/uart"
 	"periph.io/x/conn/v3/uart/uartreg"
 	"periph.io/x/host/v3"
@@ -52,13 +53,7 @@ type NEOM8NExecutor struct {
 	reader      *bufio.Reader
 }
 
-func init() {
-	node.RegisterType("gps_neom8n", func() node.Executor {
-		return &NEOM8NExecutor{}
-	})
-}
-
-func (e *NEOM8NExecutor) Init(config json.RawMessage) error {
+func (e *NEOM8NExecutor) Init(config map[string]interface{}) error {
 	e.config = NEOM8NConfig{
 		SerialPort:   "/dev/ttyAMA0",
 		BaudRate:     9600,
@@ -66,7 +61,11 @@ func (e *NEOM8NExecutor) Init(config json.RawMessage) error {
 	}
 
 	if config != nil {
-		if err := json.Unmarshal(config, &e.config); err != nil {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		if err := json.Unmarshal(configJSON, &e.config); err != nil {
 			return fmt.Errorf("failed to parse NEO-M8N config: %w", err)
 		}
 	}
@@ -395,12 +394,12 @@ func (e *NEOM8NExecutor) sendUBXCommand(class, id byte, payload []byte) error {
 	return err
 }
 
-func (e *NEOM8NExecutor) Execute(msg *node.Message) (*node.Message, error) {
+func (e *NEOM8NExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if err := e.initHardware(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	action := "read"
@@ -424,11 +423,11 @@ func (e *NEOM8NExecutor) Execute(msg *node.Message) (*node.Message, error) {
 	case "hot_start":
 		return e.handleHotStart()
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return node.Message{}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
-func (e *NEOM8NExecutor) readGPS() (*node.Message, error) {
+func (e *NEOM8NExecutor) readGPS() (node.Message, error) {
 	// Read multiple NMEA sentences to get complete data
 	timeout := time.After(2 * time.Second)
 	sentences := 0
@@ -447,7 +446,7 @@ func (e *NEOM8NExecutor) readGPS() (*node.Message, error) {
 		}
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"latitude":    e.lastData.Latitude,
 			"longitude":   e.lastData.Longitude,
@@ -465,10 +464,10 @@ func (e *NEOM8NExecutor) readGPS() (*node.Message, error) {
 	}, nil
 }
 
-func (e *NEOM8NExecutor) handleConfigure(msg *node.Message) (*node.Message, error) {
+func (e *NEOM8NExecutor) handleConfigure(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	// Configure dynamic model
@@ -502,11 +501,11 @@ func (e *NEOM8NExecutor) handleConfigure(msg *node.Message) (*node.Message, erro
 		cfgPayload[2] = dynModel
 
 		if err := e.sendUBXCommand(0x06, 0x24, cfgPayload); err != nil {
-			return nil, fmt.Errorf("failed to set dynamic model: %w", err)
+			return node.Message{}, fmt.Errorf("failed to set dynamic model: %w", err)
 		}
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":  "configured",
 			"message": "GPS configuration updated",
@@ -514,10 +513,10 @@ func (e *NEOM8NExecutor) handleConfigure(msg *node.Message) (*node.Message, erro
 	}, nil
 }
 
-func (e *NEOM8NExecutor) handleSetRate(msg *node.Message) (*node.Message, error) {
+func (e *NEOM8NExecutor) handleSetRate(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	rateMs := 1000.0
@@ -533,10 +532,10 @@ func (e *NEOM8NExecutor) handleSetRate(msg *node.Message) (*node.Message, error)
 	}
 
 	if err := e.sendUBXCommand(0x06, 0x08, cfgPayload); err != nil {
-		return nil, fmt.Errorf("failed to set rate: %w", err)
+		return node.Message{}, fmt.Errorf("failed to set rate: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":  "rate_set",
 			"rate_ms": rateMs,
@@ -544,14 +543,14 @@ func (e *NEOM8NExecutor) handleSetRate(msg *node.Message) (*node.Message, error)
 	}, nil
 }
 
-func (e *NEOM8NExecutor) handleColdStart() (*node.Message, error) {
+func (e *NEOM8NExecutor) handleColdStart() (node.Message, error) {
 	// UBX-CFG-RST cold start
 	cfgPayload := []byte{0xFF, 0xFF, 0x00, 0x00}
 	if err := e.sendUBXCommand(0x06, 0x04, cfgPayload); err != nil {
-		return nil, fmt.Errorf("failed to cold start: %w", err)
+		return node.Message{}, fmt.Errorf("failed to cold start: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":  "cold_start",
 			"message": "GPS cold start initiated",
@@ -559,14 +558,14 @@ func (e *NEOM8NExecutor) handleColdStart() (*node.Message, error) {
 	}, nil
 }
 
-func (e *NEOM8NExecutor) handleWarmStart() (*node.Message, error) {
+func (e *NEOM8NExecutor) handleWarmStart() (node.Message, error) {
 	// UBX-CFG-RST warm start
 	cfgPayload := []byte{0x01, 0x00, 0x00, 0x00}
 	if err := e.sendUBXCommand(0x06, 0x04, cfgPayload); err != nil {
-		return nil, fmt.Errorf("failed to warm start: %w", err)
+		return node.Message{}, fmt.Errorf("failed to warm start: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":  "warm_start",
 			"message": "GPS warm start initiated",
@@ -574,14 +573,14 @@ func (e *NEOM8NExecutor) handleWarmStart() (*node.Message, error) {
 	}, nil
 }
 
-func (e *NEOM8NExecutor) handleHotStart() (*node.Message, error) {
+func (e *NEOM8NExecutor) handleHotStart() (node.Message, error) {
 	// UBX-CFG-RST hot start
 	cfgPayload := []byte{0x00, 0x00, 0x00, 0x00}
 	if err := e.sendUBXCommand(0x06, 0x04, cfgPayload); err != nil {
-		return nil, fmt.Errorf("failed to hot start: %w", err)
+		return node.Message{}, fmt.Errorf("failed to hot start: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":  "hot_start",
 			"message": "GPS hot start initiated",

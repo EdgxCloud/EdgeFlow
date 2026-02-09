@@ -4,12 +4,13 @@
 package gpio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
-	"farhotech.com/iot-edge/pkg/node"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/i2c"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/host/v3"
@@ -50,13 +51,7 @@ type SGP30Executor struct {
 	baselineTVOC uint16
 }
 
-func init() {
-	node.RegisterType("sgp30", func() node.Executor {
-		return &SGP30Executor{}
-	})
-}
-
-func (e *SGP30Executor) Init(config json.RawMessage) error {
+func (e *SGP30Executor) Init(config map[string]interface{}) error {
 	e.config = SGP30Config{
 		I2CBus:       "/dev/i2c-1",
 		Address:      sgp30DefaultAddr,
@@ -64,7 +59,11 @@ func (e *SGP30Executor) Init(config json.RawMessage) error {
 	}
 
 	if config != nil {
-		if err := json.Unmarshal(config, &e.config); err != nil {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		if err := json.Unmarshal(configJSON, &e.config); err != nil {
 			return fmt.Errorf("failed to parse SGP30 config: %w", err)
 		}
 	}
@@ -278,12 +277,12 @@ func (e *SGP30Executor) selfTest() (bool, error) {
 	return result == 0xD400, nil
 }
 
-func (e *SGP30Executor) Execute(msg *node.Message) (*node.Message, error) {
+func (e *SGP30Executor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if err := e.initHardware(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	action := "read"
@@ -309,14 +308,14 @@ func (e *SGP30Executor) Execute(msg *node.Message) (*node.Message, error) {
 	case "info":
 		return e.handleInfo()
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return node.Message{}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
-func (e *SGP30Executor) readAirQuality() (*node.Message, error) {
+func (e *SGP30Executor) readAirQuality() (node.Message, error) {
 	co2, tvoc, err := e.measureAirQuality()
 	if err != nil {
-		return nil, fmt.Errorf("failed to measure air quality: %w", err)
+		return node.Message{}, fmt.Errorf("failed to measure air quality: %w", err)
 	}
 
 	// Interpret air quality
@@ -342,7 +341,7 @@ func (e *SGP30Executor) readAirQuality() (*node.Message, error) {
 		tvocLevel = "good"
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"eco2":        co2,  // ppm
 			"tvoc":        tvoc, // ppb
@@ -353,13 +352,13 @@ func (e *SGP30Executor) readAirQuality() (*node.Message, error) {
 	}, nil
 }
 
-func (e *SGP30Executor) readRaw() (*node.Message, error) {
+func (e *SGP30Executor) readRaw() (node.Message, error) {
 	h2, ethanol, err := e.measureRawSignals()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read raw signals: %w", err)
+		return node.Message{}, fmt.Errorf("failed to read raw signals: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"h2_raw":      h2,
 			"ethanol_raw": ethanol,
@@ -368,13 +367,13 @@ func (e *SGP30Executor) readRaw() (*node.Message, error) {
 	}, nil
 }
 
-func (e *SGP30Executor) handleGetBaseline() (*node.Message, error) {
+func (e *SGP30Executor) handleGetBaseline() (node.Message, error) {
 	co2Baseline, tvocBaseline, err := e.getBaseline()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get baseline: %w", err)
+		return node.Message{}, fmt.Errorf("failed to get baseline: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"co2_baseline":  co2Baseline,
 			"tvoc_baseline": tvocBaseline,
@@ -382,27 +381,27 @@ func (e *SGP30Executor) handleGetBaseline() (*node.Message, error) {
 	}, nil
 }
 
-func (e *SGP30Executor) handleSetBaseline(msg *node.Message) (*node.Message, error) {
+func (e *SGP30Executor) handleSetBaseline(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	co2Baseline, ok := payload["co2_baseline"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("co2_baseline required")
+		return node.Message{}, fmt.Errorf("co2_baseline required")
 	}
 
 	tvocBaseline, ok := payload["tvoc_baseline"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("tvoc_baseline required")
+		return node.Message{}, fmt.Errorf("tvoc_baseline required")
 	}
 
 	if err := e.setBaseline(uint16(co2Baseline), uint16(tvocBaseline)); err != nil {
-		return nil, fmt.Errorf("failed to set baseline: %w", err)
+		return node.Message{}, fmt.Errorf("failed to set baseline: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":        "baseline_set",
 			"co2_baseline":  uint16(co2Baseline),
@@ -411,22 +410,22 @@ func (e *SGP30Executor) handleSetBaseline(msg *node.Message) (*node.Message, err
 	}, nil
 }
 
-func (e *SGP30Executor) handleSetHumidity(msg *node.Message) (*node.Message, error) {
+func (e *SGP30Executor) handleSetHumidity(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	humidity, ok := payload["humidity"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("humidity required (g/m³)")
+		return node.Message{}, fmt.Errorf("humidity required (g/m³)")
 	}
 
 	if err := e.setHumidity(humidity); err != nil {
-		return nil, fmt.Errorf("failed to set humidity: %w", err)
+		return node.Message{}, fmt.Errorf("failed to set humidity: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":   "humidity_set",
 			"humidity": humidity,
@@ -434,31 +433,31 @@ func (e *SGP30Executor) handleSetHumidity(msg *node.Message) (*node.Message, err
 	}, nil
 }
 
-func (e *SGP30Executor) handleSelfTest() (*node.Message, error) {
+func (e *SGP30Executor) handleSelfTest() (node.Message, error) {
 	passed, err := e.selfTest()
 	if err != nil {
-		return nil, fmt.Errorf("self test failed: %w", err)
+		return node.Message{}, fmt.Errorf("self test failed: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"self_test_passed": passed,
 		},
 	}, nil
 }
 
-func (e *SGP30Executor) handleInfo() (*node.Message, error) {
+func (e *SGP30Executor) handleInfo() (node.Message, error) {
 	serial, err := e.getSerialID()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get serial ID: %w", err)
+		return node.Message{}, fmt.Errorf("failed to get serial ID: %w", err)
 	}
 
 	featureSet, err := e.getFeatureSet()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get feature set: %w", err)
+		return node.Message{}, fmt.Errorf("failed to get feature set: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"serial_id":   fmt.Sprintf("%02X%02X%02X%02X%02X%02X", serial[0], serial[1], serial[2], serial[3], serial[4], serial[5]),
 			"feature_set": fmt.Sprintf("0x%04X", featureSet),

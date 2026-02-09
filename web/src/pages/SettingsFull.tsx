@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Save,
   Info,
@@ -82,6 +83,7 @@ const DEMO_WIFI_NETWORKS: WifiNetwork[] = [
 ]
 
 export default function SettingsFull() {
+  const navigate = useNavigate()
   const [showSetupWizard, setShowSetupWizard] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [scanning, setScanning] = useState(false)
@@ -253,6 +255,10 @@ export default function SettingsFull() {
         onComplete={(config) => {
           console.log('Setup complete:', config)
           setShowSetupWizard(false)
+        }}
+        onGoToEditor={() => {
+          setShowSetupWizard(false)
+          navigate('/editor')
         }}
       />
 

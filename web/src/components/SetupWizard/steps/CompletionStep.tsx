@@ -21,7 +21,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
-import type { SetupConfig, BoardType, SUPPORTED_BOARDS } from '../types'
+import type { SetupConfig } from '../types'
 import { SUPPORTED_BOARDS as BOARDS } from '../types'
 
 interface CompletionStepProps {
@@ -30,6 +30,7 @@ interface CompletionStepProps {
   isInstalling: boolean
   installProgress: number
   installComplete: boolean
+  onGoToEditor?: () => void
 }
 
 interface SummaryItemProps {
@@ -82,6 +83,7 @@ export function CompletionStep({
   isInstalling,
   installProgress,
   installComplete,
+  onGoToEditor,
 }: CompletionStepProps) {
   const [copied, setCopied] = useState(false)
 
@@ -138,7 +140,7 @@ export function CompletionStep({
             </ul>
           </div>
 
-          <Button className="w-full" size="lg">
+          <Button className="w-full" size="lg" onClick={onGoToEditor}>
             Go to Flow Editor
           </Button>
         </div>

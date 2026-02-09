@@ -4,12 +4,13 @@
 package gpio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
-	"farhotech.com/iot-edge/pkg/node"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/i2c"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/host/v3"
@@ -73,13 +74,7 @@ type CCS811Executor struct {
 	baseline    uint16
 }
 
-func init() {
-	node.RegisterType("ccs811", func() node.Executor {
-		return &CCS811Executor{}
-	})
-}
-
-func (e *CCS811Executor) Init(config json.RawMessage) error {
+func (e *CCS811Executor) Init(config map[string]interface{}) error {
 	e.config = CCS811Config{
 		I2CBus:       "/dev/i2c-1",
 		Address:      ccs811DefaultAddr,
@@ -89,7 +84,11 @@ func (e *CCS811Executor) Init(config json.RawMessage) error {
 	}
 
 	if config != nil {
-		if err := json.Unmarshal(config, &e.config); err != nil {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		if err := json.Unmarshal(configJSON, &e.config); err != nil {
 			return fmt.Errorf("failed to parse CCS811 config: %w", err)
 		}
 	}
@@ -289,12 +288,12 @@ func (e *CCS811Executor) getError() (string, error) {
 	return fmt.Sprintf("%v", errors), nil
 }
 
-func (e *CCS811Executor) Execute(msg *node.Message) (*node.Message, error) {
+func (e *CCS811Executor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if err := e.initHardware(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	action := "read"
@@ -320,15 +319,15 @@ func (e *CCS811Executor) Execute(msg *node.Message) (*node.Message, error) {
 	case "info":
 		return e.handleInfo()
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return node.Message{}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
-func (e *CCS811Executor) readData() (*node.Message, error) {
+func (e *CCS811Executor) readData() (node.Message, error) {
 	// Check if data is ready
 	status, err := e.readByte(ccs811RegStatus)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read status: %w", err)
+		return node.Message{}, fmt.Errorf("failed to read status: %w", err)
 	}
 
 	dataReady := status&ccs811StatusDataReady != 0
@@ -340,7 +339,7 @@ func (e *CCS811Executor) readData() (*node.Message, error) {
 	}
 
 	if !dataReady {
-		return &node.Message{
+		return node.Message{
 			Payload: map[string]interface{}{
 				"data_ready": false,
 				"error":      errorStr,
@@ -351,7 +350,7 @@ func (e *CCS811Executor) readData() (*node.Message, error) {
 
 	co2, tvoc, _, err := e.readAlgResult()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read algorithm result: %w", err)
+		return node.Message{}, fmt.Errorf("failed to read algorithm result: %w", err)
 	}
 
 	// Interpret air quality
@@ -364,7 +363,7 @@ func (e *CCS811Executor) readData() (*node.Message, error) {
 		airQuality = "good"
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"eco2":        co2,          // ppm
 			"tvoc":        tvoc,         // ppb
@@ -376,13 +375,13 @@ func (e *CCS811Executor) readData() (*node.Message, error) {
 	}, nil
 }
 
-func (e *CCS811Executor) readRaw() (*node.Message, error) {
+func (e *CCS811Executor) readRaw() (node.Message, error) {
 	current, voltage, err := e.readRawData()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read raw data: %w", err)
+		return node.Message{}, fmt.Errorf("failed to read raw data: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"current_ua": current,
 			"voltage":    voltage,
@@ -391,10 +390,10 @@ func (e *CCS811Executor) readRaw() (*node.Message, error) {
 	}, nil
 }
 
-func (e *CCS811Executor) handleSetEnvironment(msg *node.Message) (*node.Message, error) {
+func (e *CCS811Executor) handleSetEnvironment(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	humidity := 50.0
@@ -408,10 +407,10 @@ func (e *CCS811Executor) handleSetEnvironment(msg *node.Message) (*node.Message,
 	}
 
 	if err := e.setEnvironmentalData(humidity, temperature); err != nil {
-		return nil, fmt.Errorf("failed to set environmental data: %w", err)
+		return node.Message{}, fmt.Errorf("failed to set environmental data: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":      "environment_set",
 			"humidity":    humidity,
@@ -420,35 +419,35 @@ func (e *CCS811Executor) handleSetEnvironment(msg *node.Message) (*node.Message,
 	}, nil
 }
 
-func (e *CCS811Executor) handleGetBaseline() (*node.Message, error) {
+func (e *CCS811Executor) handleGetBaseline() (node.Message, error) {
 	baseline, err := e.getBaseline()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get baseline: %w", err)
+		return node.Message{}, fmt.Errorf("failed to get baseline: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"baseline": baseline,
 		},
 	}, nil
 }
 
-func (e *CCS811Executor) handleSetBaseline(msg *node.Message) (*node.Message, error) {
+func (e *CCS811Executor) handleSetBaseline(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	baseline, ok := payload["baseline"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("baseline value required")
+		return node.Message{}, fmt.Errorf("baseline value required")
 	}
 
 	if err := e.setBaseline(uint16(baseline)); err != nil {
-		return nil, fmt.Errorf("failed to set baseline: %w", err)
+		return node.Message{}, fmt.Errorf("failed to set baseline: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":   "baseline_set",
 			"baseline": uint16(baseline),
@@ -456,11 +455,11 @@ func (e *CCS811Executor) handleSetBaseline(msg *node.Message) (*node.Message, er
 	}, nil
 }
 
-func (e *CCS811Executor) handleReset() (*node.Message, error) {
+func (e *CCS811Executor) handleReset() (node.Message, error) {
 	// Software reset sequence
 	resetSeq := []byte{0x11, 0xE5, 0x72, 0x8A}
 	if err := e.writeRegister(ccs811RegSwReset, resetSeq...); err != nil {
-		return nil, fmt.Errorf("failed to reset: %w", err)
+		return node.Message{}, fmt.Errorf("failed to reset: %w", err)
 	}
 
 	time.Sleep(100 * time.Millisecond)
@@ -468,23 +467,23 @@ func (e *CCS811Executor) handleReset() (*node.Message, error) {
 	// Reinitialize
 	e.initialized = false
 	if err := e.initHardware(); err != nil {
-		return nil, fmt.Errorf("failed to reinitialize after reset: %w", err)
+		return node.Message{}, fmt.Errorf("failed to reinitialize after reset: %w", err)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status": "reset_complete",
 		},
 	}, nil
 }
 
-func (e *CCS811Executor) handleInfo() (*node.Message, error) {
+func (e *CCS811Executor) handleInfo() (node.Message, error) {
 	hwID, _ := e.readByte(ccs811RegHWID)
 	hwVer, _ := e.readByte(ccs811RegHWVersion)
 	fwBootVer, _ := e.readBytes(ccs811RegFWBootVer, 2)
 	fwAppVer, _ := e.readBytes(ccs811RegFWAppVer, 2)
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"hardware_id":      fmt.Sprintf("0x%02X", hwID),
 			"hardware_version": fmt.Sprintf("%d.%d", hwVer>>4, hwVer&0x0F),

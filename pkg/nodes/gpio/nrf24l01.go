@@ -4,12 +4,13 @@
 package gpio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
-	"farhotech.com/iot-edge/pkg/node"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/gpio"
 	"periph.io/x/conn/v3/gpio/gpioreg"
 	"periph.io/x/conn/v3/spi"
@@ -106,13 +107,7 @@ type NRF24L01Executor struct {
 	initialized bool
 }
 
-func init() {
-	node.RegisterType("nrf24l01", func() node.Executor {
-		return &NRF24L01Executor{}
-	})
-}
-
-func (e *NRF24L01Executor) Init(config json.RawMessage) error {
+func (e *NRF24L01Executor) Init(config map[string]interface{}) error {
 	e.config = NRF24L01Config{
 		SPIBus:       "/dev/spidev0.0",
 		SPIDevice:    0,
@@ -130,7 +125,11 @@ func (e *NRF24L01Executor) Init(config json.RawMessage) error {
 	}
 
 	if config != nil {
-		if err := json.Unmarshal(config, &e.config); err != nil {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		if err := json.Unmarshal(configJSON, &e.config); err != nil {
 			return fmt.Errorf("failed to parse NRF24L01 config: %w", err)
 		}
 	}
@@ -450,12 +449,12 @@ func (e *NRF24L01Executor) receive(timeoutMs int) ([]byte, bool, error) {
 	}
 }
 
-func (e *NRF24L01Executor) Execute(msg *node.Message) (*node.Message, error) {
+func (e *NRF24L01Executor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if err := e.initHardware(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	action := "status"
@@ -477,14 +476,14 @@ func (e *NRF24L01Executor) Execute(msg *node.Message) (*node.Message, error) {
 	case "status":
 		return e.handleStatus()
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return node.Message{}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
-func (e *NRF24L01Executor) handleSend(msg *node.Message) (*node.Message, error) {
+func (e *NRF24L01Executor) handleSend(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	var data []byte
@@ -499,15 +498,15 @@ func (e *NRF24L01Executor) handleSend(msg *node.Message) (*node.Message, error) 
 			}
 		}
 	} else {
-		return nil, fmt.Errorf("data required (string or byte array)")
+		return node.Message{}, fmt.Errorf("data required (string or byte array)")
 	}
 
 	success, err := e.transmit(data)
 	if err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":    "sent",
 			"success":   success,
@@ -518,7 +517,7 @@ func (e *NRF24L01Executor) handleSend(msg *node.Message) (*node.Message, error) 
 	}, nil
 }
 
-func (e *NRF24L01Executor) handleReceive(msg *node.Message) (*node.Message, error) {
+func (e *NRF24L01Executor) handleReceive(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
 		payload = make(map[string]interface{})
@@ -531,7 +530,7 @@ func (e *NRF24L01Executor) handleReceive(msg *node.Message) (*node.Message, erro
 
 	data, received, err := e.receive(timeoutMs)
 	if err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
 	result := map[string]interface{}{
@@ -546,15 +545,15 @@ func (e *NRF24L01Executor) handleReceive(msg *node.Message) (*node.Message, erro
 		result["data_size"] = len(data)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: result,
 	}, nil
 }
 
-func (e *NRF24L01Executor) handleConfigure(msg *node.Message) (*node.Message, error) {
+func (e *NRF24L01Executor) handleConfigure(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	if channel, ok := payload["channel"].(float64); ok {
@@ -577,10 +576,10 @@ func (e *NRF24L01Executor) handleConfigure(msg *node.Message) (*node.Message, er
 
 	// Reconfigure radio with new settings
 	if err := e.configureRadio(); err != nil {
-		return nil, err
+		return node.Message{}, err
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":       "configured",
 			"channel":      e.config.Channel,
@@ -591,10 +590,10 @@ func (e *NRF24L01Executor) handleConfigure(msg *node.Message) (*node.Message, er
 	}, nil
 }
 
-func (e *NRF24L01Executor) handleSetAddress(msg *node.Message) (*node.Message, error) {
+func (e *NRF24L01Executor) handleSetAddress(msg node.Message) (node.Message, error) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid payload type")
+		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
 	if tx, ok := payload["tx_address"].([]interface{}); ok {
@@ -609,7 +608,7 @@ func (e *NRF24L01Executor) handleSetAddress(msg *node.Message) (*node.Message, e
 		e.writeRegisters(nrf24RegRxAddrP0, addr)
 	}
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"status":     "address_set",
 			"tx_address": e.config.TxAddress,
@@ -617,13 +616,13 @@ func (e *NRF24L01Executor) handleSetAddress(msg *node.Message) (*node.Message, e
 	}, nil
 }
 
-func (e *NRF24L01Executor) handleStatus() (*node.Message, error) {
+func (e *NRF24L01Executor) handleStatus() (node.Message, error) {
 	status, _ := e.readRegister(nrf24RegStatus)
 	config, _ := e.readRegister(nrf24RegConfig)
 	fifoStatus, _ := e.readRegister(nrf24RegFIFOStatus)
 	observeTx, _ := e.readRegister(nrf24RegObserveTx)
 
-	return &node.Message{
+	return node.Message{
 		Payload: map[string]interface{}{
 			"channel":        e.config.Channel,
 			"data_rate":      e.config.DataRate,
