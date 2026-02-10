@@ -120,6 +120,16 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 	// System info routes
 	api.Get("/system/network", h.getNetworkInfo)
 
+	// Terminal WebSocket for shell access (must be registered before /ws to avoid prefix match conflict)
+	app.Use("/ws/terminal", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			c.Locals("allowed", true)
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+	app.Get("/ws/terminal", websocket.New(h.handleTerminalWebSocket))
+
 	// WebSocket for real-time updates
 	app.Use("/ws", func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) {
@@ -131,16 +141,6 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 	app.Get("/ws", websocket.New(func(c *websocket.Conn) {
 		h.service.wsHub.HandleWebSocket(c)
 	}))
-
-	// Terminal WebSocket for shell access
-	app.Use("/ws/terminal", func(c *fiber.Ctx) error {
-		if websocket.IsWebSocketUpgrade(c) {
-			c.Locals("allowed", true)
-			return c.Next()
-		}
-		return fiber.ErrUpgradeRequired
-	})
-	app.Get("/ws/terminal", websocket.New(h.handleTerminalWebSocket))
 
 	// Subflow routes
 	h.SetupSubflowRoutes(app)
@@ -1424,10 +1424,11 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 	}
 
 	// Working directory
-	homeDir, err := os.UserHomeDir()
+	userHome, err := os.UserHomeDir()
 	if err != nil {
-		homeDir = "/"
+		userHome = "/"
 	}
+	cwd := userHome
 
 	for {
 		// Read command from WebSocket
@@ -1455,26 +1456,32 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 		command := strings.TrimSpace(msg.Command)
 
 		// Handle cd command specially
-		if strings.HasPrefix(command, "cd ") {
-			dir := strings.TrimSpace(command[3:])
+		if command == "cd" || strings.HasPrefix(command, "cd ") {
+			dir := strings.TrimSpace(strings.TrimPrefix(command, "cd"))
 			if dir == "" || dir == "~" {
-				dir = homeDir
+				dir = userHome
+			} else if strings.HasPrefix(dir, "~/") {
+				dir = filepath.Join(userHome, dir[2:])
 			}
 			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(homeDir, dir)
+				dir = filepath.Join(cwd, dir)
 			}
-			if _, err := os.Stat(dir); err == nil {
-				homeDir = dir
+			// Clean the path to resolve .. and .
+			dir = filepath.Clean(dir)
+			if info, err := os.Stat(dir); err == nil && info.IsDir() {
+				cwd = dir
 				c.WriteJSON(map[string]interface{}{
-					"type":   "output",
-					"output": "",
-					"cwd":    homeDir,
+					"type": "done",
+					"cwd":  cwd,
 				})
 			} else {
 				c.WriteJSON(map[string]interface{}{
 					"type":   "error",
 					"output": fmt.Sprintf("cd: %s: No such file or directory\n", dir),
-					"cwd":    homeDir,
+				})
+				c.WriteJSON(map[string]interface{}{
+					"type": "done",
+					"cwd":  cwd,
 				})
 			}
 			continue
@@ -1482,8 +1489,13 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 
 		// Execute command
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		cmd := exec.CommandContext(ctx, shell, "-c", command)
-		cmd.Dir = homeDir
+		var cmd *exec.Cmd
+		if runtime.GOOS == "windows" {
+			cmd = exec.CommandContext(ctx, shell, "/c", command)
+		} else {
+			cmd = exec.CommandContext(ctx, shell, "-c", command)
+		}
+		cmd.Dir = cwd
 
 		// Capture stdout and stderr together
 		stdout, err := cmd.StdoutPipe()
@@ -1492,7 +1504,10 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 			c.WriteJSON(map[string]interface{}{
 				"type":   "error",
 				"output": fmt.Sprintf("Failed to create pipe: %v\n", err),
-				"cwd":    homeDir,
+			})
+			c.WriteJSON(map[string]interface{}{
+				"type": "done",
+				"cwd":  cwd,
 			})
 			continue
 		}
@@ -1504,7 +1519,10 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 			c.WriteJSON(map[string]interface{}{
 				"type":   "error",
 				"output": fmt.Sprintf("Failed to start command: %v\n", err),
-				"cwd":    homeDir,
+			})
+			c.WriteJSON(map[string]interface{}{
+				"type": "done",
+				"cwd":  cwd,
 			})
 			continue
 		}
@@ -1542,7 +1560,7 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 		c.WriteJSON(map[string]interface{}{
 			"type":     "done",
 			"exitCode": exitCode,
-			"cwd":      homeDir,
+			"cwd":      cwd,
 		})
 	}
 }

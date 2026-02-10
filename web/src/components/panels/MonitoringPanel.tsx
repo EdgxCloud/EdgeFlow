@@ -30,8 +30,8 @@ export function MonitoringPanel() {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get<ResourceStats>('/api/v1/resources/stats')
-      setStats(response.data)
+      const data = await api.get<ResourceStats>('/resources/stats')
+      setStats(data)
       setLastUpdate(new Date())
       setError(null)
     } catch {
