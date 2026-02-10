@@ -12,7 +12,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// DiscordConfig نود Discord
+// DiscordConfig configuration for the Discord node
 type DiscordConfig struct {
 	WebhookURL string `json:"webhookUrl"` // Discord Webhook URL
 	Username   string `json:"username"`   // Bot username
@@ -20,7 +20,7 @@ type DiscordConfig struct {
 	TTS        bool   `json:"tts"`        // Text-to-speech
 }
 
-// DiscordExecutor اجراکننده نود Discord
+// DiscordExecutor executor for the Discord node
 type DiscordExecutor struct {
 	config DiscordConfig
 	client *http.Client
@@ -53,7 +53,7 @@ func (e *DiscordExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *DiscordExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	var content, username, avatarURL string
 	var tts bool
@@ -140,7 +140,7 @@ func (e *DiscordExecutor) Execute(ctx context.Context, msg node.Message) (node.M
 	}, nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleans up resources
 func (e *DiscordExecutor) Cleanup() error {
 	return nil
 }

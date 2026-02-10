@@ -10,7 +10,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// SPIConfig نود SPI
+// SPIConfig SPI node configuration
 type SPIConfig struct {
 	Bus      int    `json:"bus"`      // Bus number (0 or 1)
 	Device   int    `json:"device"`   // Device/CS number (0, 1)
@@ -20,13 +20,13 @@ type SPIConfig struct {
 	Mode3Wire bool  `json:"mode3Wire"` // 3-wire mode
 }
 
-// SPIExecutor اجراکننده نود SPI
+// SPIExecutor SPI node executor
 type SPIExecutor struct {
 	config SPIConfig
 	hal    hal.HAL
 }
 
-// NewSPIExecutor ایجاد SPIExecutor
+// NewSPIExecutor create SPIExecutor
 func NewSPIExecutor(config map[string]interface{}) (node.Executor, error) {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
@@ -68,7 +68,7 @@ func (e *SPIExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute execute node
 func (e *SPIExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Get HAL if not initialized
 	if e.hal == nil {
@@ -133,7 +133,7 @@ func (e *SPIExecutor) Execute(ctx context.Context, msg node.Message) (node.Messa
 	}, nil
 }
 
-// setup راه‌اندازی SPI
+// setup initialize SPI
 func (e *SPIExecutor) setup() error {
 	spi := e.hal.SPI()
 
@@ -160,7 +160,7 @@ func (e *SPIExecutor) setup() error {
 	return nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleanup resources
 func (e *SPIExecutor) Cleanup() error {
 	if e.hal != nil {
 		e.hal.SPI().Close()

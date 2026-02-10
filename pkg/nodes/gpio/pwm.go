@@ -9,10 +9,10 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// PWMConfig نود PWM
+// PWMConfig PWM node configuration
 type PWMConfig struct {
-	Pin         int    `json:"pin"`         // شماره پین
-	Frequency   int    `json:"frequency"`   // فرکانس (Hz)
+	Pin         int    `json:"pin"`         // pin number
+	Frequency   int    `json:"frequency"`   // frequency (Hz)
 	DutyCycle   int    `json:"dutyCycle"`   // Duty cycle (0-255)
 	Mode        string `json:"mode"`        // Mode: pwm, servo, led
 	HardwarePWM bool   `json:"hardwarePwm"` // Use hardware PWM if available
@@ -28,13 +28,13 @@ type PWMServoConfig struct {
 	MaxAngle   float64 `json:"maxAngle"`   // Maximum angle (default 180)
 }
 
-// PWMExecutor اجراکننده نود PWM
+// PWMExecutor PWM node executor
 type PWMExecutor struct {
 	config PWMConfig
 	hal    hal.HAL
 }
 
-// NewPWMExecutor ایجاد PWMExecutor
+// NewPWMExecutor create PWMExecutor
 func NewPWMExecutor(config map[string]interface{}) (node.Executor, error) {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
@@ -90,7 +90,7 @@ func (e *PWMExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute execute node
 func (e *PWMExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Get HAL if not initialized
 	if e.hal == nil {
@@ -168,7 +168,7 @@ func (e *PWMExecutor) Execute(ctx context.Context, msg node.Message) (node.Messa
 	}, nil
 }
 
-// setup راه‌اندازی PWM
+// setup initialize PWM
 func (e *PWMExecutor) setup() error {
 	gpio := e.hal.GPIO()
 
@@ -249,7 +249,7 @@ func (e *PWMExecutor) executeServoMode(ctx context.Context, msg node.Message) (n
 	}, nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleanup resources
 func (e *PWMExecutor) Cleanup() error {
 	// Set PWM to 0
 	if e.hal != nil {
@@ -259,25 +259,25 @@ func (e *PWMExecutor) Cleanup() error {
 	return nil
 }
 
-// ServoConfig نود Servo
+// ServoConfig Servo node configuration
 type ServoConfig struct {
-	Pin        int     `json:"pin"`        // شماره پین
-	MinPulse   float64 `json:"minPulse"`   // حداقل پهنای پالس (ms)
-	MaxPulse   float64 `json:"maxPulse"`   // حداکثر پهنای پالس (ms)
-	Frequency  float64 `json:"frequency"`  // فرکانس PWM (Hz)
-	MinAngle   float64 `json:"minAngle"`   // حداقل زاویه
-	MaxAngle   float64 `json:"maxAngle"`   // حداکثر زاویه
-	StartAngle float64 `json:"startAngle"` // زاویه شروع
+	Pin        int     `json:"pin"`        // pin number
+	MinPulse   float64 `json:"minPulse"`   // minimum pulse width (ms)
+	MaxPulse   float64 `json:"maxPulse"`   // maximum pulse width (ms)
+	Frequency  float64 `json:"frequency"`  // PWM frequency (Hz)
+	MinAngle   float64 `json:"minAngle"`   // minimum angle
+	MaxAngle   float64 `json:"maxAngle"`   // maximum angle
+	StartAngle float64 `json:"startAngle"` // start angle
 }
 
-// ServoExecutor اجراکننده نود Servo
+// ServoExecutor Servo node executor
 type ServoExecutor struct {
 	config      ServoConfig
 	hal         hal.HAL
 	initialized bool
 }
 
-// NewServoExecutor ایجاد ServoExecutor
+// NewServoExecutor create ServoExecutor
 func NewServoExecutor(config map[string]interface{}) (node.Executor, error) {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
@@ -319,7 +319,7 @@ func (e *ServoExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute execute node
 func (e *ServoExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Get HAL if not initialized
 	if e.hal == nil {
@@ -361,7 +361,7 @@ func (e *ServoExecutor) Execute(ctx context.Context, msg node.Message) (node.Mes
 	}, nil
 }
 
-// setup راه‌اندازی Servo
+// setup initialize Servo
 func (e *ServoExecutor) setup() error {
 	gpio := e.hal.GPIO()
 
@@ -379,7 +379,7 @@ func (e *ServoExecutor) setup() error {
 	return e.setAngle(e.config.StartAngle)
 }
 
-// setAngle تنظیم زاویه سروو
+// setAngle set servo angle
 func (e *ServoExecutor) setAngle(angle float64) error {
 	// Clamp angle
 	if angle < e.config.MinAngle {
@@ -411,7 +411,7 @@ func (e *ServoExecutor) setAngle(angle float64) error {
 	return gpio.PWMWrite(e.config.Pin, dutyCycle)
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleanup resources
 func (e *ServoExecutor) Cleanup() error {
 	if e.hal != nil {
 		// Return to start angle

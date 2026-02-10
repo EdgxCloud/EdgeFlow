@@ -12,7 +12,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// SlackConfig نود Slack
+// SlackConfig configuration for the Slack node
 type SlackConfig struct {
 	WebhookURL string `json:"webhookUrl"` // Slack Webhook URL
 	BotToken   string `json:"botToken"`   // Bot Token (for API mode)
@@ -22,7 +22,7 @@ type SlackConfig struct {
 	Mode       string `json:"mode"`       // webhook or api
 }
 
-// SlackExecutor اجراکننده نود Slack
+// SlackExecutor executor for the Slack node
 type SlackExecutor struct {
 	config SlackConfig
 	client *http.Client
@@ -64,7 +64,7 @@ func (e *SlackExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *SlackExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	var text, channel, username, iconEmoji string
 	var attachments []map[string]interface{}
@@ -113,7 +113,7 @@ func (e *SlackExecutor) Execute(ctx context.Context, msg node.Message) (node.Mes
 	return e.sendViaAPI(ctx, text, channel, username, iconEmoji, attachments, blocks)
 }
 
-// sendViaWebhook ارسال از طریق Webhook
+// sendViaWebhook sends via Webhook
 func (e *SlackExecutor) sendViaWebhook(ctx context.Context, text, channel, username, iconEmoji string, attachments, blocks []map[string]interface{}) (node.Message, error) {
 	payload := map[string]interface{}{
 		"text":       text,
@@ -165,7 +165,7 @@ func (e *SlackExecutor) sendViaWebhook(ctx context.Context, text, channel, usern
 	}, nil
 }
 
-// sendViaAPI ارسال از طریق API
+// sendViaAPI sends via API
 func (e *SlackExecutor) sendViaAPI(ctx context.Context, text, channel, username, iconEmoji string, attachments, blocks []map[string]interface{}) (node.Message, error) {
 	if channel == "" {
 		return node.Message{}, fmt.Errorf("channel is required for API mode")
@@ -231,7 +231,7 @@ func (e *SlackExecutor) sendViaAPI(ctx context.Context, text, channel, username,
 	}, nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleans up resources
 func (e *SlackExecutor) Cleanup() error {
 	return nil
 }

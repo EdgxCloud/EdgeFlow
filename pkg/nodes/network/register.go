@@ -4,7 +4,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// RegisterAllNodes ثبت تمام نودهای network
+// RegisterAllNodes registers all network nodes
 func RegisterAllNodes(registry *node.Registry) {
 	// ============================================
 	// HTTP NODES (3 nodes)
@@ -15,7 +15,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "http-request",
 		Name:        "HTTP Request",
 		Category:    node.NodeTypeProcessing,
-		Description: "ارسال درخواست HTTP با پشتیبانی از تمام متدها",
+		Description: "Send HTTP requests with support for all methods",
 		Icon:        "globe",
 		Color:       "#3b82f6",
 		Properties: []node.PropertySchema{
@@ -45,7 +45,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "http-webhook",
 		Name:        "HTTP Webhook",
 		Category:    node.NodeTypeInput,
-		Description: "دریافت درخواست HTTP از طریق webhook",
+		Description: "Receive HTTP requests via webhook",
 		Icon:        "webhook",
 		Color:       "#8b5cf6",
 		Properties: []node.PropertySchema{
@@ -66,7 +66,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "http-response",
 		Name:        "HTTP Response",
 		Category:    node.NodeTypeOutput,
-		Description: "ارسال پاسخ HTTP",
+		Description: "Send HTTP response",
 		Icon:        "send",
 		Color:       "#06b6d4",
 		Properties: []node.PropertySchema{
@@ -87,7 +87,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "mqtt-in",
 		Name:        "MQTT Input",
 		Category:    node.NodeTypeInput,
-		Description: "اشتراک در topic و دریافت پیام از MQTT broker",
+		Description: "Subscribe to a topic and receive messages from MQTT broker",
 		Icon:        "message-square",
 		Color:       "#22c55e",
 		Properties: []node.PropertySchema{
@@ -113,7 +113,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "mqtt-out",
 		Name:        "MQTT Output",
 		Category:    node.NodeTypeOutput,
-		Description: "انتشار پیام به MQTT broker",
+		Description: "Publish messages to MQTT broker",
 		Icon:        "send",
 		Color:       "#16a34a",
 		Properties: []node.PropertySchema{
@@ -144,7 +144,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "websocket-client",
 		Name:        "WebSocket Client",
 		Category:    node.NodeTypeProcessing,
-		Description: "اتصال به WebSocket server و ارسال/دریافت پیام",
+		Description: "Connect to WebSocket server and send/receive messages",
 		Icon:        "radio",
 		Color:       "#a855f7",
 		Properties: []node.PropertySchema{
@@ -175,7 +175,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "tcp-client",
 		Name:        "TCP Client",
 		Category:    node.NodeTypeProcessing,
-		Description: "اتصال به TCP server و ارسال/دریافت داده",
+		Description: "Connect to TCP server and send/receive data",
 		Icon:        "server",
 		Color:       "#f97316",
 		Properties: []node.PropertySchema{
@@ -199,7 +199,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "udp",
 		Name:        "UDP",
 		Category:    node.NodeTypeProcessing,
-		Description: "ارسال و دریافت داده از طریق UDP",
+		Description: "Send and receive data via UDP",
 		Icon:        "radio",
 		Color:       "#eab308",
 		Properties: []node.PropertySchema{
@@ -226,7 +226,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "json-parser",
 		Name:        "JSON Parser",
 		Category:    node.NodeTypeProcessing,
-		Description: "تبدیل JSON به شیء و بالعکس",
+		Description: "Convert JSON to object and vice versa",
 		Icon:        "braces",
 		Color:       "#64748b",
 		Properties: []node.PropertySchema{
@@ -248,7 +248,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "xml-parser",
 		Name:        "XML Parser",
 		Category:    node.NodeTypeProcessing,
-		Description: "تبدیل XML به JSON و بالعکس",
+		Description: "Convert XML to JSON and vice versa",
 		Icon:        "code",
 		Color:       "#78716c",
 		Properties: []node.PropertySchema{
@@ -268,7 +268,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "csv-parser",
 		Name:        "CSV Parser",
 		Category:    node.NodeTypeProcessing,
-		Description: "تبدیل CSV به JSON و بالعکس",
+		Description: "Convert CSV to JSON and vice versa",
 		Icon:        "table",
 		Color:       "#059669",
 		Properties: []node.PropertySchema{
@@ -291,7 +291,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "yaml-parser",
 		Name:        "YAML Parser",
 		Category:    node.NodeTypeProcessing,
-		Description: "تبدیل YAML به JSON و بالعکس",
+		Description: "Convert YAML to JSON and vice versa",
 		Icon:        "file-text",
 		Color:       "#7c3aed",
 		Properties: []node.PropertySchema{
@@ -315,7 +315,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "watch",
 		Name:        "File Watch",
 		Category:    node.NodeTypeInput,
-		Description: "نظارت بر تغییرات فایل/پوشه",
+		Description: "Monitor file/directory changes",
 		Icon:        "eye",
 		Color:       "#d946ef",
 		Properties: []node.PropertySchema{
@@ -334,7 +334,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "file-in",
 		Name:        "File Read",
 		Category:    node.NodeTypeInput,
-		Description: "خواندن محتوای فایل",
+		Description: "Read file contents",
 		Icon:        "file",
 		Color:       "#0ea5e9",
 		Properties: []node.PropertySchema{
@@ -356,7 +356,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "file-out",
 		Name:        "File Write",
 		Category:    node.NodeTypeOutput,
-		Description: "نوشتن محتوا در فایل",
+		Description: "Write content to file",
 		Icon:        "save",
 		Color:       "#f43f5e",
 		Properties: []node.PropertySchema{
@@ -385,7 +385,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "serial-in",
 		Name:        "Serial Input",
 		Category:    node.NodeTypeInput,
-		Description: "دریافت داده از پورت سریال",
+		Description: "Receive data from serial port",
 		Icon:        "terminal",
 		Color:       "#ec4899",
 		Properties: []node.PropertySchema{
@@ -406,7 +406,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "serial-out",
 		Name:        "Serial Output",
 		Category:    node.NodeTypeOutput,
-		Description: "ارسال داده به پورت سریال",
+		Description: "Send data to serial port",
 		Icon:        "terminal",
 		Color:       "#db2777",
 		Properties: []node.PropertySchema{

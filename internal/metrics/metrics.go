@@ -9,7 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Metrics ساختار metrics
+// Metrics represents the metrics structure
 type Metrics struct {
 	// Flow metrics
 	TotalFlows       int64 `json:"total_flows"`
@@ -39,28 +39,28 @@ type Metrics struct {
 	startTime time.Time
 }
 
-// NewMetrics ایجاد Metrics
+// NewMetrics creates a new Metrics instance
 func NewMetrics() *Metrics {
 	return &Metrics{
 		startTime: time.Now(),
 	}
 }
 
-// IncrementFlows افزایش تعداد flows
+// IncrementFlows increments the total flow count
 func (m *Metrics) IncrementFlows() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.TotalFlows++
 }
 
-// IncrementRunningFlows افزایش flows در حال اجرا
+// IncrementRunningFlows increments running flows
 func (m *Metrics) IncrementRunningFlows() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.RunningFlows++
 }
 
-// DecrementRunningFlows کاهش flows در حال اجرا
+// DecrementRunningFlows decrements running flows
 func (m *Metrics) DecrementRunningFlows() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -70,21 +70,21 @@ func (m *Metrics) DecrementRunningFlows() {
 	m.StoppedFlows++
 }
 
-// IncrementExecutions افزایش تعداد اجراها
+// IncrementExecutions increments execution count
 func (m *Metrics) IncrementExecutions() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.TotalExecutions++
 }
 
-// IncrementFailedExecutions افزایش اجراهای ناموفق
+// IncrementFailedExecutions increments failed executions
 func (m *Metrics) IncrementFailedExecutions() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.FailedExecutions++
 }
 
-// SetNodeMetrics تنظیم metrics نودها
+// SetNodeMetrics sets node metrics
 func (m *Metrics) SetNodeMetrics(total, active, registered int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -93,21 +93,21 @@ func (m *Metrics) SetNodeMetrics(total, active, registered int64) {
 	m.RegisteredNodeTypes = registered
 }
 
-// IncrementRequests افزایش تعداد درخواست‌ها
+// IncrementRequests increments request count
 func (m *Metrics) IncrementRequests() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.TotalRequests++
 }
 
-// IncrementErrors افزایش تعداد خطاها
+// IncrementErrors increments error count
 func (m *Metrics) IncrementErrors() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.TotalErrors++
 }
 
-// RecordResponseTime ثبت زمان پاسخ
+// RecordResponseTime records response time
 func (m *Metrics) RecordResponseTime(duration time.Duration) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -121,7 +121,7 @@ func (m *Metrics) RecordResponseTime(duration time.Duration) {
 	}
 }
 
-// UpdateSystemMetrics به‌روزرسانی metrics سیستم
+// UpdateSystemMetrics updates system metrics
 func (m *Metrics) UpdateSystemMetrics() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -139,7 +139,7 @@ func (m *Metrics) UpdateSystemMetrics() {
 	m.GoroutineCount = runtime.NumGoroutine()
 }
 
-// GetMetrics دریافت metrics
+// GetMetrics returns metrics
 func (m *Metrics) GetMetrics() map[string]interface{} {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -186,7 +186,7 @@ func (m *Metrics) GetMetrics() map[string]interface{} {
 	}
 }
 
-// PrometheusFormat تبدیل به فرمت Prometheus
+// PrometheusFormat converts to Prometheus format
 func (m *Metrics) PrometheusFormat() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -241,7 +241,7 @@ edgeflow_api_response_time_ms ` + formatFloat64(m.AvgResponseTime) + `
 `
 }
 
-// MetricsMiddleware میدلور metrics
+// MetricsMiddleware is the metrics middleware
 func MetricsMiddleware(m *Metrics) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()

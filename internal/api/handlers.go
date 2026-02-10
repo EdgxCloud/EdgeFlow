@@ -1106,16 +1106,15 @@ func (h *Handler) scanWifiNetworks(c *fiber.Ctx) error {
 	networks := make([]WifiNetwork, 0)
 
 	if runtime.GOOS == "linux" {
-		// استفاده از nmcli برای اسکن شبکه‌های وای‌فای
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		// ابتدا اسکن مجدد
+		// Rescan (may fail - ignore errors)
 		rescanCmd := exec.CommandContext(ctx, "nmcli", "device", "wifi", "rescan")
-		rescanCmd.Run() // اگر خطا بدهد مهم نیست
+		rescanCmd.Run()
 
-		// دریافت لیست شبکه‌ها
-		cmd := exec.CommandContext(ctx, "nmcli", "-t", "-f",
+		// nmcli -e yes -t: escape mode represents literal ':' within values as '\:'
+		cmd := exec.CommandContext(ctx, "nmcli", "-e", "yes", "-t", "-f",
 			"SSID,BSSID,SIGNAL,FREQ,CHAN,SECURITY,ACTIVE", "device", "wifi", "list")
 		output, err := cmd.Output()
 		if err != nil {
@@ -1131,9 +1130,9 @@ func (h *Handler) scanWifiNetworks(c *fiber.Ctx) error {
 			if line == "" {
 				continue
 			}
-			// nmcli -t فیلدها را با : جدا می‌کند
-			// BSSID خودش : دارد، بنابراین باید با دقت پارس کنیم
-			fields := strings.Split(line, ":")
+
+			// Parse the line taking escaped characters (\:) into account
+			fields := splitNmcliLine(line)
 			if len(fields) < 7 {
 				continue
 			}
@@ -1143,12 +1142,7 @@ func (h *Handler) scanWifiNetworks(c *fiber.Ctx) error {
 				continue
 			}
 
-			// BSSID 6 بایت دارد با : جداشده
-			bssid := ""
-			if len(fields) >= 12 {
-				bssid = strings.Join(fields[1:7], ":")
-				fields = append([]string{fields[0], bssid}, fields[7:]...)
-			}
+			bssid := fields[1]
 
 			signal := 0
 			freq := 0
@@ -1156,18 +1150,16 @@ func (h *Handler) scanWifiNetworks(c *fiber.Ctx) error {
 			security := "open"
 			active := false
 
-			if len(fields) >= 7 {
-				fmt.Sscanf(fields[2], "%d", &signal)
-				fmt.Sscanf(fields[3], "%d", &freq)
-				fmt.Sscanf(fields[4], "%d", &channel)
-				security = strings.ToLower(fields[5])
-				if security == "" || security == "--" {
-					security = "open"
-				}
-				active = fields[6] == "yes"
+			fmt.Sscanf(fields[2], "%d", &signal)
+			fmt.Sscanf(fields[3], "%d", &freq)
+			fmt.Sscanf(fields[4], "%d", &channel)
+			security = strings.ToLower(fields[5])
+			if security == "" || security == "--" {
+				security = "open"
 			}
+			active = strings.ToLower(fields[6]) == "yes"
 
-			// تبدیل درصد سیگنال به dBm تقریبی
+			// Convert nmcli signal percentage (0-100) to approximate dBm
 			signalDbm := -100 + signal
 			if signalDbm > -20 {
 				signalDbm = -20
@@ -1184,7 +1176,7 @@ func (h *Handler) scanWifiNetworks(c *fiber.Ctx) error {
 			})
 		}
 
-		// مرتب‌سازی بر اساس قدرت سیگنال
+		// Sort by signal strength
 		sort.Slice(networks, func(i, j int) bool {
 			return networks[i].Signal > networks[j].Signal
 		})
@@ -1265,6 +1257,35 @@ func (h *Handler) scanWifiNetworks(c *fiber.Ctx) error {
 	})
 }
 
+// splitNmcliLine splits an nmcli -e yes -t line on unescaped ':'
+// nmcli escape mode uses \: for literal colons inside values (e.g. BSSID AA\:BB\:CC\:DD\:EE\:FF)
+func splitNmcliLine(line string) []string {
+	var fields []string
+	var current strings.Builder
+	escaped := false
+
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
+		if escaped {
+			current.WriteByte(ch)
+			escaped = false
+			continue
+		}
+		if ch == '\\' {
+			escaped = true
+			continue
+		}
+		if ch == ':' {
+			fields = append(fields, current.String())
+			current.Reset()
+			continue
+		}
+		current.WriteByte(ch)
+	}
+	fields = append(fields, current.String())
+	return fields
+}
+
 // connectWifi connects to a WiFi network using nmcli
 func (h *Handler) connectWifi(c *fiber.Ctx) error {
 	var req struct {
@@ -1322,7 +1343,7 @@ func (h *Handler) getSystemInfo(c *fiber.Ctx) error {
 	stats := h.service.GetResourceStats()
 	sysInfo := stats.SysInfo
 
-	// دریافت آپتایم به فرمت خوانا
+	// Get uptime in human-readable format
 	uptime := sysInfo.Uptime
 	uptimeStr := ""
 	if uptime > 0 {
@@ -1389,7 +1410,7 @@ func (h *Handler) getSettings(c *fiber.Ctx) error {
 	data, err := os.ReadFile(settingsConfigFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// بازگرداندن تنظیمات پیش‌فرض
+			// Return default settings
 			return c.JSON(fiber.Map{
 				"configured": false,
 				"settings":   getDefaultSettings(),
@@ -1479,7 +1500,7 @@ func (h *Handler) rebootSystem(c *fiber.Ctx) error {
 
 	h.service.logActivity("warn", "System reboot initiated", "system")
 
-	// اجرای ریبوت با تاخیر 2 ثانیه تا response ارسال شود
+	// Execute reboot with a 2-second delay so the response can be sent first
 	go func() {
 		time.Sleep(2 * time.Second)
 		exec.Command("sudo", "reboot").Run()

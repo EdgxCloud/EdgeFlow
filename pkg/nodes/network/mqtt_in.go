@@ -11,7 +11,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-// MQTTInConfig نود MQTT In
+// MQTTInConfig configuration for the MQTT In node
 type MQTTInConfig struct {
 	Broker        string `json:"broker"`        // MQTT broker URL (e.g., tcp://localhost:1883)
 	Topic         string `json:"topic"`         // Topic to subscribe (supports wildcards)
@@ -34,7 +34,7 @@ type MQTTInConfig struct {
 	RetainedHandler bool `json:"retainedHandler"` // Handle retained messages on subscribe
 }
 
-// MQTTInExecutor اجراکننده نود MQTT In
+// MQTTInExecutor executor for the MQTT In node
 type MQTTInExecutor struct {
 	config     MQTTInConfig
 	client     mqtt.Client
@@ -43,7 +43,7 @@ type MQTTInExecutor struct {
 	mu         sync.RWMutex
 }
 
-// NewMQTTInExecutor ایجاد MQTTInExecutor
+// NewMQTTInExecutor creates a new MQTTInExecutor
 func NewMQTTInExecutor() node.Executor {
 	return &MQTTInExecutor{
 		outputChan: make(chan node.Message, 100),
@@ -82,7 +82,7 @@ func (e *MQTTInExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *MQTTInExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Connect to MQTT broker if not connected
 	if !e.isConnected() {
@@ -100,7 +100,7 @@ func (e *MQTTInExecutor) Execute(ctx context.Context, msg node.Message) (node.Me
 	}
 }
 
-// connect اتصال به MQTT broker
+// connect connects to the MQTT broker
 func (e *MQTTInExecutor) connect() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -169,7 +169,7 @@ func (e *MQTTInExecutor) connect() error {
 	return nil
 }
 
-// messageHandler handler برای پیام‌های MQTT
+// messageHandler handler for incoming MQTT messages
 func (e *MQTTInExecutor) messageHandler(client mqtt.Client, mqttMsg mqtt.Message) {
 	// Parse payload as JSON if possible
 	var payload interface{}
@@ -196,14 +196,14 @@ func (e *MQTTInExecutor) messageHandler(client mqtt.Client, mqttMsg mqtt.Message
 	}
 }
 
-// isConnected بررسی وضعیت اتصال
+// isConnected checks the connection status
 func (e *MQTTInExecutor) isConnected() bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.connected && e.client != nil && e.client.IsConnected()
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup releases resources
 func (e *MQTTInExecutor) Cleanup() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

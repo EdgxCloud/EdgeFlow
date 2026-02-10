@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// ResourceStats نمایش وضعیت منابع سیستم
+// ResourceStats represents the system resource status
 type ResourceStats struct {
 	MemoryTotal     uint64  `json:"memory_total"`
 	MemoryUsed      uint64  `json:"memory_used"`
@@ -23,11 +23,11 @@ type ResourceStats struct {
 	GoroutineCount  int     `json:"goroutine_count"`
 	Timestamp       time.Time `json:"timestamp"`
 
-	// اطلاعات سخت‌افزاری سیستم
+	// System hardware information
 	SysInfo SystemInfo `json:"sys_info"`
 }
 
-// ResourceLimits محدودیت‌های منابع
+// ResourceLimits defines resource limits
 type ResourceLimits struct {
 	MemoryLimit           uint64 `json:"memory_limit"`
 	MemoryHardLimit       uint64 `json:"memory_hard_limit"`
@@ -36,23 +36,23 @@ type ResourceLimits struct {
 	AutoDisableOnLowMemory bool  `json:"auto_disable_on_low_memory"`
 }
 
-// Monitor سیستم نظارت بر منابع
+// Monitor is the resource monitoring system
 type Monitor struct {
 	limits      ResourceLimits
 	currentStats ResourceStats
 	mu          sync.RWMutex
 
-	// Callbacks برای اقدامات خودکار
+	// Callbacks for automatic actions
 	onLowMemory     func()
 	onHighMemory    func()
 	onDiskFull      func()
 
-	// ماژول‌های فعال
+	// Active modules
 	enabledModules  map[string]bool
 	modulesMu       sync.RWMutex
 }
 
-// NewMonitor ایجاد نمونه جدید مانیتور
+// NewMonitor creates a new monitor instance
 func NewMonitor(limits ResourceLimits) *Monitor {
 	return &Monitor{
 		limits:         limits,
@@ -60,7 +60,7 @@ func NewMonitor(limits ResourceLimits) *Monitor {
 	}
 }
 
-// Start شروع نظارت دوره‌ای
+// Start starts periodic monitoring
 func (m *Monitor) Start(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -76,7 +76,7 @@ func (m *Monitor) Start(ctx context.Context, interval time.Duration) {
 	}
 }
 
-// Update به‌روزرسانی آمار فعلی
+// Update updates the current stats
 func (m *Monitor) Update() {
 	stats := m.getSystemStats()
 
@@ -85,16 +85,16 @@ func (m *Monitor) Update() {
 	m.mu.Unlock()
 }
 
-// GetStats دریافت آمار فعلی
+// GetStats returns the current stats
 func (m *Monitor) GetStats() ResourceStats {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.currentStats
 }
 
-// getSystemStats دریافت آمار سیستم
+// getSystemStats returns system stats
 func (m *Monitor) getSystemStats() ResourceStats {
-	// دریافت اطلاعات سخت‌افزاری سیستم (پلتفرم-اختصاصی)
+	// Get system hardware information (platform-specific)
 	sysInfo := GetSystemInfo()
 
 	stats := ResourceStats{
@@ -104,14 +104,14 @@ func (m *Monitor) getSystemStats() ResourceStats {
 		SysInfo:        sysInfo,
 	}
 
-	// حافظه سیستم‌عامل (واقعی)
+	// OS memory (actual)
 	if sysInfo.OSMemTotal > 0 {
 		stats.MemoryTotal = sysInfo.OSMemTotal
 		stats.MemoryUsed = sysInfo.OSMemUsed
 		stats.MemoryAvailable = sysInfo.OSMemAvailable
 		stats.MemoryPercent = sysInfo.OSMemPercent
 	} else {
-		// فال‌بک به حافظه Go
+		// Fallback to Go memory
 		var memStats runtime.MemStats
 		runtime.ReadMemStats(&memStats)
 		stats.MemoryUsed = memStats.Alloc
@@ -121,7 +121,7 @@ func (m *Monitor) getSystemStats() ResourceStats {
 		}
 	}
 
-	// دیسک واقعی
+	// Actual disk usage
 	diskStats := GetDiskUsage("/")
 	if diskStats.Total > 0 {
 		stats.DiskTotal = diskStats.Total
@@ -133,7 +133,7 @@ func (m *Monitor) getSystemStats() ResourceStats {
 	return stats
 }
 
-// DiskStats آمار دیسک
+// DiskStats holds disk usage statistics
 type DiskStats struct {
 	Total     uint64
 	Used      uint64
@@ -142,11 +142,11 @@ type DiskStats struct {
 }
 
 
-// checkLimits بررسی محدودیت‌ها و اقدام خودکار
+// checkLimits checks limits and takes automatic action
 func (m *Monitor) checkLimits() {
 	stats := m.GetStats()
 
-	// بررسی حافظه کم
+	// Check for low memory
 	if m.limits.AutoDisableOnLowMemory && stats.MemoryAvailable < m.limits.LowMemoryThreshold {
 		log.Printf("[WARN] Low memory detected: %dMB available (threshold: %dMB)",
 			stats.MemoryAvailable/1024/1024,
@@ -159,14 +159,14 @@ func (m *Monitor) checkLimits() {
 		}
 	}
 
-	// بررسی حافظه بالا (برگشت به حالت عادی)
+	// Check for high memory (return to normal state)
 	if stats.MemoryAvailable > m.limits.LowMemoryThreshold*2 {
 		if m.onHighMemory != nil {
 			m.onHighMemory()
 		}
 	}
 
-	// بررسی دیسک پر
+	// Check for disk full
 	if stats.DiskPercent > 95 {
 		log.Printf("[WARN] Disk nearly full: %.1f%% used", stats.DiskPercent)
 		if m.onDiskFull != nil {
@@ -174,7 +174,7 @@ func (m *Monitor) checkLimits() {
 		}
 	}
 
-	// بررسی محدودیت حافظه سخت
+	// Check hard memory limit
 	if m.limits.MemoryHardLimit > 0 && stats.MemoryUsed > m.limits.MemoryHardLimit {
 		log.Printf("[CRITICAL] Hard memory limit exceeded: %dMB used (limit: %dMB)",
 			stats.MemoryUsed/1024/1024,
@@ -185,14 +185,14 @@ func (m *Monitor) checkLimits() {
 	}
 }
 
-// autoDisableNonEssentialModules غیرفعال‌سازی خودکار ماژول‌های غیرضروری
+// autoDisableNonEssentialModules automatically disables non-essential modules
 func (m *Monitor) autoDisableNonEssentialModules() {
 	stats := m.GetStats()
 	availableMB := stats.MemoryAvailable / 1024 / 1024
 
 	log.Printf("[ACTION] Auto-disabling non-essential modules (available: %dMB)", availableMB)
 
-	// اولویت غیرفعال‌سازی (از بزرگ‌ترین به کوچک‌ترین)
+	// Disable priority (from largest to smallest)
 	priorityOrder := []string{
 		"collaboration", // ~40MB
 		"ui_advanced",   // ~30MB
@@ -211,7 +211,7 @@ func (m *Monitor) autoDisableNonEssentialModules() {
 			// Force GC after disabling
 			runtime.GC()
 
-			// بررسی مجدد
+			// Re-check
 			newStats := m.getSystemStats()
 			if newStats.MemoryAvailable >= m.limits.LowMemoryThreshold {
 				log.Printf("[ACTION] Memory recovered: %dMB available", newStats.MemoryAvailable/1024/1024)
@@ -221,11 +221,11 @@ func (m *Monitor) autoDisableNonEssentialModules() {
 	}
 }
 
-// CanLoadModule بررسی امکان بارگذاری ماژول
+// CanLoadModule checks whether a module can be loaded
 func (m *Monitor) CanLoadModule(moduleName string, requiredMemory uint64) (bool, string) {
 	stats := m.GetStats()
 
-	// بررسی حافظه کافی
+	// Check sufficient memory
 	if stats.MemoryAvailable < requiredMemory {
 		return false, fmt.Sprintf(
 			"insufficient memory: need %dMB, have %dMB",
@@ -234,7 +234,7 @@ func (m *Monitor) CanLoadModule(moduleName string, requiredMemory uint64) (bool,
 		)
 	}
 
-	// بررسی محدودیت کلی
+	// Check overall limit
 	if m.limits.MemoryLimit > 0 {
 		projectedUsage := stats.MemoryUsed + requiredMemory
 		if projectedUsage > m.limits.MemoryLimit {
@@ -249,7 +249,7 @@ func (m *Monitor) CanLoadModule(moduleName string, requiredMemory uint64) (bool,
 	return true, ""
 }
 
-// EnableModule فعال‌سازی ماژول
+// EnableModule enables a module
 func (m *Monitor) EnableModule(moduleName string) {
 	m.modulesMu.Lock()
 	defer m.modulesMu.Unlock()
@@ -257,7 +257,7 @@ func (m *Monitor) EnableModule(moduleName string) {
 	log.Printf("[RESOURCE] Module enabled: %s", moduleName)
 }
 
-// DisableModule غیرفعال‌سازی ماژول
+// DisableModule disables a module
 func (m *Monitor) DisableModule(moduleName string) {
 	m.modulesMu.Lock()
 	defer m.modulesMu.Unlock()
@@ -265,7 +265,7 @@ func (m *Monitor) DisableModule(moduleName string) {
 	log.Printf("[RESOURCE] Module disabled: %s", moduleName)
 }
 
-// IsModuleEnabled بررسی فعال بودن ماژول
+// IsModuleEnabled checks whether a module is enabled
 func (m *Monitor) IsModuleEnabled(moduleName string) bool {
 	m.modulesMu.RLock()
 	defer m.modulesMu.RUnlock()
@@ -273,7 +273,7 @@ func (m *Monitor) IsModuleEnabled(moduleName string) bool {
 	return exists && enabled
 }
 
-// GetEnabledModules دریافت لیست ماژول‌های فعال
+// GetEnabledModules returns the list of enabled modules
 func (m *Monitor) GetEnabledModules() []string {
 	m.modulesMu.RLock()
 	defer m.modulesMu.RUnlock()
@@ -287,22 +287,22 @@ func (m *Monitor) GetEnabledModules() []string {
 	return modules
 }
 
-// SetOnLowMemory تنظیم کالبک حافظه کم
+// SetOnLowMemory sets the low memory callback
 func (m *Monitor) SetOnLowMemory(callback func()) {
 	m.onLowMemory = callback
 }
 
-// SetOnHighMemory تنظیم کالبک حافظه بالا
+// SetOnHighMemory sets the high memory callback
 func (m *Monitor) SetOnHighMemory(callback func()) {
 	m.onHighMemory = callback
 }
 
-// SetOnDiskFull تنظیم کالبک دیسک پر
+// SetOnDiskFull sets the disk full callback
 func (m *Monitor) SetOnDiskFull(callback func()) {
 	m.onDiskFull = callback
 }
 
-// ForceGC اجرای اجباری garbage collection
+// ForceGC runs forced garbage collection
 func (m *Monitor) ForceGC() {
 	before := m.GetStats()
 
@@ -315,7 +315,7 @@ func (m *Monitor) ForceGC() {
 	log.Printf("[GC] Garbage collection: freed %dMB", freed/1024/1024)
 }
 
-// GetMemoryProfile دریافت پروفایل حافظه
+// GetMemoryProfile returns the memory profile
 func (m *Monitor) GetMemoryProfile() map[string]interface{} {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
@@ -333,7 +333,7 @@ func (m *Monitor) GetMemoryProfile() map[string]interface{} {
 	}
 }
 
-// GetResourceReport دریافت گزارش کامل منابع
+// GetResourceReport returns the full resource report
 func (m *Monitor) GetResourceReport() map[string]interface{} {
 	stats := m.GetStats()
 

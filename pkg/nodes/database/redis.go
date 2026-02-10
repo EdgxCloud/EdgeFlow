@@ -12,7 +12,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// RedisConfig نود Redis
+// RedisConfig configuration for the Redis node
 type RedisConfig struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
@@ -20,14 +20,14 @@ type RedisConfig struct {
 	DB       int    `json:"db"`
 }
 
-// RedisExecutor اجراکننده نود Redis
+// RedisExecutor executor for the Redis node
 type RedisExecutor struct {
 	config RedisConfig
 	client *redis.Client
 	mu     sync.RWMutex
 }
 
-// NewRedisExecutor ایجاد RedisExecutor
+// NewRedisExecutor creates a new RedisExecutor
 func NewRedisExecutor() node.Executor {
 	return &RedisExecutor{}
 }
@@ -56,7 +56,7 @@ func (e *RedisExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *RedisExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Connect if not connected
 	if e.client == nil {
@@ -202,7 +202,7 @@ func (e *RedisExecutor) Execute(ctx context.Context, msg node.Message) (node.Mes
 	}
 }
 
-// connect اتصال به Redis
+// connect connects to Redis
 func (e *RedisExecutor) connect() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -230,7 +230,7 @@ func (e *RedisExecutor) connect() error {
 	return nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup releases resources
 func (e *RedisExecutor) Cleanup() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

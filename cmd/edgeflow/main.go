@@ -31,7 +31,7 @@ var Version = "0.1.0"
 func main() {
 	fmt.Println("╔═══════════════════════════════════════╗")
 	fmt.Printf("║       EdgeFlow v%-20s ║\n", Version)
-	fmt.Println("║   پلتفرم اتوماسیون سبک Edge و IoT    ║")
+	fmt.Println("║ Lightweight Edge & IoT Automation Platform ║")
 	fmt.Println("╚═══════════════════════════════════════╝")
 
 	// Initialize Hardware Abstraction Layer (GPIO, I2C, SPI)

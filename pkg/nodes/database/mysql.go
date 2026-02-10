@@ -12,7 +12,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// MySQLConfig نود MySQL
+// MySQLConfig configuration for the MySQL node
 type MySQLConfig struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
@@ -21,14 +21,14 @@ type MySQLConfig struct {
 	Password string `json:"password"`
 }
 
-// MySQLExecutor اجراکننده نود MySQL
+// MySQLExecutor executor for the MySQL node
 type MySQLExecutor struct {
 	config MySQLConfig
 	db     *sql.DB
 	mu     sync.RWMutex
 }
 
-// NewMySQLExecutor ایجاد MySQLExecutor
+// NewMySQLExecutor creates a new MySQLExecutor
 func NewMySQLExecutor() node.Executor {
 	return &MySQLExecutor{}
 }
@@ -60,7 +60,7 @@ func (e *MySQLExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *MySQLExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Connect if not connected
 	if e.db == nil {
@@ -137,7 +137,7 @@ func (e *MySQLExecutor) Execute(ctx context.Context, msg node.Message) (node.Mes
 	}, nil
 }
 
-// connect اتصال به MySQL
+// connect connects to MySQL
 func (e *MySQLExecutor) connect() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -168,7 +168,7 @@ func (e *MySQLExecutor) connect() error {
 	return nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup releases resources
 func (e *MySQLExecutor) Cleanup() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

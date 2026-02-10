@@ -9,7 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JWTConfig تنظیمات JWT
+// JWTConfig JWT configuration
 type JWTConfig struct {
 	SecretKey     string
 	Expiration    time.Duration
@@ -26,7 +26,7 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// JWTMiddleware میدلور JWT
+// JWTMiddleware JWT middleware
 func JWTMiddleware(config JWTConfig) fiber.Handler {
 	// Default values
 	if config.Expiration == 0 {
@@ -117,7 +117,7 @@ func JWTMiddleware(config JWTConfig) fiber.Handler {
 	}
 }
 
-// GenerateToken تولید JWT token
+// GenerateToken generates a JWT token
 func GenerateToken(userID, username string, roles []string, config JWTConfig) (string, error) {
 	// Default values
 	if config.Expiration == 0 {
@@ -155,7 +155,7 @@ func GenerateToken(userID, username string, roles []string, config JWTConfig) (s
 	return tokenString, nil
 }
 
-// ValidateToken اعتبارسنجی token
+// ValidateToken validates a token
 func ValidateToken(tokenString string, config JWTConfig) (*Claims, error) {
 	if config.SecretKey == "" {
 		config.SecretKey = "edgeflow-secret-key-change-in-production"

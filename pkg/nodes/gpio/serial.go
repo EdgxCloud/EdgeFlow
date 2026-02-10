@@ -11,7 +11,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// SerialConfig نود Serial
+// SerialConfig Serial node configuration
 type SerialConfig struct {
 	Port       string `json:"port"`       // Serial port path (e.g., /dev/ttyS0, /dev/ttyUSB0)
 	BaudRate   int    `json:"baudRate"`   // Baud rate (9600, 115200, etc.)
@@ -24,13 +24,13 @@ type SerialConfig struct {
 	BufferSize int    `json:"bufferSize"` // Read buffer size
 }
 
-// SerialExecutor اجراکننده نود Serial
+// SerialExecutor Serial node executor
 type SerialExecutor struct {
 	config SerialConfig
 	hal    hal.HAL
 }
 
-// NewSerialExecutor ایجاد SerialExecutor
+// NewSerialExecutor create SerialExecutor
 func NewSerialExecutor(config map[string]interface{}) (node.Executor, error) {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
@@ -96,7 +96,7 @@ func (e *SerialExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute execute node
 func (e *SerialExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Get HAL if not initialized
 	if e.hal == nil {
@@ -283,7 +283,7 @@ func (e *SerialExecutor) handleReadWrite(serial hal.SerialProvider, msg node.Mes
 	}, nil
 }
 
-// setup راه‌اندازی Serial
+// setup initialize Serial
 func (e *SerialExecutor) setup() error {
 	serial := e.hal.Serial()
 
@@ -324,7 +324,7 @@ func (e *SerialExecutor) setup() error {
 	return nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleanup resources
 func (e *SerialExecutor) Cleanup() error {
 	if e.hal != nil {
 		e.hal.Serial().Close()

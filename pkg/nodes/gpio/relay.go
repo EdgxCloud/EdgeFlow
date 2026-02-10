@@ -10,23 +10,23 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// RelayConfig نود Relay
+// RelayConfig Relay node configuration
 type RelayConfig struct {
-	Pin            int  `json:"pin"`            // شماره پین
-	InitialState   bool `json:"initialState"`   // وضعیت اولیه
-	ActiveLow      bool `json:"activeLow"`      // فعال در سطح پایین
-	PulseMode      bool `json:"pulseMode"`      // حالت پالس
-	PulseDuration  int  `json:"pulseDuration"`  // مدت پالس (ms)
+	Pin            int  `json:"pin"`            // pin number
+	InitialState   bool `json:"initialState"`   // initial state
+	ActiveLow      bool `json:"activeLow"`      // active low
+	PulseMode      bool `json:"pulseMode"`      // pulse mode
+	PulseDuration  int  `json:"pulseDuration"`  // pulse duration (ms)
 }
 
-// RelayExecutor اجراکننده نود Relay
+// RelayExecutor Relay node executor
 type RelayExecutor struct {
 	config RelayConfig
 	hal    hal.HAL
 	state  bool
 }
 
-// NewRelayExecutor ایجاد RelayExecutor
+// NewRelayExecutor create RelayExecutor
 func NewRelayExecutor(config map[string]interface{}) (node.Executor, error) {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
@@ -60,7 +60,7 @@ func (e *RelayExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute execute node
 func (e *RelayExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Get HAL if not initialized
 	if e.hal == nil {
@@ -167,7 +167,7 @@ func (e *RelayExecutor) Execute(ctx context.Context, msg node.Message) (node.Mes
 	}, nil
 }
 
-// setup راه‌اندازی relay
+// setup initialize relay
 func (e *RelayExecutor) setup() error {
 	gpio := e.hal.GPIO()
 
@@ -188,7 +188,7 @@ func (e *RelayExecutor) setup() error {
 	return nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleanup resources
 func (e *RelayExecutor) Cleanup() error {
 	// Turn off relay
 	if e.hal != nil {

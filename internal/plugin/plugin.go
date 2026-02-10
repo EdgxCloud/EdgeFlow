@@ -8,34 +8,34 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// Plugin رابط اصلی برای تمام پلاگین‌ها
+// Plugin main interface for all plugins
 type Plugin interface {
-	// اطلاعات پلاگین
+	// Plugin information
 	Name() string
 	Version() string
 	Description() string
 	Author() string
 	Category() Category
 
-	// مدیریت چرخه حیات
+	// Lifecycle management
 	Load() error
 	Unload() error
 	IsLoaded() bool
 
-	// نودهای ارائه شده
+	// Provided nodes
 	Nodes() []NodeDefinition
 
-	// نیازمندی‌های سیستم
-	RequiredMemory() uint64  // بایت
-	RequiredDisk() uint64    // بایت
-	Dependencies() []string  // نام پلاگین‌های وابسته
+	// System requirements
+	RequiredMemory() uint64  // bytes
+	RequiredDisk() uint64    // bytes
+	Dependencies() []string  // names of dependent plugins
 
-	// تنظیمات
+	// Configuration
 	DefaultConfig() map[string]interface{}
 	ValidateConfig(config map[string]interface{}) error
 }
 
-// Category دسته‌بندی پلاگین
+// Category plugin category
 type Category string
 
 const (
@@ -50,7 +50,7 @@ const (
 	CategoryUI         Category = "ui"
 )
 
-// NodeDefinition تعریف نود ارائه شده توسط پلاگین
+// NodeDefinition definition of a node provided by a plugin
 type NodeDefinition struct {
 	Type        string                 `json:"type"`
 	Name        string                 `json:"name"`
@@ -64,7 +64,7 @@ type NodeDefinition struct {
 	Config      map[string]interface{} `json:"config"`
 }
 
-// Metadata اطلاعات متا پلاگین
+// Metadata plugin metadata
 type Metadata struct {
 	Name         string                 `json:"name"`
 	Version      string                 `json:"version"`
@@ -80,7 +80,7 @@ type Metadata struct {
 	Dependencies []string               `json:"dependencies"`
 }
 
-// Status وضعیت پلاگین
+// Status plugin status
 type Status string
 
 const (
@@ -91,7 +91,7 @@ const (
 	StatusError     Status = "error"
 )
 
-// BasePlugin پیاده‌سازی پایه برای پلاگین‌ها
+// BasePlugin base implementation for plugins
 type BasePlugin struct {
 	metadata     Metadata
 	status       Status
@@ -102,7 +102,7 @@ type BasePlugin struct {
 	mu           sync.RWMutex
 }
 
-// NewBasePlugin ایجاد پلاگین پایه
+// NewBasePlugin create base plugin
 func NewBasePlugin(metadata Metadata) *BasePlugin {
 	return &BasePlugin{
 		metadata: metadata,
@@ -111,37 +111,37 @@ func NewBasePlugin(metadata Metadata) *BasePlugin {
 	}
 }
 
-// Name نام پلاگین
+// Name plugin name
 func (p *BasePlugin) Name() string {
 	return p.metadata.Name
 }
 
-// Version نسخه پلاگین
+// Version plugin version
 func (p *BasePlugin) Version() string {
 	return p.metadata.Version
 }
 
-// Description توضیحات پلاگین
+// Description plugin description
 func (p *BasePlugin) Description() string {
 	return p.metadata.Description
 }
 
-// Author نویسنده پلاگین
+// Author plugin author
 func (p *BasePlugin) Author() string {
 	return p.metadata.Author
 }
 
-// Category دسته‌بندی پلاگین
+// Category plugin category
 func (p *BasePlugin) Category() Category {
 	return p.metadata.Category
 }
 
-// GetMetadata دریافت تمام اطلاعات متا
+// GetMetadata get all metadata
 func (p *BasePlugin) GetMetadata() Metadata {
 	return p.metadata
 }
 
-// SetStatus تنظیم وضعیت
+// SetStatus set status
 func (p *BasePlugin) SetStatus(status Status) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -154,19 +154,19 @@ func (p *BasePlugin) SetStatus(status Status) {
 	}
 }
 
-// GetStatus دریافت وضعیت
+// GetStatus get status
 func (p *BasePlugin) GetStatus() Status {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.status
 }
 
-// IsLoaded بررسی بارگذاری شدن
+// IsLoaded check if loaded
 func (p *BasePlugin) IsLoaded() bool {
 	return p.GetStatus() == StatusLoaded
 }
 
-// SetError تنظیم خطا
+// SetError set error
 func (p *BasePlugin) SetError(err error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -176,83 +176,83 @@ func (p *BasePlugin) SetError(err error) {
 	}
 }
 
-// GetError دریافت خطا
+// GetError get error
 func (p *BasePlugin) GetError() string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.errorMessage
 }
 
-// SetConfig تنظیم پیکربندی
+// SetConfig set configuration
 func (p *BasePlugin) SetConfig(config map[string]interface{}) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.config = config
 }
 
-// GetConfig دریافت پیکربندی
+// GetConfig get configuration
 func (p *BasePlugin) GetConfig() map[string]interface{} {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.config
 }
 
-// LoadedAt زمان بارگذاری
+// LoadedAt load time
 func (p *BasePlugin) LoadedAt() time.Time {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.loadedAt
 }
 
-// UnloadedAt زمان خارج شدن از حافظه
+// UnloadedAt unload time
 func (p *BasePlugin) UnloadedAt() time.Time {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.unloadedAt
 }
 
-// DefaultConfig پیکربندی پیش‌فرض
+// DefaultConfig default configuration
 func (p *BasePlugin) DefaultConfig() map[string]interface{} {
 	return p.metadata.Config
 }
 
-// ValidateConfig اعتبارسنجی پیکربندی
+// ValidateConfig validate configuration
 func (p *BasePlugin) ValidateConfig(config map[string]interface{}) error {
-	// پیاده‌سازی پایه - پلاگین‌ها می‌توانند override کنند
+	// Base implementation - plugins can override
 	return nil
 }
 
-// Dependencies لیست پلاگین‌های وابسته
+// Dependencies list of dependent plugins
 func (p *BasePlugin) Dependencies() []string {
 	return p.metadata.Dependencies
 }
 
-// Load بارگذاری پلاگین (پیاده‌سازی پیش‌فرض - پلاگین‌ها می‌توانند override کنند)
+// Load load plugin (default implementation - plugins can override)
 func (p *BasePlugin) Load() error {
 	return nil
 }
 
-// Unload خارج کردن پلاگین از حافظه (پیاده‌سازی پیش‌فرض - پلاگین‌ها می‌توانند override کنند)
+// Unload unload plugin from memory (default implementation - plugins can override)
 func (p *BasePlugin) Unload() error {
 	return nil
 }
 
-// Nodes لیست نودهای ارائه شده (پیاده‌سازی پیش‌فرض - پلاگین‌ها باید override کنند)
+// Nodes list of provided nodes (default implementation - plugins should override)
 func (p *BasePlugin) Nodes() []NodeDefinition {
 	return []NodeDefinition{}
 }
 
-// RequiredMemory حافظه مورد نیاز (پیاده‌سازی پیش‌فرض)
+// RequiredMemory required memory (default implementation)
 func (p *BasePlugin) RequiredMemory() uint64 {
 	return 0
 }
 
-// RequiredDisk فضای دیسک مورد نیاز (پیاده‌سازی پیش‌فرض)
+// RequiredDisk required disk space (default implementation)
 func (p *BasePlugin) RequiredDisk() uint64 {
 	return 0
 }
 
-// PluginInfo اطلاعات کامل پلاگین برای API
+// PluginInfo complete plugin information for API
 type PluginInfo struct {
 	Name             string                 `json:"name"`
 	Version          string                 `json:"version"`
@@ -272,7 +272,7 @@ type PluginInfo struct {
 	CompatibleReason string                 `json:"compatible_reason,omitempty"`
 }
 
-// ToPluginInfo تبدیل به PluginInfo
+// ToPluginInfo convert to PluginInfo
 func ToPluginInfo(p Plugin, compatible bool, reason string) PluginInfo {
 	info := PluginInfo{
 		Name:             p.Name(),
@@ -289,7 +289,7 @@ func ToPluginInfo(p Plugin, compatible bool, reason string) PluginInfo {
 		CompatibleReason: reason,
 	}
 
-	// اطلاعات وضعیت اگر BasePlugin باشد
+	// Status information if it's a BasePlugin
 	if bp, ok := p.(*BasePlugin); ok {
 		info.Status = bp.GetStatus()
 		info.Error = bp.GetError()
@@ -313,23 +313,23 @@ func ToPluginInfo(p Plugin, compatible bool, reason string) PluginInfo {
 	return info
 }
 
-// Registry رجیستری جهانی پلاگین‌ها
+// Registry global plugin registry
 type Registry struct {
 	plugins map[string]Plugin
 	mu      sync.RWMutex
 }
 
-// globalRegistry رجیستری جهانی
+// globalRegistry global registry
 var globalRegistry = &Registry{
 	plugins: make(map[string]Plugin),
 }
 
-// GetRegistry دریافت رجیستری جهانی
+// GetRegistry get global registry
 func GetRegistry() *Registry {
 	return globalRegistry
 }
 
-// Register ثبت پلاگین در رجیستری
+// Register register plugin in registry
 func (r *Registry) Register(plugin Plugin) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -343,7 +343,7 @@ func (r *Registry) Register(plugin Plugin) error {
 	return nil
 }
 
-// Unregister حذف پلاگین از رجیستری
+// Unregister remove plugin from registry
 func (r *Registry) Unregister(name string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -356,7 +356,7 @@ func (r *Registry) Unregister(name string) error {
 	return nil
 }
 
-// Get دریافت پلاگین
+// Get get plugin
 func (r *Registry) Get(name string) (Plugin, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -369,7 +369,7 @@ func (r *Registry) Get(name string) (Plugin, error) {
 	return plugin, nil
 }
 
-// List لیست تمام پلاگین‌ها
+// List list all plugins
 func (r *Registry) List() []Plugin {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -382,7 +382,7 @@ func (r *Registry) List() []Plugin {
 	return plugins
 }
 
-// ListByCategory لیست پلاگین‌ها بر اساس دسته‌بندی
+// ListByCategory list plugins by category
 func (r *Registry) ListByCategory(category Category) []Plugin {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -397,7 +397,7 @@ func (r *Registry) ListByCategory(category Category) []Plugin {
 	return plugins
 }
 
-// ListLoaded لیست پلاگین‌های بارگذاری شده
+// ListLoaded list loaded plugins
 func (r *Registry) ListLoaded() []Plugin {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -412,14 +412,14 @@ func (r *Registry) ListLoaded() []Plugin {
 	return plugins
 }
 
-// Count تعداد پلاگین‌ها
+// Count number of plugins
 func (r *Registry) Count() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.plugins)
 }
 
-// CountLoaded تعداد پلاگین‌های بارگذاری شده
+// CountLoaded number of loaded plugins
 func (r *Registry) CountLoaded() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

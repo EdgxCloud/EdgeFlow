@@ -12,7 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// HTTPWebhookConfig نود HTTP Webhook
+// HTTPWebhookConfig configuration for the HTTP Webhook node
 type HTTPWebhookConfig struct {
 	Path       string            `json:"path"`       // Webhook path (e.g., /webhook/myflow)
 	Method     string            `json:"method"`     // HTTP method (default: POST)
@@ -22,7 +22,7 @@ type HTTPWebhookConfig struct {
 	RawBody    bool              `json:"rawBody"`    // Return raw body instead of parsing
 }
 
-// HTTPWebhookExecutor اجراکننده نود HTTP Webhook
+// HTTPWebhookExecutor executor for the HTTP Webhook node
 type HTTPWebhookExecutor struct {
 	config       HTTPWebhookConfig
 	outputChan   chan node.Message
@@ -31,13 +31,13 @@ type HTTPWebhookExecutor struct {
 	mu           sync.RWMutex
 }
 
-// WebhookRegistry رجیستری global برای webhooks
+// WebhookRegistry global registry for webhooks
 var (
 	webhookRegistry = make(map[string]*HTTPWebhookExecutor)
 	webhookMu       sync.RWMutex
 )
 
-// NewHTTPWebhookExecutor ایجاد HTTPWebhookExecutor
+// NewHTTPWebhookExecutor creates a new HTTPWebhookExecutor
 func NewHTTPWebhookExecutor() node.Executor {
 	return &HTTPWebhookExecutor{
 		outputChan: make(chan node.Message, 100),
@@ -80,7 +80,7 @@ func (e *HTTPWebhookExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود (webhook به صورت passive کار می‌کند)
+// Execute executes the node (webhook operates passively)
 func (e *HTTPWebhookExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Register webhook if not already registered
 	if !e.registered {
@@ -99,7 +99,7 @@ func (e *HTTPWebhookExecutor) Execute(ctx context.Context, msg node.Message) (no
 	}
 }
 
-// registerWebhook ثبت webhook در سرور HTTP
+// registerWebhook registers the webhook on the HTTP server
 func (e *HTTPWebhookExecutor) registerWebhook() error {
 	webhookMu.Lock()
 	defer webhookMu.Unlock()
@@ -115,7 +115,7 @@ func (e *HTTPWebhookExecutor) registerWebhook() error {
 	return nil
 }
 
-// HandleWebhook handler برای webhook
+// HandleWebhook handler for webhook requests
 func (e *HTTPWebhookExecutor) HandleWebhook(c *fiber.Ctx) error {
 	// Check method
 	if c.Method() != e.config.Method {
@@ -182,7 +182,7 @@ func (e *HTTPWebhookExecutor) HandleWebhook(c *fiber.Ctx) error {
 	})
 }
 
-// checkAuth بررسی احراز هویت
+// checkAuth verifies authentication
 func (e *HTTPWebhookExecutor) checkAuth(c *fiber.Ctx) bool {
 	switch e.config.AuthType {
 	case "none":
@@ -205,7 +205,7 @@ func (e *HTTPWebhookExecutor) checkAuth(c *fiber.Ctx) bool {
 	}
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup releases resources
 func (e *HTTPWebhookExecutor) Cleanup() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -221,7 +221,7 @@ func (e *HTTPWebhookExecutor) Cleanup() error {
 	return nil
 }
 
-// GetWebhookHandler دریافت handler برای یک path
+// GetWebhookHandler retrieves the handler for a given path
 func GetWebhookHandler(path string) (*HTTPWebhookExecutor, bool) {
 	webhookMu.RLock()
 	defer webhookMu.RUnlock()

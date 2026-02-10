@@ -10,7 +10,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// UDPConfig نود UDP
+// UDPConfig UDP node
 type UDPConfig struct {
 	Mode       string `json:"mode"`       // listen or send
 	Host       string `json:"host"`       // Host address
@@ -18,7 +18,7 @@ type UDPConfig struct {
 	BufferSize int    `json:"bufferSize"` // Buffer size for receiving
 }
 
-// UDPExecutor اجراکننده نود UDP
+// UDPExecutor UDP node executor
 type UDPExecutor struct {
 	config     UDPConfig
 	conn       *net.UDPConn
@@ -27,7 +27,7 @@ type UDPExecutor struct {
 	stopChan   chan struct{}
 }
 
-// NewUDPExecutor ایجاد UDPExecutor
+// NewUDPExecutor create UDPExecutor
 func NewUDPExecutor() node.Executor {
 	return &UDPExecutor{
 		outputChan: make(chan node.Message, 100),
@@ -67,7 +67,7 @@ func (e *UDPExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute execute node
 func (e *UDPExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Setup connection if not setup
 	if e.conn == nil {
@@ -106,7 +106,7 @@ func (e *UDPExecutor) Execute(ctx context.Context, msg node.Message) (node.Messa
 	}
 }
 
-// setup راه‌اندازی اتصال UDP
+// setup setup UDP connection
 func (e *UDPExecutor) setup() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -149,7 +149,7 @@ func (e *UDPExecutor) setup() error {
 	return nil
 }
 
-// readLoop حلقه خواندن داده (فقط برای listen mode)
+// readLoop data read loop (listen mode only)
 func (e *UDPExecutor) readLoop() {
 	buffer := make([]byte, e.config.BufferSize)
 
@@ -185,7 +185,7 @@ func (e *UDPExecutor) readLoop() {
 	}
 }
 
-// send ارسال داده
+// send send data
 func (e *UDPExecutor) send(data interface{}, msgPayload map[string]interface{}) error {
 	e.mu.RLock()
 	conn := e.conn
@@ -226,7 +226,7 @@ func (e *UDPExecutor) send(data interface{}, msgPayload map[string]interface{}) 
 	return err
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleanup resources
 func (e *UDPExecutor) Cleanup() error {
 	close(e.stopChan)
 

@@ -4,7 +4,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// RegisterAllNodes ثبت تمام نودهای database
+// RegisterAllNodes registers all database nodes
 func RegisterAllNodes(registry *node.Registry) {
 	// ============================================
 	// SQL DATABASES (3 nodes)
@@ -15,7 +15,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "mysql",
 		Name:        "MySQL",
 		Category:    node.NodeTypeProcessing,
-		Description: "اجرای query در MySQL",
+		Description: "Execute queries on MySQL",
 		Icon:        "database",
 		Color:       "#00758f",
 		Properties: []node.PropertySchema{
@@ -39,7 +39,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "postgresql",
 		Name:        "PostgreSQL",
 		Category:    node.NodeTypeProcessing,
-		Description: "اجرای query در PostgreSQL",
+		Description: "Execute queries on PostgreSQL",
 		Icon:        "database",
 		Color:       "#336791",
 		Properties: []node.PropertySchema{
@@ -64,7 +64,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "sqlite",
 		Name:        "SQLite",
 		Category:    node.NodeTypeProcessing,
-		Description: "اجرای query در SQLite",
+		Description: "Execute queries on SQLite",
 		Icon:        "database",
 		Color:       "#003b57",
 		Properties: []node.PropertySchema{
@@ -93,7 +93,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "mongodb",
 		Name:        "MongoDB",
 		Category:    node.NodeTypeProcessing,
-		Description: "عملیات MongoDB (find, insert, update, delete)",
+		Description: "MongoDB operations (find, insert, update, delete)",
 		Icon:        "database",
 		Color:       "#47a248",
 		Properties: []node.PropertySchema{
@@ -115,7 +115,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "redis",
 		Name:        "Redis",
 		Category:    node.NodeTypeProcessing,
-		Description: "عملیات Redis (get, set, delete, incr, decr)",
+		Description: "Redis operations (get, set, delete, incr, decr)",
 		Icon:        "box",
 		Color:       "#dc382d",
 		Properties: []node.PropertySchema{
@@ -142,7 +142,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Type:        "influxdb",
 		Name:        "InfluxDB",
 		Category:    node.NodeTypeProcessing,
-		Description: "عملیات InfluxDB (write, query, delete)",
+		Description: "InfluxDB operations (write, query, delete)",
 		Icon:        "database",
 		Color:       "#22adf6",
 		Properties: []node.PropertySchema{

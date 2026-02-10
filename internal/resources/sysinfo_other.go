@@ -7,7 +7,7 @@ import (
 	"runtime"
 )
 
-// SystemInfo اطلاعات سخت‌افزاری سیستم (غیرلینوکس)
+// SystemInfo holds system hardware information (non-Linux)
 type SystemInfo struct {
 	Hostname    string  `json:"hostname"`
 	OS          string  `json:"os"`
@@ -33,11 +33,11 @@ type SystemInfo struct {
 	NetTxBytes uint64 `json:"net_tx_bytes"`
 }
 
-// GetSystemInfo دریافت اطلاعات سیستم (غیرلینوکس - مقادیر محدود)
+// GetSystemInfo returns system information (non-Linux - limited values)
 func GetSystemInfo() SystemInfo {
 	hostname, _ := os.Hostname()
 
-	// استفاده از Go runtime برای اطلاعات حافظه
+	// Use Go runtime for memory information
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
@@ -57,9 +57,9 @@ func GetSystemInfo() SystemInfo {
 	}
 }
 
-// GetDiskUsage اطلاعات دیسک (غیرلینوکس - مقادیر placeholder)
+// GetDiskUsage returns disk information (non-Linux - placeholder values)
 func GetDiskUsage(path string) DiskStats {
-	// در ویندوز/مک بدون syscall اختصاصی
+	// On Windows/Mac without platform-specific syscall
 	return DiskStats{
 		Total:     0,
 		Used:      0,

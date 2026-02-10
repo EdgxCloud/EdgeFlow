@@ -11,7 +11,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// PostgreSQLConfig نود PostgreSQL
+// PostgreSQLConfig configuration for the PostgreSQL node
 type PostgreSQLConfig struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
@@ -21,14 +21,14 @@ type PostgreSQLConfig struct {
 	SSLMode  string `json:"sslMode"` // disable, require, verify-ca, verify-full
 }
 
-// PostgreSQLExecutor اجراکننده نود PostgreSQL
+// PostgreSQLExecutor executor for the PostgreSQL node
 type PostgreSQLExecutor struct {
 	config PostgreSQLConfig
 	db     *sql.DB
 	mu     sync.RWMutex
 }
 
-// NewPostgreSQLExecutor ایجاد PostgreSQLExecutor
+// NewPostgreSQLExecutor creates a new PostgreSQLExecutor
 func NewPostgreSQLExecutor() node.Executor {
 	return &PostgreSQLExecutor{}
 }
@@ -74,7 +74,7 @@ func (e *PostgreSQLExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// connect اتصال به PostgreSQL
+// connect connects to PostgreSQL
 func (e *PostgreSQLExecutor) connect() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -108,7 +108,7 @@ func (e *PostgreSQLExecutor) connect() error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *PostgreSQLExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.RLock()
 	db := e.db
@@ -208,7 +208,7 @@ func (e *PostgreSQLExecutor) Execute(ctx context.Context, msg node.Message) (nod
 	}
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup releases resources
 func (e *PostgreSQLExecutor) Cleanup() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

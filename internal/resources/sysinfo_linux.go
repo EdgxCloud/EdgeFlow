@@ -10,19 +10,19 @@ import (
 	"time"
 )
 
-// SystemInfo اطلاعات سخت‌افزاری سیستم (لینوکس / رزبری‌پای)
+// SystemInfo holds system hardware information (Linux / Raspberry Pi)
 type SystemInfo struct {
 	Hostname    string  `json:"hostname"`
 	OS          string  `json:"os"`
 	Arch        string  `json:"arch"`
 	Uptime      uint64  `json:"uptime_seconds"`
-	Temperature float64 `json:"temperature"` // سانتی‌گراد
+	Temperature float64 `json:"temperature"` // Celsius
 	LoadAvg1    float64 `json:"load_avg_1"`
 	LoadAvg5    float64 `json:"load_avg_5"`
 	LoadAvg15   float64 `json:"load_avg_15"`
 	BoardModel  string  `json:"board_model"`
 
-	// حافظه سیستم‌عامل (نه فقط Go)
+	// OS memory (not just Go)
 	OSMemTotal     uint64  `json:"os_mem_total"`
 	OSMemUsed      uint64  `json:"os_mem_used"`
 	OSMemFree      uint64  `json:"os_mem_free"`
@@ -31,15 +31,15 @@ type SystemInfo struct {
 	OSSwapTotal    uint64  `json:"os_swap_total"`
 	OSSwapUsed     uint64  `json:"os_swap_used"`
 
-	// پردازنده
+	// CPU
 	CPUUsagePercent float64 `json:"cpu_usage_percent"`
 
-	// شبکه
+	// Network
 	NetRxBytes uint64 `json:"net_rx_bytes"`
 	NetTxBytes uint64 `json:"net_tx_bytes"`
 }
 
-// خواندن فایل proc
+// readProcFile reads a proc file and returns its trimmed content
 func readProcFile(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -48,7 +48,7 @@ func readProcFile(path string) (string, error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
-// GetSystemInfo دریافت اطلاعات سیستم (لینوکس)
+// GetSystemInfo returns system information (Linux)
 func GetSystemInfo() SystemInfo {
 	info := SystemInfo{
 		OS:   "linux",
@@ -57,32 +57,32 @@ func GetSystemInfo() SystemInfo {
 
 	info.Hostname, _ = os.Hostname()
 
-	// دمای CPU (رزبری‌پای)
+	// CPU temperature (Raspberry Pi)
 	info.Temperature = getCPUTemperature()
 
-	// آپتایم
+	// Uptime
 	info.Uptime = getUptime()
 
-	// لود اوریج
+	// Load average
 	info.LoadAvg1, info.LoadAvg5, info.LoadAvg15 = getLoadAvg()
 
-	// مدل برد
+	// Board model
 	info.BoardModel = getBoardModel()
 
-	// حافظه سیستم‌عامل
+	// OS memory
 	info.OSMemTotal, info.OSMemUsed, info.OSMemFree, info.OSMemAvailable, info.OSMemPercent,
 		info.OSSwapTotal, info.OSSwapUsed = getOSMemory()
 
-	// مصرف CPU
+	// CPU usage
 	info.CPUUsagePercent = getCPUUsage()
 
-	// ترافیک شبکه
+	// Network traffic
 	info.NetRxBytes, info.NetTxBytes = getNetworkBytes()
 
 	return info
 }
 
-// getCPUTemperature دمای CPU از thermal zone
+// getCPUTemperature returns CPU temperature from thermal zone
 func getCPUTemperature() float64 {
 	content, err := readProcFile("/sys/class/thermal/thermal_zone0/temp")
 	if err != nil {
@@ -95,7 +95,7 @@ func getCPUTemperature() float64 {
 	return temp / 1000.0 // millidegree to degree
 }
 
-// getUptime آپتایم سیستم
+// getUptime returns system uptime
 func getUptime() uint64 {
 	content, err := readProcFile("/proc/uptime")
 	if err != nil {
@@ -112,7 +112,7 @@ func getUptime() uint64 {
 	return uint64(uptime)
 }
 
-// getLoadAvg لود اوریج سیستم
+// getLoadAvg returns system load averages
 func getLoadAvg() (float64, float64, float64) {
 	content, err := readProcFile("/proc/loadavg")
 	if err != nil {
@@ -128,7 +128,7 @@ func getLoadAvg() (float64, float64, float64) {
 	return l1, l5, l15
 }
 
-// getBoardModel مدل برد (رزبری‌پای)
+// getBoardModel returns the board model (Raspberry Pi)
 func getBoardModel() string {
 	content, err := readProcFile("/proc/device-tree/model")
 	if err != nil {
@@ -138,11 +138,11 @@ func getBoardModel() string {
 			return "Unknown"
 		}
 	}
-	// حذف کاراکتر null از انتها
+	// Remove trailing null character
 	return strings.TrimRight(content, "\x00")
 }
 
-// getOSMemory حافظه سیستم‌عامل از /proc/meminfo
+// getOSMemory returns OS memory information from /proc/meminfo
 func getOSMemory() (total, used, free, available uint64, percent float64, swapTotal, swapUsed uint64) {
 	content, err := readProcFile("/proc/meminfo")
 	if err != nil {
@@ -160,7 +160,7 @@ func getOSMemory() (total, used, free, available uint64, percent float64, swapTo
 		if err != nil {
 			continue
 		}
-		// مقادیر /proc/meminfo بر حسب kB هستند
+		// /proc/meminfo values are in kB
 		memMap[key] = val * 1024
 	}
 
@@ -168,7 +168,7 @@ func getOSMemory() (total, used, free, available uint64, percent float64, swapTo
 	free = memMap["MemFree"]
 	available = memMap["MemAvailable"]
 	if available == 0 {
-		// اگر MemAvailable نبود (کرنل قدیمی)
+		// If MemAvailable is missing (old kernel)
 		available = free + memMap["Buffers"] + memMap["Cached"]
 	}
 	used = total - available
@@ -185,10 +185,10 @@ func getOSMemory() (total, used, free, available uint64, percent float64, swapTo
 	return
 }
 
-// CPUTimes ذخیره وضعیت CPU برای محاسبه استفاده
+// CPUTimes stores CPU state for usage calculation
 var prevCPUIdle, prevCPUTotal uint64
 
-// getCPUUsage محاسبه درصد استفاده CPU
+// getCPUUsage calculates CPU usage percentage
 func getCPUUsage() float64 {
 	content, err := readProcFile("/proc/stat")
 	if err != nil {
@@ -200,7 +200,7 @@ func getCPUUsage() float64 {
 		return 0
 	}
 
-	// خط اول: cpu  user nice system idle iowait irq softirq steal
+	// First line: cpu  user nice system idle iowait irq softirq steal
 	fields := strings.Fields(lines[0])
 	if len(fields) < 5 || fields[0] != "cpu" {
 		return 0
@@ -229,7 +229,7 @@ func getCPUUsage() float64 {
 		total += v
 	}
 
-	// محاسبه اختلاف با نمونه قبلی
+	// Calculate difference from previous sample
 	if prevCPUTotal == 0 {
 		prevCPUIdle = idle
 		prevCPUTotal = total
@@ -249,7 +249,7 @@ func getCPUUsage() float64 {
 	return (1.0 - float64(diffIdle)/float64(diffTotal)) * 100
 }
 
-// getNetworkBytes ترافیک شبکه
+// getNetworkBytes returns network traffic bytes
 func getNetworkBytes() (rx, tx uint64) {
 	content, err := readProcFile("/proc/net/dev")
 	if err != nil {
@@ -258,7 +258,7 @@ func getNetworkBytes() (rx, tx uint64) {
 
 	for _, line := range strings.Split(content, "\n") {
 		line = strings.TrimSpace(line)
-		// رد کردن هدر و loopback
+		// Skip header and loopback
 		if strings.HasPrefix(line, "Inter") || strings.HasPrefix(line, "face") || strings.HasPrefix(line, "lo:") {
 			continue
 		}
@@ -266,7 +266,7 @@ func getNetworkBytes() (rx, tx uint64) {
 		if len(parts) < 10 {
 			continue
 		}
-		// حذف نام اینترفیس
+		// Strip interface name
 		rxVal, _ := strconv.ParseUint(parts[1], 10, 64)
 		txVal, _ := strconv.ParseUint(parts[9], 10, 64)
 		rx += rxVal
@@ -276,7 +276,7 @@ func getNetworkBytes() (rx, tx uint64) {
 	return
 }
 
-// GetDiskUsage اطلاعات واقعی دیسک
+// GetDiskUsage returns actual disk usage information
 func GetDiskUsage(path string) DiskStats {
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(path, &stat); err != nil {
@@ -300,7 +300,7 @@ func GetDiskUsage(path string) DiskStats {
 	}
 }
 
-// getArch معماری پردازنده
+// getArch returns the processor architecture
 func getArch() string {
 	content, err := readProcFile("/proc/cpuinfo")
 	if err != nil {
@@ -318,7 +318,7 @@ func getArch() string {
 }
 
 func init() {
-	// خواندن اولیه CPU برای داشتن مقدار پایه
+	// Initial CPU read to establish a baseline value
 	getCPUUsage()
 	time.Sleep(100 * time.Millisecond)
 }

@@ -20,7 +20,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// HTTPRequestConfig نود HTTP Request
+// HTTPRequestConfig configuration for the HTTP Request node
 type HTTPRequestConfig struct {
 	Method         string            `json:"method"`         // GET, POST, PUT, DELETE, PATCH
 	URL            string            `json:"url"`            // URL
@@ -63,7 +63,7 @@ type OAuth2Config struct {
 	ExtraParams  map[string]string `json:"extraParams"`  // Extra token request parameters
 }
 
-// HTTPRequestExecutor اجراکننده نود HTTP Request
+// HTTPRequestExecutor executor for the HTTP Request node
 type HTTPRequestExecutor struct {
 	config      HTTPRequestConfig
 	client      *http.Client
@@ -73,7 +73,7 @@ type HTTPRequestExecutor struct {
 	tokenMu     sync.RWMutex
 }
 
-// NewHTTPRequestExecutor ایجاد HTTPRequestExecutor
+// NewHTTPRequestExecutor creates a new HTTPRequestExecutor
 func NewHTTPRequestExecutor() node.Executor {
 	return &HTTPRequestExecutor{}
 }
@@ -166,7 +166,7 @@ func (e *HTTPRequestExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *HTTPRequestExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Get URL from config or message
 	url := e.config.URL
@@ -218,7 +218,7 @@ func (e *HTTPRequestExecutor) Execute(ctx context.Context, msg node.Message) (no
 	return node.Message{}, fmt.Errorf("request failed after %d retries: %w", e.config.RetryCount, lastErr)
 }
 
-// executeRequest اجرای یک درخواست HTTP
+// executeRequest executes a single HTTP request
 func (e *HTTPRequestExecutor) executeRequest(ctx context.Context, method, url string, body io.Reader) (node.Message, error) {
 	// Create request
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
@@ -292,7 +292,7 @@ func (e *HTTPRequestExecutor) executeRequest(ctx context.Context, method, url st
 	return responseMsg, nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup releases resources
 func (e *HTTPRequestExecutor) Cleanup() error {
 	if e.client != nil {
 		e.client.CloseIdleConnections()

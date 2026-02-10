@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// PinMode حالت پین
+// PinMode pin mode
 type PinMode int
 
 const (
@@ -14,7 +14,7 @@ const (
 	PWM
 )
 
-// PullMode حالت pull resistor
+// PullMode pull resistor mode
 type PullMode int
 
 const (
@@ -23,7 +23,7 @@ const (
 	PullDown
 )
 
-// EdgeMode حالت تشخیص لبه
+// EdgeMode edge detection mode
 type EdgeMode int
 
 const (
@@ -33,111 +33,111 @@ const (
 	EdgeBoth
 )
 
-// GPIOProvider رابط GPIO
+// GPIOProvider GPIO interface
 type GPIOProvider interface {
-	// SetMode تنظیم حالت پین
+	// SetMode set pin mode
 	SetMode(pin int, mode PinMode) error
-	// SetPull تنظیم pull resistor
+	// SetPull set pull resistor
 	SetPull(pin int, pull PullMode) error
-	// DigitalRead خواندن مقدار دیجیتال
+	// DigitalRead digital read
 	DigitalRead(pin int) (bool, error)
-	// DigitalWrite نوشتن مقدار دیجیتال
+	// DigitalWrite digital write
 	DigitalWrite(pin int, value bool) error
-	// PWMWrite نوشتن PWM (0-255)
+	// PWMWrite write PWM value (0-255)
 	PWMWrite(pin int, value int) error
-	// SetPWMFrequency تنظیم فرکانس PWM
+	// SetPWMFrequency set PWM frequency
 	SetPWMFrequency(pin int, freq int) error
-	// WatchEdge تشخیص تغییر لبه
+	// WatchEdge watch for edge changes
 	WatchEdge(pin int, edge EdgeMode, callback func(pin int, value bool)) error
-	// Close بستن GPIO
+	// Close close GPIO
 	Close() error
 }
 
-// I2CProvider رابط I2C
+// I2CProvider I2C interface
 type I2CProvider interface {
-	// Open باز کردن I2C با آدرس
+	// Open open I2C with address
 	Open(address byte) error
-	// Read خواندن byte ها
+	// Read read bytes
 	Read(length int) ([]byte, error)
-	// Write نوشتن byte ها
+	// Write write bytes
 	Write(data []byte) error
-	// ReadRegister خواندن از رجیستر
+	// ReadRegister read from register
 	ReadRegister(register byte, length int) ([]byte, error)
-	// WriteRegister نوشتن به رجیستر
+	// WriteRegister write to register
 	WriteRegister(register byte, data []byte) error
-	// Close بستن I2C
+	// Close close I2C
 	Close() error
 }
 
-// SPIProvider رابط SPI
+// SPIProvider SPI interface
 type SPIProvider interface {
-	// Open باز کردن SPI
+	// Open open SPI
 	Open(bus, device int) error
-	// Transfer انتقال داده
+	// Transfer transfer data
 	Transfer(data []byte) ([]byte, error)
-	// SetSpeed تنظیم سرعت
+	// SetSpeed set speed
 	SetSpeed(speed int) error
-	// SetMode تنظیم SPI mode
+	// SetMode set SPI mode
 	SetMode(mode byte) error
-	// SetBitsPerWord تنظیم تعداد بیت در هر کلمه
+	// SetBitsPerWord set bits per word
 	SetBitsPerWord(bits byte) error
-	// Close بستن SPI
+	// Close close SPI
 	Close() error
 }
 
-// SerialProvider رابط Serial
+// SerialProvider Serial interface
 type SerialProvider interface {
-	// Open باز کردن Serial port
+	// Open open Serial port
 	Open(port string) error
-	// SetBaudRate تنظیم baud rate
+	// SetBaudRate set baud rate
 	SetBaudRate(baud int) error
-	// SetDataBits تنظیم data bits
+	// SetDataBits set data bits
 	SetDataBits(bits int) error
-	// SetStopBits تنظیم stop bits
+	// SetStopBits set stop bits
 	SetStopBits(bits int) error
-	// SetParity تنظیم parity (0=none, 1=odd, 2=even)
+	// SetParity set parity (0=none, 1=odd, 2=even)
 	SetParity(parity byte) error
-	// Read خواندن
+	// Read read
 	Read(buffer []byte) (int, error)
-	// Write نوشتن
+	// Write write
 	Write(data []byte) (int, error)
-	// Close بستن Serial
+	// Close close Serial
 	Close() error
 }
 
-// I2CBus رابط I2C Bus
+// I2CBus I2C Bus interface
 type I2CBus interface {
-	// Write نوشتن به آدرس
+	// Write write to address
 	Write(addr uint16, data []byte) error
-	// Read خواندن از آدرس
+	// Read read from address
 	Read(addr uint16, data []byte) error
-	// WriteRead نوشتن و خواندن
+	// WriteRead write and read
 	WriteRead(addr uint16, write []byte, read []byte) error
-	// Close بستن باس
+	// Close close bus
 	Close() error
 }
 
-// SPIDevice رابط SPI Device
+// SPIDevice SPI Device interface
 type SPIDevice interface {
-	// Transfer انتقال داده
+	// Transfer transfer data
 	Transfer(data []byte) ([]byte, error)
-	// Close بستن device
+	// Close close device
 	Close() error
 }
 
-// HAL رابط Hardware Abstraction Layer
+// HAL Hardware Abstraction Layer interface
 type HAL interface {
-	// GPIO دریافت GPIO provider
+	// GPIO get GPIO provider
 	GPIO() GPIOProvider
-	// I2C دریافت I2C provider
+	// I2C get I2C provider
 	I2C() I2CProvider
-	// SPI دریافت SPI provider
+	// SPI get SPI provider
 	SPI() SPIProvider
-	// Serial دریافت Serial provider
+	// Serial get Serial provider
 	Serial() SerialProvider
-	// Info دریافت اطلاعات برد
+	// Info get board information
 	Info() BoardInfo
-	// Close بستن HAL
+	// Close close HAL
 	Close() error
 }
 
@@ -146,14 +146,14 @@ var (
 	halMu     sync.RWMutex
 )
 
-// SetGlobalHAL تنظیم HAL global
+// SetGlobalHAL set global HAL
 func SetGlobalHAL(hal HAL) {
 	halMu.Lock()
 	defer halMu.Unlock()
 	globalHAL = hal
 }
 
-// GetGlobalHAL دریافت HAL global
+// GetGlobalHAL get global HAL
 func GetGlobalHAL() (HAL, error) {
 	halMu.RLock()
 	defer halMu.RUnlock()

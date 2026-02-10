@@ -10,22 +10,22 @@ import (
 	"github.com/edgeflow/edgeflow/internal/resources"
 )
 
-// Manager مدیریت پلاگین‌ها
+// Manager plugin manager
 type Manager struct {
 	registry        *Registry
 	nodeRegistry    *node.Registry
 	resourceMonitor *resources.Monitor
 	loader          *Loader
 
-	loadOrder       []string          // ترتیب بارگذاری
-	enabledPlugins  map[string]bool   // پلاگین‌های فعال
+	loadOrder       []string          // load order
+	enabledPlugins  map[string]bool   // enabled plugins
 
 	mu              sync.RWMutex
 	ctx             context.Context
 	cancel          context.CancelFunc
 }
 
-// NewManager ایجاد مدیر پلاگین
+// NewManager create plugin manager
 func NewManager(nodeRegistry *node.Registry, resourceMonitor *resources.Monitor) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -41,23 +41,23 @@ func NewManager(nodeRegistry *node.Registry, resourceMonitor *resources.Monitor)
 	}
 }
 
-// LoadPlugin بارگذاری پلاگین
+// LoadPlugin load plugin
 func (m *Manager) LoadPlugin(name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// دریافت پلاگین از رجیستری
+	// Get plugin from registry
 	plugin, err := m.registry.Get(name)
 	if err != nil {
 		return fmt.Errorf("plugin not found: %w", err)
 	}
 
-	// بررسی اینکه قبلاً بارگذاری نشده باشد
+	// Check that it's not already loaded
 	if plugin.IsLoaded() {
 		return fmt.Errorf("plugin '%s' already loaded", name)
 	}
 
-	// بررسی منابع سیستم
+	// Check system resources
 	if m.resourceMonitor != nil {
 		canLoad, reason := m.resourceMonitor.CanLoadModule(name, plugin.RequiredMemory())
 		if !canLoad {
@@ -65,7 +65,7 @@ func (m *Manager) LoadPlugin(name string) error {
 		}
 	}
 
-	// بررسی و بارگذاری وابستگی‌ها
+	// Check and load dependencies
 	for _, dep := range plugin.Dependencies() {
 		depPlugin, err := m.registry.Get(dep)
 		if err != nil {
@@ -80,16 +80,16 @@ func (m *Manager) LoadPlugin(name string) error {
 		}
 	}
 
-	// بارگذاری پلاگین
+	// Load plugin
 	if err := m.loadPluginInternal(plugin); err != nil {
 		return err
 	}
 
-	// افزودن به لیست فعال‌ها
+	// Add to enabled list
 	m.enabledPlugins[name] = true
 	m.loadOrder = append(m.loadOrder, name)
 
-	// ثبت در resource monitor
+	// Register in resource monitor
 	if m.resourceMonitor != nil {
 		m.resourceMonitor.EnableModule(name)
 	}
@@ -98,14 +98,14 @@ func (m *Manager) LoadPlugin(name string) error {
 	return nil
 }
 
-// loadPluginInternal بارگذاری داخلی پلاگین
+// loadPluginInternal internal plugin loading
 func (m *Manager) loadPluginInternal(plugin Plugin) error {
-	// تنظیم وضعیت
+	// Set status
 	if bp, ok := plugin.(*BasePlugin); ok {
 		bp.SetStatus(StatusLoading)
 	}
 
-	// بارگذاری پلاگین
+	// Load plugin
 	if err := plugin.Load(); err != nil {
 		if bp, ok := plugin.(*BasePlugin); ok {
 			bp.SetError(err)
@@ -113,7 +113,7 @@ func (m *Manager) loadPluginInternal(plugin Plugin) error {
 		return fmt.Errorf("plugin load failed: %w", err)
 	}
 
-	// ثبت نودها در node registry
+	// Register nodes in node registry
 	for _, nodeDef := range plugin.Nodes() {
 		nodeInfo := &node.NodeInfo{
 			Type:        nodeDef.Type,
@@ -129,7 +129,7 @@ func (m *Manager) loadPluginInternal(plugin Plugin) error {
 		}
 	}
 
-	// تنظیم وضعیت بارگذاری شده
+	// Set loaded status
 	if bp, ok := plugin.(*BasePlugin); ok {
 		bp.SetStatus(StatusLoaded)
 	}
@@ -137,23 +137,23 @@ func (m *Manager) loadPluginInternal(plugin Plugin) error {
 	return nil
 }
 
-// UnloadPlugin خارج کردن پلاگین از حافظه
+// UnloadPlugin unload plugin from memory
 func (m *Manager) UnloadPlugin(name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// دریافت پلاگین
+	// Get plugin
 	plugin, err := m.registry.Get(name)
 	if err != nil {
 		return fmt.Errorf("plugin not found: %w", err)
 	}
 
-	// بررسی بارگذاری
+	// Check if loaded
 	if !plugin.IsLoaded() {
 		return fmt.Errorf("plugin '%s' not loaded", name)
 	}
 
-	// بررسی وابستگی‌های معکوس
+	// Check reverse dependencies
 	for _, p := range m.registry.List() {
 		if !p.IsLoaded() {
 			continue
@@ -166,15 +166,15 @@ func (m *Manager) UnloadPlugin(name string) error {
 		}
 	}
 
-	// خارج کردن از حافظه
+	// Unload from memory
 	if err := m.unloadPluginInternal(plugin); err != nil {
 		return err
 	}
 
-	// حذف از لیست فعال‌ها
+	// Remove from enabled list
 	delete(m.enabledPlugins, name)
 
-	// حذف از ترتیب بارگذاری
+	// Remove from load order
 	for i, pname := range m.loadOrder {
 		if pname == name {
 			m.loadOrder = append(m.loadOrder[:i], m.loadOrder[i+1:]...)
@@ -182,7 +182,7 @@ func (m *Manager) UnloadPlugin(name string) error {
 		}
 	}
 
-	// غیرفعال کردن در resource monitor
+	// Disable in resource monitor
 	if m.resourceMonitor != nil {
 		m.resourceMonitor.DisableModule(name)
 	}
@@ -191,20 +191,20 @@ func (m *Manager) UnloadPlugin(name string) error {
 	return nil
 }
 
-// unloadPluginInternal خارج کردن داخلی از حافظه
+// unloadPluginInternal internal unloading from memory
 func (m *Manager) unloadPluginInternal(plugin Plugin) error {
-	// تنظیم وضعیت
+	// Set status
 	if bp, ok := plugin.(*BasePlugin); ok {
 		bp.SetStatus(StatusUnloading)
 	}
 
-	// حذف نودها از registry
+	// Remove nodes from registry
 	for _, nodeDef := range plugin.Nodes() {
-		// TODO: Unregister nodes (نیاز به تغییر در node.Registry)
+		// TODO: Unregister nodes (requires changes to node.Registry)
 		_ = nodeDef
 	}
 
-	// خارج کردن پلاگین
+	// Unload plugin
 	if err := plugin.Unload(); err != nil {
 		if bp, ok := plugin.(*BasePlugin); ok {
 			bp.SetError(err)
@@ -212,7 +212,7 @@ func (m *Manager) unloadPluginInternal(plugin Plugin) error {
 		return fmt.Errorf("plugin unload failed: %w", err)
 	}
 
-	// تنظیم وضعیت
+	// Set status
 	if bp, ok := plugin.(*BasePlugin); ok {
 		bp.SetStatus(StatusNotLoaded)
 	}
@@ -220,7 +220,7 @@ func (m *Manager) unloadPluginInternal(plugin Plugin) error {
 	return nil
 }
 
-// EnablePlugin فعال‌سازی پلاگین
+// EnablePlugin enable plugin
 func (m *Manager) EnablePlugin(name string) error {
 	m.mu.Lock()
 	m.enabledPlugins[name] = true
@@ -229,7 +229,7 @@ func (m *Manager) EnablePlugin(name string) error {
 	return m.LoadPlugin(name)
 }
 
-// DisablePlugin غیرفعال‌سازی پلاگین
+// DisablePlugin disable plugin
 func (m *Manager) DisablePlugin(name string) error {
 	m.mu.Lock()
 	m.enabledPlugins[name] = false
@@ -238,14 +238,14 @@ func (m *Manager) DisablePlugin(name string) error {
 	return m.UnloadPlugin(name)
 }
 
-// IsEnabled بررسی فعال بودن پلاگین
+// IsEnabled check if plugin is enabled
 func (m *Manager) IsEnabled(name string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.enabledPlugins[name]
 }
 
-// LoadAll بارگذاری تمام پلاگین‌های فعال
+// LoadAll load all enabled plugins
 func (m *Manager) LoadAll() error {
 	m.mu.RLock()
 	enabled := make([]string, 0, len(m.enabledPlugins))
@@ -256,25 +256,25 @@ func (m *Manager) LoadAll() error {
 	}
 	m.mu.RUnlock()
 
-	// بارگذاری به ترتیب
+	// Load in order
 	for _, name := range enabled {
 		if err := m.LoadPlugin(name); err != nil {
 			log.Printf("[ERROR] Failed to load plugin '%s': %v", name, err)
-			// ادامه با سایر پلاگین‌ها
+			// Continue with other plugins
 		}
 	}
 
 	return nil
 }
 
-// UnloadAll خارج کردن تمام پلاگین‌ها از حافظه
+// UnloadAll unload all plugins from memory
 func (m *Manager) UnloadAll() error {
 	m.mu.RLock()
 	loadOrder := make([]string, len(m.loadOrder))
 	copy(loadOrder, m.loadOrder)
 	m.mu.RUnlock()
 
-	// خارج کردن به ترتیب معکوس
+	// Unload in reverse order
 	for i := len(loadOrder) - 1; i >= 0; i-- {
 		name := loadOrder[i]
 		if err := m.UnloadPlugin(name); err != nil {
@@ -285,25 +285,25 @@ func (m *Manager) UnloadAll() error {
 	return nil
 }
 
-// ReloadPlugin بارگذاری مجدد پلاگین
+// ReloadPlugin reload plugin
 func (m *Manager) ReloadPlugin(name string) error {
-	// خارج کردن
+	// Unload
 	if err := m.UnloadPlugin(name); err != nil {
 		return err
 	}
 
-	// بارگذاری مجدد
+	// Reload
 	return m.LoadPlugin(name)
 }
 
-// CheckCompatibility بررسی سازگاری پلاگین با سیستم
+// CheckCompatibility check plugin compatibility with system
 func (m *Manager) CheckCompatibility(name string) (bool, string) {
 	plugin, err := m.registry.Get(name)
 	if err != nil {
 		return false, "plugin not found"
 	}
 
-	// بررسی منابع
+	// Check resources
 	if m.resourceMonitor != nil {
 		canLoad, reason := m.resourceMonitor.CanLoadModule(name, plugin.RequiredMemory())
 		if !canLoad {
@@ -311,7 +311,7 @@ func (m *Manager) CheckCompatibility(name string) (bool, string) {
 		}
 	}
 
-	// بررسی وابستگی‌ها
+	// Check dependencies
 	for _, dep := range plugin.Dependencies() {
 		_, err := m.registry.Get(dep)
 		if err != nil {
@@ -322,7 +322,7 @@ func (m *Manager) CheckCompatibility(name string) (bool, string) {
 	return true, "compatible"
 }
 
-// GetPluginInfo دریافت اطلاعات پلاگین
+// GetPluginInfo get plugin information
 func (m *Manager) GetPluginInfo(name string) (PluginInfo, error) {
 	plugin, err := m.registry.Get(name)
 	if err != nil {
@@ -333,7 +333,7 @@ func (m *Manager) GetPluginInfo(name string) (PluginInfo, error) {
 	return ToPluginInfo(plugin, compatible, reason), nil
 }
 
-// ListPlugins لیست تمام پلاگین‌ها با اطلاعات
+// ListPlugins list all plugins with information
 func (m *Manager) ListPlugins() []PluginInfo {
 	plugins := m.registry.List()
 	infos := make([]PluginInfo, 0, len(plugins))
@@ -346,7 +346,7 @@ func (m *Manager) ListPlugins() []PluginInfo {
 	return infos
 }
 
-// GetStats آمار پلاگین‌ها
+// GetStats plugin statistics
 func (m *Manager) GetStats() map[string]interface{} {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -366,7 +366,7 @@ func (m *Manager) GetStats() map[string]interface{} {
 	}
 }
 
-// getAvailableMemoryMB دریافت حافظه موجود
+// getAvailableMemoryMB get available memory
 func (m *Manager) getAvailableMemoryMB() uint64 {
 	if m.resourceMonitor == nil {
 		return 0
@@ -376,20 +376,20 @@ func (m *Manager) getAvailableMemoryMB() uint64 {
 	return stats.MemoryAvailable / 1024 / 1024
 }
 
-// Shutdown خاموش کردن مدیر
+// Shutdown shutdown manager
 func (m *Manager) Shutdown() error {
 	m.cancel()
 	return m.UnloadAll()
 }
 
-// SetResourceMonitor تنظیم resource monitor
+// SetResourceMonitor set resource monitor
 func (m *Manager) SetResourceMonitor(monitor *resources.Monitor) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.resourceMonitor = monitor
 }
 
-// GetLoadOrder دریافت ترتیب بارگذاری
+// GetLoadOrder get load order
 func (m *Manager) GetLoadOrder() []string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

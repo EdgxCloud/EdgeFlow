@@ -4,14 +4,14 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// RegisterAllNodes ثبت تمام نودهای AI
+// RegisterAllNodes registers all AI nodes
 func RegisterAllNodes(registry *node.Registry) error {
 	// Register OpenAI Node
 	if err := registry.Register(&node.NodeInfo{
 		Type:        "openai",
 		Name:        "OpenAI",
 		Category:    node.NodeTypeFunction,
-		Description: "تولید متن با OpenAI GPT",
+		Description: "Text generation with OpenAI GPT",
 		Icon:        "cpu",
 		Color:       "#10a37f",
 		Properties: []node.PropertySchema{
@@ -77,7 +77,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 		Type:        "anthropic",
 		Name:        "Anthropic Claude",
 		Category:    node.NodeTypeFunction,
-		Description: "تولید متن با Anthropic Claude",
+		Description: "Text generation with Anthropic Claude",
 		Icon:        "cpu",
 		Color:       "#cc785c",
 		Properties: []node.PropertySchema{
@@ -143,7 +143,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 		Type:        "ollama",
 		Name:        "Ollama",
 		Category:    node.NodeTypeFunction,
-		Description: "تولید متن با Ollama (Local LLM)",
+		Description: "Text generation with Ollama (Local LLM)",
 		Icon:        "cpu",
 		Color:       "#000000",
 		Properties: []node.PropertySchema{

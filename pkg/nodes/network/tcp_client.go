@@ -12,7 +12,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// TCPClientConfig نود TCP Client
+// TCPClientConfig TCP Client node
 type TCPClientConfig struct {
 	Host           string `json:"host"`           // Host address
 	Port           int    `json:"port"`           // Port number
@@ -21,7 +21,7 @@ type TCPClientConfig struct {
 	Timeout        int    `json:"timeout"`        // Connection timeout (seconds)
 }
 
-// TCPClientExecutor اجراکننده نود TCP Client
+// TCPClientExecutor TCP Client node executor
 type TCPClientExecutor struct {
 	config     TCPClientConfig
 	conn       net.Conn
@@ -31,7 +31,7 @@ type TCPClientExecutor struct {
 	stopChan   chan struct{}
 }
 
-// NewTCPClientExecutor ایجاد TCPClientExecutor
+// NewTCPClientExecutor create TCPClientExecutor
 func NewTCPClientExecutor() node.Executor {
 	return &TCPClientExecutor{
 		outputChan: make(chan node.Message, 100),
@@ -71,7 +71,7 @@ func (e *TCPClientExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute execute node
 func (e *TCPClientExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Connect if not connected
 	if !e.isConnected() {
@@ -105,7 +105,7 @@ func (e *TCPClientExecutor) Execute(ctx context.Context, msg node.Message) (node
 	}
 }
 
-// connect اتصال به TCP server
+// connect connect to TCP server
 func (e *TCPClientExecutor) connect() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -128,7 +128,7 @@ func (e *TCPClientExecutor) connect() error {
 	return nil
 }
 
-// readLoop حلقه خواندن داده
+// readLoop data read loop
 func (e *TCPClientExecutor) readLoop() {
 	reader := bufio.NewReader(e.conn)
 
@@ -178,7 +178,7 @@ func (e *TCPClientExecutor) readLoop() {
 	}
 }
 
-// send ارسال داده
+// send send data
 func (e *TCPClientExecutor) send(data interface{}) error {
 	if !e.isConnected() {
 		return fmt.Errorf("not connected")
@@ -211,14 +211,14 @@ func (e *TCPClientExecutor) send(data interface{}) error {
 	return err
 }
 
-// isConnected بررسی وضعیت اتصال
+// isConnected check connection status
 func (e *TCPClientExecutor) isConnected() bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.connected && e.conn != nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleanup resources
 func (e *TCPClientExecutor) Cleanup() error {
 	close(e.stopChan)
 

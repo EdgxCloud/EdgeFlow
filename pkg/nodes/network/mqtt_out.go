@@ -11,7 +11,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-// MQTTOutConfig نود MQTT Out
+// MQTTOutConfig configuration for the MQTT Out node
 type MQTTOutConfig struct {
 	Broker        string `json:"broker"`        // MQTT broker URL
 	Topic         string `json:"topic"`         // Topic to publish
@@ -37,7 +37,7 @@ type MQTTOutConfig struct {
 	MessageExpiry int `json:"messageExpiry"` // Message expiry in seconds (MQTT 5.0)
 }
 
-// MQTTOutExecutor اجراکننده نود MQTT Out
+// MQTTOutExecutor executor for the MQTT Out node
 type MQTTOutExecutor struct {
 	config    MQTTOutConfig
 	client    mqtt.Client
@@ -45,7 +45,7 @@ type MQTTOutExecutor struct {
 	mu        sync.RWMutex
 }
 
-// NewMQTTOutExecutor ایجاد MQTTOutExecutor
+// NewMQTTOutExecutor creates a new MQTTOutExecutor
 func NewMQTTOutExecutor() node.Executor {
 	return &MQTTOutExecutor{}
 }
@@ -82,7 +82,7 @@ func (e *MQTTOutExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *MQTTOutExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Connect to MQTT broker if not connected
 	if !e.isConnected() {
@@ -154,7 +154,7 @@ func (e *MQTTOutExecutor) Execute(ctx context.Context, msg node.Message) (node.M
 	return outputMsg, nil
 }
 
-// connect اتصال به MQTT broker
+// connect connects to the MQTT broker
 func (e *MQTTOutExecutor) connect() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -219,14 +219,14 @@ func (e *MQTTOutExecutor) connect() error {
 	return nil
 }
 
-// isConnected بررسی وضعیت اتصال
+// isConnected checks the connection status
 func (e *MQTTOutExecutor) isConnected() bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.connected && e.client != nil && e.client.IsConnected()
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup releases resources
 func (e *MQTTOutExecutor) Cleanup() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

@@ -12,12 +12,12 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-// EncryptionService سرویس رمزنگاری
+// EncryptionService provides an encryption service
 type EncryptionService struct {
 	masterKey []byte
 }
 
-// NewEncryptionService ایجاد EncryptionService
+// NewEncryptionService creates a new EncryptionService
 func NewEncryptionService(password string) *EncryptionService {
 	// Derive key from password using PBKDF2
 	salt := []byte("edgeflow-salt-change-in-production") // Should be random and stored
@@ -28,7 +28,7 @@ func NewEncryptionService(password string) *EncryptionService {
 	}
 }
 
-// Encrypt رمزنگاری داده
+// Encrypt encrypts data
 func (s *EncryptionService) Encrypt(plaintext string) (string, error) {
 	// Create AES cipher
 	block, err := aes.NewCipher(s.masterKey)
@@ -55,7 +55,7 @@ func (s *EncryptionService) Encrypt(plaintext string) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-// Decrypt رمزگشایی داده
+// Decrypt decrypts data
 func (s *EncryptionService) Decrypt(ciphertext string) (string, error) {
 	// Decode from base64
 	data, err := base64.StdEncoding.DecodeString(ciphertext)
@@ -92,7 +92,7 @@ func (s *EncryptionService) Decrypt(ciphertext string) (string, error) {
 	return string(plaintext), nil
 }
 
-// EncryptCredentials رمزنگاری credentials
+// EncryptCredentials encrypts credentials
 func (s *EncryptionService) EncryptCredentials(credentials map[string]string) (map[string]string, error) {
 	encrypted := make(map[string]string)
 	for key, value := range credentials {
@@ -105,7 +105,7 @@ func (s *EncryptionService) EncryptCredentials(credentials map[string]string) (m
 	return encrypted, nil
 }
 
-// DecryptCredentials رمزگشایی credentials
+// DecryptCredentials decrypts credentials
 func (s *EncryptionService) DecryptCredentials(credentials map[string]string) (map[string]string, error) {
 	decrypted := make(map[string]string)
 	for key, value := range credentials {
@@ -118,14 +118,14 @@ func (s *EncryptionService) DecryptCredentials(credentials map[string]string) (m
 	return decrypted, nil
 }
 
-// HashPassword ایجاد hash برای password
+// HashPassword creates a hash for the password
 func HashPassword(password string) string {
 	salt := []byte("edgeflow-password-salt")
 	hash := pbkdf2.Key([]byte(password), salt, 100000, 32, sha256.New)
 	return base64.StdEncoding.EncodeToString(hash)
 }
 
-// VerifyPassword تایید password
+// VerifyPassword verifies the password
 func VerifyPassword(password, hash string) bool {
 	return HashPassword(password) == hash
 }

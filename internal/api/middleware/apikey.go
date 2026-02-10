@@ -12,7 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// APIKey ساختار API Key
+// APIKey API Key structure
 type APIKey struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -25,20 +25,20 @@ type APIKey struct {
 	Active      bool      `json:"active"`
 }
 
-// APIKeyStore ذخیره API Keys
+// APIKeyStore stores API Keys
 type APIKeyStore struct {
 	keys map[string]*APIKey // key: hash of API key
 	mu   sync.RWMutex
 }
 
-// NewAPIKeyStore ایجاد APIKeyStore
+// NewAPIKeyStore creates a new APIKeyStore
 func NewAPIKeyStore() *APIKeyStore {
 	return &APIKeyStore{
 		keys: make(map[string]*APIKey),
 	}
 }
 
-// GenerateAPIKey تولید API key جدید
+// GenerateAPIKey generates a new API key
 func (s *APIKeyStore) GenerateAPIKey(name string, permissions []string, expiresIn time.Duration) (string, *APIKey, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -72,7 +72,7 @@ func (s *APIKeyStore) GenerateAPIKey(name string, permissions []string, expiresI
 	return key, apiKey, nil
 }
 
-// ValidateAPIKey اعتبارسنجی API key
+// ValidateAPIKey validates an API key
 func (s *APIKeyStore) ValidateAPIKey(key string) (*APIKey, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -103,7 +103,7 @@ func (s *APIKeyStore) ValidateAPIKey(key string) (*APIKey, error) {
 	return apiKey, nil
 }
 
-// RevokeAPIKey لغو API key
+// RevokeAPIKey revokes an API key
 func (s *APIKeyStore) RevokeAPIKey(keyHash string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -117,7 +117,7 @@ func (s *APIKeyStore) RevokeAPIKey(keyHash string) error {
 	return nil
 }
 
-// ListAPIKeys لیست API keys
+// ListAPIKeys lists all API keys
 func (s *APIKeyStore) ListAPIKeys() []*APIKey {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -129,7 +129,7 @@ func (s *APIKeyStore) ListAPIKeys() []*APIKey {
 	return keys
 }
 
-// APIKeyMiddleware میدلور API Key
+// APIKeyMiddleware API Key middleware
 func APIKeyMiddleware(store *APIKeyStore, requiredPermissions []string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Get API key from header
@@ -183,7 +183,7 @@ func APIKeyMiddleware(store *APIKeyStore, requiredPermissions []string) fiber.Ha
 	}
 }
 
-// CombinedAuthMiddleware میدلور ترکیبی (JWT یا API Key)
+// CombinedAuthMiddleware combined middleware (JWT or API Key)
 func CombinedAuthMiddleware(jwtConfig JWTConfig, apiKeyStore *APIKeyStore) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Check if path should skip authentication
@@ -237,7 +237,7 @@ func CombinedAuthMiddleware(jwtConfig JWTConfig, apiKeyStore *APIKeyStore) fiber
 	}
 }
 
-// generateID تولید ID یکتا
+// generateID generates a unique ID
 func generateID() string {
 	b := make([]byte, 16)
 	rand.Read(b)

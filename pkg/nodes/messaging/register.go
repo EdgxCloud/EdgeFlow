@@ -4,14 +4,14 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// RegisterAllNodes ثبت تمام نودهای messaging
+// RegisterAllNodes registers all messaging nodes
 func RegisterAllNodes(registry *node.Registry) error {
 	// Telegram
 	if err := registry.Register(&node.NodeInfo{
 		Type:        "telegram",
 		Name:        "Telegram",
 		Category:    node.NodeTypeOutput,
-		Description: "ارسال و دریافت پیام از طریق Telegram Bot",
+		Description: "Send and receive messages via Telegram Bot",
 		Icon:        "send",
 		Color:       "#0088cc",
 		Properties: []node.PropertySchema{
@@ -58,7 +58,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 		Type:        "email",
 		Name:        "Email",
 		Category:    node.NodeTypeOutput,
-		Description: "ارسال ایمیل از طریق SMTP",
+		Description: "Send email via SMTP",
 		Icon:        "mail",
 		Color:       "#ea4335",
 		Properties: []node.PropertySchema{
@@ -137,7 +137,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 		Type:        "slack",
 		Name:        "Slack",
 		Category:    node.NodeTypeOutput,
-		Description: "ارسال پیام به Slack از طریق Webhook یا API",
+		Description: "Send messages to Slack via Webhook or API",
 		Icon:        "message-square",
 		Color:       "#4a154b",
 		Properties: []node.PropertySchema{
@@ -208,7 +208,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 		Type:        "discord",
 		Name:        "Discord",
 		Category:    node.NodeTypeOutput,
-		Description: "ارسال پیام به Discord از طریق Webhook",
+		Description: "Send messages to Discord via Webhook",
 		Icon:        "message-circle",
 		Color:       "#5865f2",
 		Properties: []node.PropertySchema{

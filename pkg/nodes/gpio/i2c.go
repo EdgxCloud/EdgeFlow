@@ -10,21 +10,21 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// I2CConfig نود I2C
+// I2CConfig I2C node configuration
 type I2CConfig struct {
-	Address  int    `json:"address"`  // آدرس I2C (0x00-0x7F)
-	Register int    `json:"register"` // شماره رجیستر
-	Length   int    `json:"length"`   // طول داده برای خواندن
-	Mode     string `json:"mode"`     // read یا write
+	Address  int    `json:"address"`  // I2C address (0x00-0x7F)
+	Register int    `json:"register"` // register number
+	Length   int    `json:"length"`   // data length for reading
+	Mode     string `json:"mode"`     // read or write
 }
 
-// I2CExecutor اجراکننده نود I2C
+// I2CExecutor I2C node executor
 type I2CExecutor struct {
 	config I2CConfig
 	hal    hal.HAL
 }
 
-// NewI2CExecutor ایجاد I2CExecutor
+// NewI2CExecutor create I2CExecutor
 func NewI2CExecutor(config map[string]interface{}) (node.Executor, error) {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
@@ -60,7 +60,7 @@ func (e *I2CExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute execute node
 func (e *I2CExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Get HAL if not initialized
 	if e.hal == nil {
@@ -173,7 +173,7 @@ func (e *I2CExecutor) Execute(ctx context.Context, msg node.Message) (node.Messa
 	}
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleanup resources
 func (e *I2CExecutor) Cleanup() error {
 	if e.hal != nil {
 		e.hal.I2C().Close()

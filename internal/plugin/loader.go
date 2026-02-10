@@ -7,23 +7,23 @@ import (
 	"sync"
 )
 
-// Loader بارگذار پلاگین‌ها با حل وابستگی‌ها
+// Loader plugin loader with dependency resolution
 type Loader struct {
 	mu sync.RWMutex
 }
 
-// NewLoader ایجاد loader جدید
+// NewLoader create new loader
 func NewLoader() *Loader {
 	return &Loader{}
 }
 
-// DependencyGraph گراف وابستگی‌ها
+// DependencyGraph dependency graph
 type DependencyGraph struct {
 	nodes map[string]*GraphNode
 	edges map[string][]string // from -> []to
 }
 
-// GraphNode نود گراف
+// GraphNode graph node
 type GraphNode struct {
 	Name         string
 	Plugin       Plugin
@@ -32,14 +32,14 @@ type GraphNode struct {
 	InStack      bool
 }
 
-// BuildDependencyGraph ساخت گراف وابستگی
+// BuildDependencyGraph build dependency graph
 func (l *Loader) BuildDependencyGraph(plugins []Plugin) *DependencyGraph {
 	graph := &DependencyGraph{
 		nodes: make(map[string]*GraphNode),
 		edges: make(map[string][]string),
 	}
 
-	// افزودن نودها
+	// Add nodes
 	for _, p := range plugins {
 		node := &GraphNode{
 			Name:         p.Name(),
@@ -49,7 +49,7 @@ func (l *Loader) BuildDependencyGraph(plugins []Plugin) *DependencyGraph {
 		graph.nodes[p.Name()] = node
 	}
 
-	// افزودن یال‌ها
+	// Add edges
 	for _, node := range graph.nodes {
 		for _, dep := range node.Dependencies {
 			graph.edges[node.Name] = append(graph.edges[node.Name], dep)
@@ -59,7 +59,7 @@ func (l *Loader) BuildDependencyGraph(plugins []Plugin) *DependencyGraph {
 	return graph
 }
 
-// TopologicalSort مرتب‌سازی توپولوژیک برای ترتیب بارگذاری
+// TopologicalSort topological sort for load order
 func (l *Loader) TopologicalSort(graph *DependencyGraph) ([]string, error) {
 	result := make([]string, 0, len(graph.nodes))
 	visited := make(map[string]bool)
@@ -75,14 +75,14 @@ func (l *Loader) TopologicalSort(graph *DependencyGraph) ([]string, error) {
 			return fmt.Errorf("plugin '%s' not found in graph", name)
 		}
 
-		// بررسی وابستگی‌های دایره‌ای
+		// Check for circular dependencies
 		if node.InStack {
 			return fmt.Errorf("circular dependency detected: %s", name)
 		}
 
 		node.InStack = true
 
-		// بازدید از وابستگی‌ها (با ترتیب معکوس)
+		// Visit dependencies (in reverse order)
 		for _, dep := range node.Dependencies {
 			if err := visit(dep); err != nil {
 				return err
@@ -93,17 +93,17 @@ func (l *Loader) TopologicalSort(graph *DependencyGraph) ([]string, error) {
 		visited[name] = true
 		node.Visited = true
 
-		// اضافه کردن به نتیجه (وابستگی‌ها اول)
+		// Add to result (dependencies first)
 		result = append(result, name)
 		return nil
 	}
 
-	// بازدید از تمام نودها
+	// Visit all nodes
 	names := make([]string, 0, len(graph.nodes))
 	for name := range graph.nodes {
 		names = append(names, name)
 	}
-	sort.Strings(names) // ترتیب ثابت برای تکرارپذیری
+	sort.Strings(names) // Fixed order for reproducibility
 
 	for _, name := range names {
 		if !visited[name] {
@@ -116,7 +116,7 @@ func (l *Loader) TopologicalSort(graph *DependencyGraph) ([]string, error) {
 	return result, nil
 }
 
-// ValidateDependencies بررسی اعتبار وابستگی‌ها
+// ValidateDependencies validate dependencies
 func (l *Loader) ValidateDependencies(plugins []Plugin) error {
 	pluginMap := make(map[string]Plugin)
 	for _, p := range plugins {
@@ -134,20 +134,20 @@ func (l *Loader) ValidateDependencies(plugins []Plugin) error {
 	return nil
 }
 
-// ResolveLoadOrder تعیین ترتیب بارگذاری
+// ResolveLoadOrder determine load order
 func (l *Loader) ResolveLoadOrder(plugins []Plugin) ([]string, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	// بررسی وابستگی‌ها
+	// Validate dependencies
 	if err := l.ValidateDependencies(plugins); err != nil {
 		return nil, fmt.Errorf("dependency validation failed: %w", err)
 	}
 
-	// ساخت گراف
+	// Build graph
 	graph := l.BuildDependencyGraph(plugins)
 
-	// مرتب‌سازی توپولوژیک
+	// Topological sort
 	order, err := l.TopologicalSort(graph)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve load order: %w", err)
@@ -157,7 +157,7 @@ func (l *Loader) ResolveLoadOrder(plugins []Plugin) ([]string, error) {
 	return order, nil
 }
 
-// GetMissingDependencies دریافت وابستگی‌های گم شده
+// GetMissingDependencies get missing dependencies
 func (l *Loader) GetMissingDependencies(plugins []Plugin) map[string][]string {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
@@ -179,7 +179,7 @@ func (l *Loader) GetMissingDependencies(plugins []Plugin) map[string][]string {
 	return missing
 }
 
-// GetDependents دریافت پلاگین‌هایی که به یک پلاگین وابسته‌اند
+// GetDependents get plugins that depend on a given plugin
 func (l *Loader) GetDependents(pluginName string, plugins []Plugin) []string {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
@@ -197,7 +197,7 @@ func (l *Loader) GetDependents(pluginName string, plugins []Plugin) []string {
 	return dependents
 }
 
-// CanUnload بررسی امکان خارج کردن پلاگین
+// CanUnload check if plugin can be unloaded
 func (l *Loader) CanUnload(pluginName string, loadedPlugins []Plugin) (bool, string) {
 	dependents := l.GetDependents(pluginName, loadedPlugins)
 	if len(dependents) > 0 {
@@ -206,14 +206,14 @@ func (l *Loader) CanUnload(pluginName string, loadedPlugins []Plugin) (bool, str
 	return true, ""
 }
 
-// OptimizeLoadOrder بهینه‌سازی ترتیب بارگذاری بر اساس اولویت
+// OptimizeLoadOrder optimize load order based on priority
 func (l *Loader) OptimizeLoadOrder(order []string, priorities map[Category]int) []string {
-	// TODO: بهینه‌سازی با توجه به اولویت دسته‌بندی‌ها
-	// فعلاً همان ترتیب توپولوژیک را برمی‌گرداند
+	// TODO: Optimize based on category priorities
+	// For now, returns the same topological order
 	return order
 }
 
-// LoadOrderInfo اطلاعات ترتیب بارگذاری
+// LoadOrderInfo load order information
 type LoadOrderInfo struct {
 	Order              []string            `json:"order"`
 	TotalPlugins       int                 `json:"total_plugins"`
@@ -222,13 +222,13 @@ type LoadOrderInfo struct {
 	Error              string              `json:"error,omitempty"`
 }
 
-// AnalyzeLoadOrder تحلیل ترتیب بارگذاری
+// AnalyzeLoadOrder analyze load order
 func (l *Loader) AnalyzeLoadOrder(plugins []Plugin) LoadOrderInfo {
 	info := LoadOrderInfo{
 		TotalPlugins: len(plugins),
 	}
 
-	// بررسی وابستگی‌های گم شده
+	// Check for missing dependencies
 	missing := l.GetMissingDependencies(plugins)
 	if len(missing) > 0 {
 		info.MissingDependencies = missing
@@ -236,11 +236,11 @@ func (l *Loader) AnalyzeLoadOrder(plugins []Plugin) LoadOrderInfo {
 		return info
 	}
 
-	// تعیین ترتیب
+	// Determine order
 	order, err := l.ResolveLoadOrder(plugins)
 	if err != nil {
 		info.Error = err.Error()
-		// بررسی وابستگی دایره‌ای
+		// Check for circular dependency
 		if contains(err.Error(), "circular dependency") {
 			info.CircularDependency = true
 		}
@@ -251,7 +251,7 @@ func (l *Loader) AnalyzeLoadOrder(plugins []Plugin) LoadOrderInfo {
 	return info
 }
 
-// contains بررسی وجود substring
+// contains check for substring existence
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || findInString(s, substr))
 }

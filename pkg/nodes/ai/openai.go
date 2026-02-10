@@ -12,7 +12,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// OpenAIConfig نود OpenAI
+// OpenAIConfig configuration for the OpenAI node
 type OpenAIConfig struct {
 	APIKey      string  `json:"apiKey"`
 	Model       string  `json:"model"`
@@ -20,13 +20,13 @@ type OpenAIConfig struct {
 	MaxTokens   int     `json:"maxTokens"`
 }
 
-// OpenAIExecutor اجراکننده نود OpenAI
+// OpenAIExecutor executor for the OpenAI node
 type OpenAIExecutor struct {
 	config OpenAIConfig
 	client *http.Client
 }
 
-// NewOpenAIExecutor ایجاد OpenAIExecutor
+// NewOpenAIExecutor creates a new OpenAIExecutor
 func NewOpenAIExecutor() *OpenAIExecutor {
 	return &OpenAIExecutor{
 		client: &http.Client{Timeout: 60 * time.Second},
@@ -64,7 +64,7 @@ func (e *OpenAIExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *OpenAIExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	var prompt string
 	var systemPrompt string
@@ -193,7 +193,7 @@ func (e *OpenAIExecutor) Execute(ctx context.Context, msg node.Message) (node.Me
 	}, nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleans up resources
 func (e *OpenAIExecutor) Cleanup() error {
 	return nil
 }

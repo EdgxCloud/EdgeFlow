@@ -20,11 +20,11 @@ var gpioStateStore = struct {
 	states: make(map[int]bool),
 }
 
-// GPIOOutConfig نود GPIO Out
+// GPIOOutConfig GPIO Out node configuration
 type GPIOOutConfig struct {
-	Pin          int    `json:"pin"`          // شماره پین
-	InitialValue bool   `json:"initialValue"` // مقدار اولیه
-	Invert       bool   `json:"invert"`       // معکوس کردن خروجی
+	Pin          int    `json:"pin"`          // pin number
+	InitialValue bool   `json:"initialValue"` // initial value
+	Invert       bool   `json:"invert"`       // invert output
 	PersistState bool   `json:"persistState"` // Persist state across restarts
 	StateFile    string `json:"stateFile"`    // File to persist state (default: /var/lib/edgeflow/gpio_states.json)
 	FailsafeMode bool   `json:"failsafeMode"` // Enable failsafe mode
@@ -32,14 +32,14 @@ type GPIOOutConfig struct {
 	DriveStrength int   `json:"driveStrength"` // Drive strength (mA) for supported pins
 }
 
-// GPIOOutExecutor اجراکننده نود GPIO Out
+// GPIOOutExecutor GPIO Out node executor
 type GPIOOutExecutor struct {
 	config      GPIOOutConfig
 	hal         hal.HAL
 	currentValue bool
 }
 
-// NewGPIOOutExecutor ایجاد GPIOOutExecutor
+// NewGPIOOutExecutor create GPIOOutExecutor
 func NewGPIOOutExecutor(config map[string]interface{}) (node.Executor, error) {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
@@ -72,7 +72,7 @@ func (e *GPIOOutExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute execute node
 func (e *GPIOOutExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Get HAL if not initialized
 	if e.hal == nil {
@@ -146,7 +146,7 @@ func (e *GPIOOutExecutor) Execute(ctx context.Context, msg node.Message) (node.M
 	}, nil
 }
 
-// setup راه‌اندازی GPIO
+// setup initialize GPIO
 func (e *GPIOOutExecutor) setup() error {
 	gpio := e.hal.GPIO()
 
@@ -167,7 +167,7 @@ func (e *GPIOOutExecutor) setup() error {
 	return nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleanup resources
 func (e *GPIOOutExecutor) Cleanup() error {
 	if e.hal != nil {
 		gpio := e.hal.GPIO()

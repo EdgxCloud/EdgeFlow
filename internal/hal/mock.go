@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// MockHAL پیاده‌سازی mock برای تست
+// MockHAL mock implementation for testing
 type MockHAL struct {
 	gpio   *MockGPIO
 	i2c    *MockI2C
@@ -14,7 +14,7 @@ type MockHAL struct {
 	info   BoardInfo
 }
 
-// NewMockHAL ایجاد MockHAL
+// NewMockHAL create MockHAL
 func NewMockHAL() *MockHAL {
 	return &MockHAL{
 		gpio:   &MockGPIO{pins: make(map[int]*MockPin)},
@@ -43,7 +43,7 @@ func (m *MockHAL) Serial() SerialProvider { return m.serial }
 func (m *MockHAL) Info() BoardInfo      { return m.info }
 func (m *MockHAL) Close() error         { return nil }
 
-// MockPin پین mock
+// MockPin mock pin
 type MockPin struct {
 	mode  PinMode
 	pull  PullMode
@@ -121,7 +121,7 @@ func (g *MockGPIO) SetPWMFrequency(pin int, freq int) error {
 }
 
 func (g *MockGPIO) WatchEdge(pin int, edge EdgeMode, callback func(pin int, value bool)) error {
-	// Mock implementation - در واقعیت باید event loop داشته باشد
+	// Mock implementation - in reality should have an event loop
 	return nil
 }
 

@@ -12,7 +12,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// OllamaConfig نود Ollama
+// OllamaConfig configuration for the Ollama node
 type OllamaConfig struct {
 	BaseURL     string  `json:"baseUrl"`
 	Model       string  `json:"model"`
@@ -20,13 +20,13 @@ type OllamaConfig struct {
 	Stream      bool    `json:"stream"`
 }
 
-// OllamaExecutor اجراکننده نود Ollama
+// OllamaExecutor executor for the Ollama node
 type OllamaExecutor struct {
 	config OllamaConfig
 	client *http.Client
 }
 
-// NewOllamaExecutor ایجاد OllamaExecutor
+// NewOllamaExecutor creates a new OllamaExecutor
 func NewOllamaExecutor() *OllamaExecutor {
 	return &OllamaExecutor{
 		client: &http.Client{Timeout: 120 * time.Second},
@@ -60,7 +60,7 @@ func (e *OllamaExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *OllamaExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	var prompt string
 	var systemPrompt string
@@ -180,7 +180,7 @@ func (e *OllamaExecutor) Execute(ctx context.Context, msg node.Message) (node.Me
 	}, nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleans up resources
 func (e *OllamaExecutor) Cleanup() error {
 	return nil
 }

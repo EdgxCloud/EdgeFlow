@@ -10,7 +10,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// EmailConfig نود Email
+// EmailConfig configuration for the Email node
 type EmailConfig struct {
 	Host     string `json:"host"`     // SMTP host
 	Port     int    `json:"port"`     // SMTP port
@@ -21,7 +21,7 @@ type EmailConfig struct {
 	UseTLS   bool   `json:"useTls"`   // Use TLS
 }
 
-// EmailExecutor اجراکننده نود Email
+// EmailExecutor executor for the Email node
 type EmailExecutor struct {
 	config EmailConfig
 }
@@ -50,7 +50,7 @@ func (e *EmailExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *EmailExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	var to, subject, body string
 
@@ -119,7 +119,7 @@ func (e *EmailExecutor) Execute(ctx context.Context, msg node.Message) (node.Mes
 	}, nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleans up resources
 func (e *EmailExecutor) Cleanup() error {
 	return nil
 }

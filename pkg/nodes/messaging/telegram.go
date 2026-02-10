@@ -12,14 +12,14 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// TelegramConfig نود Telegram
+// TelegramConfig configuration for the Telegram node
 type TelegramConfig struct {
 	BotToken string `json:"botToken"` // Bot token
 	ChatID   string `json:"chatId"`   // Chat ID (optional)
 	Mode     string `json:"mode"`     // send or receive
 }
 
-// TelegramExecutor اجراکننده نود Telegram
+// TelegramExecutor executor for the Telegram node
 type TelegramExecutor struct {
 	config     TelegramConfig
 	client     *http.Client
@@ -56,7 +56,7 @@ func (e *TelegramExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *TelegramExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	if e.config.Mode == "send" {
 		return e.sendMessage(ctx, msg)
@@ -76,7 +76,7 @@ func (e *TelegramExecutor) Execute(ctx context.Context, msg node.Message) (node.
 	}
 }
 
-// sendMessage ارسال پیام
+// sendMessage sends a message
 func (e *TelegramExecutor) sendMessage(ctx context.Context, msg node.Message) (node.Message, error) {
 	var text string
 	var chatID string
@@ -158,7 +158,7 @@ func (e *TelegramExecutor) sendMessage(ctx context.Context, msg node.Message) (n
 	}, nil
 }
 
-// pollUpdates دریافت پیام‌ها
+// pollUpdates receives messages
 func (e *TelegramExecutor) pollUpdates() {
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/getUpdates", e.config.BotToken)
 
@@ -249,7 +249,7 @@ func (e *TelegramExecutor) pollUpdates() {
 	}
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleans up resources
 func (e *TelegramExecutor) Cleanup() error {
 	close(e.stopChan)
 	close(e.outputChan)

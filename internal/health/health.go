@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Status وضعیت سلامت
+// Status represents the health status
 type Status string
 
 const (
@@ -16,7 +16,7 @@ const (
 	StatusUnhealthy Status = "unhealthy"
 )
 
-// Check ساختار یک چک
+// Check represents a check structure
 type Check struct {
 	Name        string                           `json:"name"`
 	Status      Status                           `json:"status"`
@@ -26,20 +26,20 @@ type Check struct {
 	Interval    time.Duration                    `json:"-"`
 }
 
-// HealthChecker سیستم بررسی سلامت
+// HealthChecker is the health checker system
 type HealthChecker struct {
 	checks map[string]*Check
 	mu     sync.RWMutex
 }
 
-// NewHealthChecker ایجاد HealthChecker
+// NewHealthChecker creates a new HealthChecker
 func NewHealthChecker() *HealthChecker {
 	return &HealthChecker{
 		checks: make(map[string]*Check),
 	}
 }
 
-// RegisterCheck ثبت یک چک
+// RegisterCheck registers a health check
 func (h *HealthChecker) RegisterCheck(name string, checkFunc func(context.Context) (Status, string), interval time.Duration) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -54,7 +54,7 @@ func (h *HealthChecker) RegisterCheck(name string, checkFunc func(context.Contex
 	}
 }
 
-// RunChecks اجرای تمام چک‌ها
+// RunChecks runs all health checks
 func (h *HealthChecker) RunChecks(ctx context.Context) map[string]*Check {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -82,7 +82,7 @@ func (h *HealthChecker) RunChecks(ctx context.Context) map[string]*Check {
 	return results
 }
 
-// GetOverallStatus دریافت وضعیت کلی
+// GetOverallStatus returns the overall status
 func (h *HealthChecker) GetOverallStatus() Status {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -108,7 +108,7 @@ func (h *HealthChecker) GetOverallStatus() Status {
 	return StatusHealthy
 }
 
-// GetCheckResults دریافت نتایج چک‌ها
+// GetCheckResults returns check results
 func (h *HealthChecker) GetCheckResults() map[string]interface{} {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -132,7 +132,7 @@ func (h *HealthChecker) GetCheckResults() map[string]interface{} {
 	return results
 }
 
-// StartPeriodicChecks شروع چک‌های دوره‌ای
+// StartPeriodicChecks starts periodic health checks
 func (h *HealthChecker) StartPeriodicChecks(ctx context.Context) {
 	h.mu.RLock()
 	checks := make([]*Check, 0, len(h.checks))
@@ -168,7 +168,7 @@ func (h *HealthChecker) StartPeriodicChecks(ctx context.Context) {
 
 // Common health checks
 
-// DatabaseHealthCheck چک سلامت دیتابیس
+// DatabaseHealthCheck performs a database health check
 func DatabaseHealthCheck(pingFunc func(context.Context) error) func(context.Context) (Status, string) {
 	return func(ctx context.Context) (Status, string) {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -181,7 +181,7 @@ func DatabaseHealthCheck(pingFunc func(context.Context) error) func(context.Cont
 	}
 }
 
-// DiskSpaceHealthCheck چک فضای دیسک
+// DiskSpaceHealthCheck performs a disk space health check
 func DiskSpaceHealthCheck(getUsageFunc func() (used, total uint64)) func(context.Context) (Status, string) {
 	return func(ctx context.Context) (Status, string) {
 		used, total := getUsageFunc()
@@ -201,7 +201,7 @@ func DiskSpaceHealthCheck(getUsageFunc func() (used, total uint64)) func(context
 	}
 }
 
-// MemoryHealthCheck چک حافظه
+// MemoryHealthCheck performs a memory health check
 func MemoryHealthCheck(getMemoryFunc func() (used, total uint64)) func(context.Context) (Status, string) {
 	return func(ctx context.Context) (Status, string) {
 		used, total := getMemoryFunc()
@@ -218,7 +218,7 @@ func MemoryHealthCheck(getMemoryFunc func() (used, total uint64)) func(context.C
 	}
 }
 
-// GoroutineHealthCheck چک تعداد goroutines
+// GoroutineHealthCheck performs a goroutine count health check
 func GoroutineHealthCheck(getCountFunc func() int, maxGoroutines int) func(context.Context) (Status, string) {
 	return func(ctx context.Context) (Status, string) {
 		count := getCountFunc()

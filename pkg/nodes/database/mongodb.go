@@ -13,21 +13,21 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// MongoDBConfig نود MongoDB
+// MongoDBConfig configuration for the MongoDB node
 type MongoDBConfig struct {
 	URI        string `json:"uri"`        // MongoDB connection URI
 	Database   string `json:"database"`   // Database name
 	Collection string `json:"collection"` // Default collection
 }
 
-// MongoDBExecutor اجراکننده نود MongoDB
+// MongoDBExecutor executor for the MongoDB node
 type MongoDBExecutor struct {
 	config MongoDBConfig
 	client *mongo.Client
 	mu     sync.RWMutex
 }
 
-// NewMongoDBExecutor ایجاد MongoDBExecutor
+// NewMongoDBExecutor creates a new MongoDBExecutor
 func NewMongoDBExecutor() node.Executor {
 	return &MongoDBExecutor{}
 }
@@ -62,7 +62,7 @@ func (e *MongoDBExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// connect اتصال به MongoDB
+// connect connects to MongoDB
 func (e *MongoDBExecutor) connect() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -84,7 +84,7 @@ func (e *MongoDBExecutor) connect() error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *MongoDBExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	e.mu.RLock()
 	client := e.client
@@ -303,7 +303,7 @@ func (e *MongoDBExecutor) count(ctx context.Context, coll *mongo.Collection, fil
 	}, nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup releases resources
 func (e *MongoDBExecutor) Cleanup() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

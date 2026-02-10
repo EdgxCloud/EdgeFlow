@@ -10,9 +10,9 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// GPIOInConfig نود GPIO In
+// GPIOInConfig GPIO In node configuration
 type GPIOInConfig struct {
-	Pin           int    `json:"pin"`           // شماره پین
+	Pin           int    `json:"pin"`           // pin number
 	PullMode      string `json:"pullMode"`      // none, up, down
 	EdgeMode      string `json:"edgeMode"`      // none, rising, falling, both
 	Debounce      int    `json:"debounce"`      // Debounce time (ms)
@@ -22,7 +22,7 @@ type GPIOInConfig struct {
 	Glitch        int    `json:"glitch"`        // Glitch filter time in microseconds (hardware debounce)
 }
 
-// GPIOInExecutor اجراکننده نود GPIO In
+// GPIOInExecutor GPIO In node executor
 type GPIOInExecutor struct {
 	config     GPIOInConfig
 	hal        hal.HAL
@@ -32,7 +32,7 @@ type GPIOInExecutor struct {
 	lastChange time.Time
 }
 
-// NewGPIOInExecutor ایجاد GPIOInExecutor
+// NewGPIOInExecutor create GPIOInExecutor
 func NewGPIOInExecutor(config map[string]interface{}) (node.Executor, error) {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
@@ -80,7 +80,7 @@ func (e *GPIOInExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute execute node
 func (e *GPIOInExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Get HAL if not initialized
 	if e.hal == nil {
@@ -129,7 +129,7 @@ func (e *GPIOInExecutor) Execute(ctx context.Context, msg node.Message) (node.Me
 	}
 }
 
-// setup راه‌اندازی GPIO
+// setup initialize GPIO
 func (e *GPIOInExecutor) setup() error {
 	gpio := e.hal.GPIO()
 
@@ -162,7 +162,7 @@ func (e *GPIOInExecutor) setup() error {
 	return nil
 }
 
-// edgeLoop حلقه تشخیص لبه
+// edgeLoop edge detection loop
 func (e *GPIOInExecutor) edgeLoop() {
 	gpio := e.hal.GPIO()
 
@@ -214,7 +214,7 @@ func (e *GPIOInExecutor) edgeLoop() {
 	})
 }
 
-// pollLoop حلقه polling
+// pollLoop polling loop
 func (e *GPIOInExecutor) pollLoop() {
 	gpio := e.hal.GPIO()
 	ticker := time.NewTicker(time.Duration(e.config.PollInterval) * time.Millisecond)
@@ -257,7 +257,7 @@ func (e *GPIOInExecutor) pollLoop() {
 	}
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleanup resources
 func (e *GPIOInExecutor) Cleanup() error {
 	close(e.stopChan)
 	close(e.outputChan)

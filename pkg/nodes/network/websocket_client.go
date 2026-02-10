@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// WebSocketClientConfig نود WebSocket Client
+// WebSocketClientConfig WebSocket Client node
 type WebSocketClientConfig struct {
 	URL              string            `json:"url"`              // WebSocket URL (ws:// or wss://)
 	Headers          map[string]string `json:"headers"`          // Connection headers
@@ -37,7 +37,7 @@ type WebSocketClientConfig struct {
 	MaxReconnectAttempts int `json:"maxReconnectAttempts"` // Maximum reconnect attempts (0 = unlimited)
 }
 
-// WebSocketClientExecutor اجراکننده نود WebSocket Client
+// WebSocketClientExecutor WebSocket Client node executor
 type WebSocketClientExecutor struct {
 	config           WebSocketClientConfig
 	conn             *websocket.Conn
@@ -49,7 +49,7 @@ type WebSocketClientExecutor struct {
 	negotiatedProto  string // Negotiated subprotocol
 }
 
-// NewWebSocketClientExecutor ایجاد WebSocketClientExecutor
+// NewWebSocketClientExecutor create WebSocketClientExecutor
 func NewWebSocketClientExecutor() node.Executor {
 	return &WebSocketClientExecutor{
 		outputChan: make(chan node.Message, 100),
@@ -92,7 +92,7 @@ func (e *WebSocketClientExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute execute node
 func (e *WebSocketClientExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// Connect if not connected
 	if !e.isConnected() {
@@ -131,7 +131,7 @@ func (e *WebSocketClientExecutor) Execute(ctx context.Context, msg node.Message)
 	}
 }
 
-// connect اتصال به WebSocket server
+// connect connect to WebSocket server
 func (e *WebSocketClientExecutor) connect() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -174,7 +174,7 @@ func (e *WebSocketClientExecutor) connect() error {
 	return nil
 }
 
-// readLoop حلقه خواندن پیام‌ها
+// readLoop message read loop
 func (e *WebSocketClientExecutor) readLoop() {
 	for {
 		select {
@@ -241,7 +241,7 @@ func (e *WebSocketClientExecutor) readLoop() {
 	}
 }
 
-// pingLoop حلقه ارسال ping
+// pingLoop ping send loop
 func (e *WebSocketClientExecutor) pingLoop() {
 	ticker := time.NewTicker(time.Duration(e.config.PingInterval) * time.Second)
 	defer ticker.Stop()
@@ -268,7 +268,7 @@ func (e *WebSocketClientExecutor) pingLoop() {
 	}
 }
 
-// send ارسال پیام
+// send send message
 func (e *WebSocketClientExecutor) send(data interface{}) error {
 	if !e.isConnected() {
 		return fmt.Errorf("not connected")
@@ -300,14 +300,14 @@ func (e *WebSocketClientExecutor) send(data interface{}) error {
 	return conn.WriteMessage(messageType, message)
 }
 
-// isConnected بررسی وضعیت اتصال
+// isConnected check connection status
 func (e *WebSocketClientExecutor) isConnected() bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.connected && e.conn != nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleanup resources
 func (e *WebSocketClientExecutor) Cleanup() error {
 	close(e.stopChan)
 

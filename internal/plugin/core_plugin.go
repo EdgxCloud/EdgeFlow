@@ -5,12 +5,12 @@ import (
 	coreNodes "github.com/edgeflow/edgeflow/pkg/nodes/core"
 )
 
-// CorePlugin پلاگین هسته (همیشه بارگذاری می‌شود)
+// CorePlugin core plugin (always loaded)
 type CorePlugin struct {
 	*BasePlugin
 }
 
-// NewCorePlugin ایجاد پلاگین هسته
+// NewCorePlugin create core plugin
 func NewCorePlugin() *CorePlugin {
 	metadata := Metadata{
 		Name:        "core",
@@ -27,26 +27,26 @@ func NewCorePlugin() *CorePlugin {
 	}
 }
 
-// Load بارگذاری پلاگین
+// Load load plugin
 func (p *CorePlugin) Load() error {
-	// هیچ منطق خاصی نیاز نیست - نودها در Nodes() تعریف شده‌اند
+	// No special logic needed - nodes are defined in Nodes()
 	return nil
 }
 
-// Unload خارج کردن از حافظه
+// Unload unload from memory
 func (p *CorePlugin) Unload() error {
-	// Core plugin نمی‌تواند unload شود
+	// Core plugin cannot be unloaded
 	return nil
 }
 
-// Nodes لیست نودهای ارائه شده
+// Nodes list of provided nodes
 func (p *CorePlugin) Nodes() []NodeDefinition {
 	return []NodeDefinition{
 		{
 			Type:        "inject",
 			Name:        "Inject",
 			Category:    "core",
-			Description: "ارسال پیام دوره‌ای یا دستی",
+			Description: "Send periodic or manual messages",
 			Icon:        "play",
 			Color:       "#3FADB5",
 			Inputs:      0,
@@ -62,7 +62,7 @@ func (p *CorePlugin) Nodes() []NodeDefinition {
 			Type:        "debug",
 			Name:        "Debug",
 			Category:    "core",
-			Description: "نمایش پیام در کنسول",
+			Description: "Display message in console",
 			Icon:        "bug",
 			Color:       "#87A980",
 			Inputs:      1,
@@ -76,7 +76,7 @@ func (p *CorePlugin) Nodes() []NodeDefinition {
 			Type:        "function",
 			Name:        "Function",
 			Category:    "core",
-			Description:   "اجرای کد JavaScript",
+			Description:   "Execute JavaScript code",
 			Icon:        "code",
 			Color:       "#E7E7AE",
 			Inputs:      1,
@@ -90,7 +90,7 @@ func (p *CorePlugin) Nodes() []NodeDefinition {
 			Type:        "if",
 			Name:        "If",
 			Category:    "core",
-			Description: "مسیریابی شرطی",
+			Description: "Conditional routing",
 			Icon:        "git-branch",
 			Color:       "#C0DEED",
 			Inputs:      1,
@@ -104,7 +104,7 @@ func (p *CorePlugin) Nodes() []NodeDefinition {
 			Type:        "delay",
 			Name:        "Delay",
 			Category:    "core",
-			Description: "تأخیر در ارسال پیام",
+			Description: "Delay message sending",
 			Icon:        "clock",
 			Color:       "#C0C0C0",
 			Inputs:      1,
@@ -117,17 +117,17 @@ func (p *CorePlugin) Nodes() []NodeDefinition {
 	}
 }
 
-// RequiredMemory حافظه مورد نیاز (MB)
+// RequiredMemory required memory (MB)
 func (p *CorePlugin) RequiredMemory() uint64 {
 	return 5 * 1024 * 1024 // 5MB
 }
 
-// RequiredDisk فضای دیسک مورد نیاز
+// RequiredDisk required disk space
 func (p *CorePlugin) RequiredDisk() uint64 {
 	return 1 * 1024 * 1024 // 1MB
 }
 
-// Dependencies وابستگی‌ها
+// Dependencies dependencies
 func (p *CorePlugin) Dependencies() []string {
-	return []string{} // هیچ وابستگی ندارد
+	return []string{} // No dependencies
 }

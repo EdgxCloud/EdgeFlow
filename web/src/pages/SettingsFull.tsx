@@ -257,7 +257,7 @@ export default function SettingsFull() {
           ethernet: networkSettings.ethernet,
           wifi: {
             ...networkSettings.wifi,
-            password: undefined, // رمز عبور را ذخیره نمی‌کنیم
+            password: undefined, // We don't store the password
           },
         },
         ui: {
@@ -1292,7 +1292,7 @@ export default function SettingsFull() {
                 size="sm"
                 className="gap-1.5"
                 onClick={() => {
-                  // دانلود تنظیمات به عنوان JSON
+                  // Download settings as JSON
                   const data = {
                     settings,
                     networkSettings,

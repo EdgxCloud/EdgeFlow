@@ -12,7 +12,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 )
 
-// AnthropicConfig نود Anthropic
+// AnthropicConfig configuration for the Anthropic node
 type AnthropicConfig struct {
 	APIKey      string  `json:"apiKey"`
 	Model       string  `json:"model"`
@@ -20,13 +20,13 @@ type AnthropicConfig struct {
 	MaxTokens   int     `json:"maxTokens"`
 }
 
-// AnthropicExecutor اجراکننده نود Anthropic
+// AnthropicExecutor executor for the Anthropic node
 type AnthropicExecutor struct {
 	config AnthropicConfig
 	client *http.Client
 }
 
-// NewAnthropicExecutor ایجاد AnthropicExecutor
+// NewAnthropicExecutor creates a new AnthropicExecutor
 func NewAnthropicExecutor() *AnthropicExecutor {
 	return &AnthropicExecutor{
 		client: &http.Client{Timeout: 60 * time.Second},
@@ -64,7 +64,7 @@ func (e *AnthropicExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute اجرای نود
+// Execute executes the node
 func (e *AnthropicExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	var prompt string
 	var systemPrompt string
@@ -197,7 +197,7 @@ func (e *AnthropicExecutor) Execute(ctx context.Context, msg node.Message) (node
 	}, nil
 }
 
-// Cleanup پاکسازی منابع
+// Cleanup cleans up resources
 func (e *AnthropicExecutor) Cleanup() error {
 	return nil
 }
