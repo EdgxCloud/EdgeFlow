@@ -38,11 +38,24 @@ type BoardInfo struct {
 }
 
 // GPIOChipName returns the GPIO character device name for this board model.
-// Pi 5 uses gpiochip4 (RP1 southbridge), all others use gpiochip0.
+// Auto-detects by scanning /dev/gpiochip* for the RP1 or BCM2835 controller.
+// Falls back to gpiochip0 if auto-detection fails.
 func (b BoardModel) GPIOChipName() string {
-	if b == BoardRPi5 {
-		return "gpiochip4"
+	// Try to auto-detect the correct GPIO chip by reading chip labels
+	// Pi 5 RP1 chip can be on gpiochip0 or gpiochip4 depending on OS version
+	for _, chip := range []string{"gpiochip0", "gpiochip4"} {
+		labelPath := fmt.Sprintf("/sys/bus/gpio/devices/%s/label", chip)
+		data, err := os.ReadFile(labelPath)
+		if err != nil {
+			continue
+		}
+		label := strings.TrimSpace(string(data))
+		// Pi 5 uses pinctrl-rp1, Pi 4 and earlier use pinctrl-bcm2835
+		if strings.Contains(label, "pinctrl-rp1") || strings.Contains(label, "pinctrl-bcm2") {
+			return chip
+		}
 	}
+	// Fallback: gpiochip0 works for most boards
 	return "gpiochip0"
 }
 

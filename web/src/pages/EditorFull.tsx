@@ -131,32 +131,48 @@ export default function EditorFull() {
   }
 
   const handleDeploy = async () => {
-    if (!id) {
-      console.error('No flow to deploy')
-      return
-    }
-
-    console.log('Deploying flow...')
     try {
-      // First save the flow
+      // Save first (this also creates the flow if needed)
       await handleSave()
-      // Then deploy (start) it
-      await startFlow(id)
-      console.log('Flow deployed successfully')
+      const flowId = id || useFlowStore.getState().currentFlow?.id
+      if (!flowId) {
+        toast.error('No flow to deploy')
+        return
+      }
+      await startFlow(flowId)
+      setIsRunning(true)
+      toast.success('Flow deployed and running')
     } catch (error) {
       console.error('Failed to deploy flow:', error)
+      toast.error('Failed to deploy flow')
     }
   }
 
   const handleRun = async () => {
-    if (id) {
-      await startFlow(id)
+    const flowId = id || currentFlow?.id
+    if (flowId) {
+      try {
+        await startFlow(flowId)
+        setIsRunning(true)
+        toast.success('Flow started')
+      } catch (error) {
+        toast.error('Failed to start flow')
+      }
+    } else {
+      toast.error('Save the flow first before running')
     }
   }
 
   const handleStop = async () => {
-    if (id) {
-      await stopFlow(id)
+    const flowId = id || currentFlow?.id
+    if (flowId) {
+      try {
+        await stopFlow(flowId)
+        setIsRunning(false)
+        toast.success('Flow stopped')
+      } catch (error) {
+        toast.error('Failed to stop flow')
+      }
     }
   }
 
@@ -375,17 +391,18 @@ export default function EditorFull() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem>
-                <Upload className="w-4 h-4 mr-2" />
-                Deploy All Flows
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Upload className="w-4 h-4 mr-2" />
-                Deploy Modified Only
-              </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDeploy}>
                 <Upload className="w-4 h-4 mr-2" />
                 Deploy This Flow
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleRun} disabled={isRunning}>
+                <Play className="w-4 h-4 mr-2" />
+                Run Flow
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleStop} disabled={!isRunning}>
+                <Square className="w-4 h-4 mr-2" />
+                Stop Flow
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
