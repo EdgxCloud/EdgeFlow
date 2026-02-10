@@ -289,31 +289,48 @@ func (h *Handler) updateFlow(c *fiber.Ctx) error {
 	}
 
 	// Also update the storage directly with raw node data to preserve positions/config
-	if nodes, ok := updateData["nodes"].(map[string]interface{}); ok {
-		storageFlow, err := h.service.GetStorageFlow(id)
-		if err == nil {
-			// Convert nodes map to slice for storage
+	storageFlow, storageErr := h.service.GetStorageFlow(id)
+	if storageErr == nil {
+		nodesUpdated := false
+
+		// Handle nodes as array format: [{ id, type, name, config, position }, ...]
+		if nodesArr, ok := updateData["nodes"].([]interface{}); ok {
 			nodeSlice := make([]map[string]interface{}, 0)
-			for nodeId, nodeData := range nodes {
+			for _, nodeData := range nodesArr {
 				if nodeMap, ok := nodeData.(map[string]interface{}); ok {
-					nodeMap["id"] = nodeId // Ensure ID is set
 					nodeSlice = append(nodeSlice, nodeMap)
 				}
 			}
 			storageFlow.Nodes = nodeSlice
+			nodesUpdated = true
+		}
 
-			// Update connections
-			if connections, ok := updateData["connections"].([]interface{}); ok {
-				connSlice := make([]map[string]interface{}, 0)
-				for _, conn := range connections {
-					if connMap, ok := conn.(map[string]interface{}); ok {
-						connSlice = append(connSlice, connMap)
-					}
+		// Handle nodes as map format: { "node-id": { type, name, config }, ... }
+		if nodesMap, ok := updateData["nodes"].(map[string]interface{}); ok && !nodesUpdated {
+			nodeSlice := make([]map[string]interface{}, 0)
+			for nodeId, nodeData := range nodesMap {
+				if nodeMap, ok := nodeData.(map[string]interface{}); ok {
+					nodeMap["id"] = nodeId
+					nodeSlice = append(nodeSlice, nodeMap)
 				}
-				storageFlow.Connections = connSlice
 			}
+			storageFlow.Nodes = nodeSlice
+			nodesUpdated = true
+		}
 
-			// Save to storage
+		// Update connections
+		if connections, ok := updateData["connections"].([]interface{}); ok {
+			connSlice := make([]map[string]interface{}, 0)
+			for _, conn := range connections {
+				if connMap, ok := conn.(map[string]interface{}); ok {
+					connSlice = append(connSlice, connMap)
+				}
+			}
+			storageFlow.Connections = connSlice
+		}
+
+		// Save to storage
+		if nodesUpdated {
 			h.service.UpdateStorageFlow(storageFlow)
 		}
 	}

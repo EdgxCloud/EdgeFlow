@@ -38,6 +38,7 @@ export interface FlowCanvasRef {
   handleUndo: () => void
   handleRedo: () => void
   handleSelectAll: () => void
+  getFlowData: () => { nodes: any[]; connections: any[] }
   canUndo: boolean
   canRedo: boolean
   canPaste: boolean
@@ -274,6 +275,26 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
 
   const hasSelection = nodes.some(n => n.selected)
 
+  // Get current flow data from canvas (for saving)
+  const getFlowData = useCallback(() => {
+    const flowNodes = nodes.map((node) => ({
+      id: node.id,
+      type: node.data.nodeType || 'unknown',
+      name: node.data.label || node.data.nodeType,
+      config: node.data.config || {},
+      position: toArrayPosition(node.position),
+    }))
+
+    const connections = edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceOutput: edge.sourceHandle ? parseInt(edge.sourceHandle) : 0,
+    }))
+
+    return { nodes: flowNodes, connections }
+  }, [nodes, edges])
+
   // Expose handlers to parent via ref
   useImperativeHandle(ref, () => ({
     handleCopy,
@@ -284,11 +305,12 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
     handleUndo,
     handleRedo,
     handleSelectAll,
+    getFlowData,
     canUndo: undoRedoActions.canUndo,
     canRedo: undoRedoActions.canRedo,
     canPaste,
     hasSelection,
-  }), [handleCopy, handlePaste, handleCut, handleDelete, handleDuplicate, handleUndo, handleRedo, handleSelectAll, undoRedoActions.canUndo, undoRedoActions.canRedo, canPaste, hasSelection])
+  }), [handleCopy, handlePaste, handleCut, handleDelete, handleDuplicate, handleUndo, handleRedo, handleSelectAll, getFlowData, undoRedoActions.canUndo, undoRedoActions.canRedo, canPaste, hasSelection])
 
   // Keyboard shortcuts
   const handleKeyDown = useKeyboardShortcuts(
@@ -334,10 +356,10 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
   const [initialSyncDone, setInitialSyncDone] = useState(false)
 
   useEffect(() => {
-    if (loadedFlowId && edges.length > 0 && !initialSyncDone) {
+    if (loadedFlowId && (nodes.length > 0 || edges.length > 0) && !initialSyncDone) {
       setInitialSyncDone(true)
     }
-  }, [loadedFlowId, edges.length, initialSyncDone])
+  }, [loadedFlowId, nodes.length, edges.length, initialSyncDone])
 
   useEffect(() => {
     if (flowId !== loadedFlowId) {

@@ -90,25 +90,29 @@ export default function EditorFull() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
+      // Get current canvas data directly from FlowCanvas ref
+      const flowData = canvasRef.current?.getFlowData()
+      const nodesToSave = flowData?.nodes || []
+      const connectionsToSave = flowData?.connections || []
+
       if (id) {
-        // Update existing flow (we have an ID from URL)
-        console.log('Updating existing flow:', id)
-        console.log('Nodes to save:', currentFlow?.nodes)
-        console.log('Connections to save:', currentFlow?.connections)
+        // Update existing flow
         await updateFlow(id, {
           name: flowName,
-          nodes: currentFlow?.nodes || {},
-          connections: currentFlow?.connections || [],
+          nodes: nodesToSave,
+          connections: connectionsToSave,
           config: currentFlow?.config || {}
         })
-        console.log('Flow updated successfully')
       } else {
-        // Create new flow (no ID in URL)
-        console.log('Creating new flow:', flowName)
+        // Create new flow, then save nodes to it
         const newFlow = await createFlow(flowName, 'Created from editor')
         if (newFlow) {
-          console.log('Flow created successfully:', newFlow.id)
-          // Navigate to the new flow's editor
+          if (nodesToSave.length > 0) {
+            await updateFlow(newFlow.id, {
+              nodes: nodesToSave,
+              connections: connectionsToSave,
+            })
+          }
           navigate(`/editor/${newFlow.id}`, { replace: true })
         }
       }
