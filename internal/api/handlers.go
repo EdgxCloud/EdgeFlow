@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -1431,6 +1432,7 @@ func (h *Handler) searchGitHub(c *fiber.Ctx) error {
 
 // handleTerminalWebSocket provides a WebSocket-based shell terminal
 func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
+	log.Printf("[TERMINAL] New terminal WebSocket connection")
 	defer c.Close()
 
 	// Determine shell
@@ -1486,10 +1488,12 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 		}
 
 		if msg.Type != "command" || strings.TrimSpace(msg.Command) == "" {
+			log.Printf("[TERMINAL] Ignoring message: type=%q command=%q", msg.Type, msg.Command)
 			continue
 		}
 
 		command := strings.TrimSpace(msg.Command)
+		log.Printf("[TERMINAL] Executing: %s (cwd: %s)", command, cwd)
 
 		// Handle cd command specially
 		if command == "cd" || strings.HasPrefix(command, "cd ") {
@@ -1531,6 +1535,7 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 		// Capture stdout and stderr via combined output for simplicity
 		output, cmdErr := cmd.CombinedOutput()
 		cancel()
+		log.Printf("[TERMINAL] Command done: len(output)=%d err=%v", len(output), cmdErr)
 
 		// Send output if any
 		if len(output) > 0 {

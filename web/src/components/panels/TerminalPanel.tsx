@@ -93,14 +93,14 @@ export function TerminalPanel() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const cmd = input.trim()
-    if (!cmd) return
+    if (!cmd || isRunning) return
 
     // Add to history
     setHistory(prev => [...prev.filter(h => h !== cmd), cmd])
     setHistoryIndex(-1)
 
     // Show command in terminal
-    addLine('input', `$ ${cmd}`)
+    addLine('input', `${cwd} $ ${cmd}`)
     setInput('')
 
     // Handle local commands
@@ -112,19 +112,25 @@ export function TerminalPanel() {
       addLine('system', 'EdgeFlow Terminal - Commands are executed on the device.')
       addLine('system', '  clear     - Clear terminal')
       addLine('system', '  help      - Show this help')
-      addLine('system', '  Any other command runs on the device via /bin/bash')
+      addLine('system', '  Any other command runs on the device via shell')
       return
     }
 
     // Send to backend
-    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
       addLine('error', 'Not connected. Reconnecting...')
       connectWS()
       return
     }
 
     setIsRunning(true)
-    wsRef.current.send(JSON.stringify({ type: 'command', command: cmd }))
+    try {
+      ws.send(JSON.stringify({ type: 'command', command: cmd }))
+    } catch (err) {
+      addLine('error', `Failed to send command: ${err}`)
+      setIsRunning(false)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -162,7 +168,7 @@ export function TerminalPanel() {
       className="h-full flex flex-col bg-[#1a1a2e] text-green-400 font-mono text-xs"
       onClick={() => inputRef.current?.focus()}
     >
-      <div ref={scrollRef} className="flex-1 overflow-auto p-3 space-y-0.5">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto p-3 space-y-0.5">
         {lines.map((line) => (
           <div key={line.id} className={getLineColor(line.type)} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
             {line.text}
@@ -170,7 +176,7 @@ export function TerminalPanel() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex items-center px-3 py-2 border-t border-gray-700/50">
+      <form onSubmit={handleSubmit} className="shrink-0 flex items-center px-3 py-2 border-t border-gray-700/50 bg-[#1a1a2e]">
         <span className="text-blue-400 mr-1 shrink-0">{cwd}</span>
         <span className="text-gray-400 mr-2 shrink-0">$</span>
         <input
@@ -180,12 +186,15 @@ export function TerminalPanel() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isRunning}
-          className="flex-1 bg-transparent outline-none text-green-400 caret-green-400 placeholder-gray-600"
+          className="flex-1 bg-transparent outline-none text-green-400 caret-green-400 placeholder-gray-600 disabled:opacity-50"
           placeholder={isRunning ? 'Running...' : 'Type a command...'}
           autoFocus
           spellCheck={false}
           autoComplete="off"
         />
+        {isRunning && (
+          <span className="text-yellow-400 ml-2 animate-pulse">...</span>
+        )}
       </form>
     </div>
   )
