@@ -360,9 +360,9 @@ func (e *RC522Executor) readBlock(block int, keyType string, key []byte) (node.M
 	e.selectCard(uid)
 
 	// Authenticate
-	authCmd := piccCmdMFAuthKeyA
+	authCmd := byte(piccCmdMFAuthKeyA)
 	if keyType == "B" {
-		authCmd = piccCmdMFAuthKeyB
+		authCmd = byte(piccCmdMFAuthKeyB)
 	}
 
 	if err := e.authenticate(authCmd, block, key, uid); err != nil {
@@ -418,9 +418,9 @@ func (e *RC522Executor) writeBlock(block int, keyType string, key, data []byte) 
 	e.selectCard(uid)
 
 	// Authenticate
-	authCmd := piccCmdMFAuthKeyA
+	authCmd := byte(piccCmdMFAuthKeyA)
 	if keyType == "B" {
-		authCmd = piccCmdMFAuthKeyB
+		authCmd = byte(piccCmdMFAuthKeyB)
 	}
 
 	if err := e.authenticate(authCmd, block, key, uid); err != nil {
