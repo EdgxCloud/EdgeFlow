@@ -24,6 +24,8 @@ export function TerminalPanel() {
   const [isRunning, setIsRunning] = useState(false)
   const [history, setHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
+  const [tabSuggestions, setTabSuggestions] = useState<string[]>([])
+  const [tabIndex, setTabIndex] = useState(-1)
   const wsRef = useRef<WebSocket | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -34,6 +36,14 @@ export function TerminalPanel() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [lines])
+
+  // Re-focus input when command finishes running
+  useEffect(() => {
+    if (!isRunning) {
+      // Small delay to ensure DOM has updated after disabled state changes
+      setTimeout(() => inputRef.current?.focus(), 50)
+    }
+  }, [isRunning])
 
   // Connect WebSocket
   const connectWS = useCallback(() => {
@@ -50,13 +60,14 @@ export function TerminalPanel() {
       try {
         const msg = JSON.parse(event.data)
         if (msg.type === 'output' && msg.output) {
-          // Split multiline output into individual lines
-          const lines = msg.output.replace(/\n$/, '').split('\n')
-          lines.forEach((line: string) => addLine('output', line))
+          const outputLines = msg.output.replace(/\n$/, '').split('\n')
+          outputLines.forEach((line: string) => addLine('output', line))
         } else if (msg.type === 'error' && msg.output) {
           addLine('error', msg.output.replace(/\n$/, ''))
         } else if (msg.type === 'system' && msg.output) {
           addLine('system', msg.output.replace(/\n$/, ''))
+        } else if (msg.type === 'completion' && msg.suggestions) {
+          handleTabSuggestions(msg.suggestions, msg.partial)
         } else if (msg.type === 'done') {
           if (msg.cwd) setCwd(msg.cwd)
           setIsRunning(false)
@@ -90,10 +101,60 @@ export function TerminalPanel() {
     setLines(prev => [...prev, { id: lineCounter++, type, text }])
   }
 
+  // Handle tab completion suggestions from backend
+  const handleTabSuggestions = (suggestions: string[], partial: string) => {
+    if (!suggestions || suggestions.length === 0) return
+
+    if (suggestions.length === 1) {
+      // Single match - auto-complete
+      applyCompletion(suggestions[0], partial)
+    } else {
+      // Multiple matches - show them and find common prefix
+      setTabSuggestions(suggestions)
+      setTabIndex(0)
+      addLine('system', suggestions.join('  '))
+
+      // Apply longest common prefix
+      const commonPrefix = findCommonPrefix(suggestions)
+      if (commonPrefix.length > partial.length) {
+        applyCompletion(commonPrefix, partial)
+      }
+    }
+  }
+
+  const applyCompletion = (completion: string, partial: string) => {
+    setInput(prev => {
+      // Find the last word boundary to replace partial with completion
+      const parts = prev.split(/\s+/)
+      parts[parts.length - 1] = completion
+      const result = parts.join(' ')
+      // Add trailing space if it's a single completion (not a prefix)
+      return result + (tabSuggestions.length <= 1 ? ' ' : '')
+    })
+    setTabSuggestions([])
+    setTabIndex(-1)
+  }
+
+  const findCommonPrefix = (strs: string[]): string => {
+    if (strs.length === 0) return ''
+    let prefix = strs[0]
+    for (let i = 1; i < strs.length; i++) {
+      while (!strs[i].startsWith(prefix)) {
+        prefix = prefix.slice(0, -1)
+        if (prefix === '') return ''
+      }
+    }
+    return prefix
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const cmd = input.trim()
     if (!cmd || isRunning) return
+
+    // Clear tab state
+    setTabSuggestions([])
+    setTabIndex(-1)
 
     // Add to history
     setHistory(prev => [...prev.filter(h => h !== cmd), cmd])
@@ -112,6 +173,7 @@ export function TerminalPanel() {
       addLine('system', 'EdgeFlow Terminal - Commands are executed on the device.')
       addLine('system', '  clear     - Clear terminal')
       addLine('system', '  help      - Show this help')
+      addLine('system', '  Tab       - Auto-complete file/directory names')
       addLine('system', '  Any other command runs on the device via shell')
       return
     }
@@ -134,7 +196,29 @@ export function TerminalPanel() {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowUp') {
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      if (isRunning) return
+
+      // Send tab completion request to backend
+      const ws = wsRef.current
+      if (!ws || ws.readyState !== WebSocket.OPEN) return
+
+      const currentInput = input
+      // Extract the last word as the partial to complete
+      const parts = currentInput.split(/\s+/)
+      const partial = parts[parts.length - 1] || ''
+
+      try {
+        ws.send(JSON.stringify({
+          type: 'complete',
+          command: currentInput,
+          partial: partial,
+        }))
+      } catch {
+        // ignore
+      }
+    } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       if (history.length > 0) {
         const newIndex = historyIndex < history.length - 1 ? historyIndex + 1 : historyIndex
@@ -150,6 +234,12 @@ export function TerminalPanel() {
       } else {
         setHistoryIndex(-1)
         setInput('')
+      }
+    } else {
+      // Any other key clears tab suggestions
+      if (tabSuggestions.length > 0) {
+        setTabSuggestions([])
+        setTabIndex(-1)
       }
     }
   }
@@ -185,8 +275,8 @@ export function TerminalPanel() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isRunning}
-          className="flex-1 bg-transparent outline-none text-green-400 caret-green-400 placeholder-gray-600 disabled:opacity-50"
+          readOnly={isRunning}
+          className={`flex-1 bg-transparent outline-none text-green-400 caret-green-400 placeholder-gray-600 ${isRunning ? 'opacity-50' : ''}`}
           placeholder={isRunning ? 'Running...' : 'Type a command...'}
           autoFocus
           spellCheck={false}

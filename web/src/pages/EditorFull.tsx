@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useFlowStore } from '../stores/flowStore'
 import FlowCanvas, { FlowCanvasRef } from '../components/editor/FlowCanvas'
 import NodePalette from '../components/editor/NodePalette'
@@ -37,11 +37,11 @@ import {
   ClipboardPaste,
   CopyPlus,
   Trash2,
+  GripHorizontal,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -210,6 +210,42 @@ export default function EditorFull() {
       setIsBottomPanelMinimized(true)
     }
   }
+
+  // Drag-to-resize for bottom panel
+  const isDraggingRef = useRef(false)
+  const dragStartYRef = useRef(0)
+  const dragStartHeightRef = useRef(0)
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingRef.current = true
+    dragStartYRef.current = e.clientY
+    dragStartHeightRef.current = bottomPanelHeight
+    document.body.style.cursor = 'row-resize'
+    document.body.style.userSelect = 'none'
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return
+      const delta = dragStartYRef.current - e.clientY
+      const newHeight = Math.max(100, Math.min(window.innerHeight * 0.7, dragStartHeightRef.current + delta))
+      setBottomPanelHeight(newHeight)
+      setPreviousBottomPanelHeight(newHeight)
+      if (isBottomPanelMinimized && newHeight > 60) {
+        setIsBottomPanelMinimized(false)
+      }
+    }
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }, [bottomPanelHeight, isBottomPanelMinimized])
 
   // Listen for fullscreen changes
   useEffect(() => {
@@ -583,30 +619,40 @@ export default function EditorFull() {
             className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex flex-col"
             style={{ height: `${bottomPanelHeight}px` }}
           >
-            {/* Panel Header */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-              <Tabs value={activeBottomTab} onValueChange={setActiveBottomTab} className="flex-1">
-                <TabsList className="bg-transparent p-0 h-auto">
-                  <TabsTrigger value="debug" className="gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900">
-                    <Bug className="w-4 h-4" />
-                    Debug
-                  </TabsTrigger>
-                  <TabsTrigger value="monitoring" className="gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900">
-                    <Activity className="w-4 h-4" />
-                    Monitoring
-                  </TabsTrigger>
-                  <TabsTrigger value="terminal" className="gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900">
-                    <Terminal className="w-4 h-4" />
-                    Terminal
-                  </TabsTrigger>
-                  <TabsTrigger value="logs" className="gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900">
-                    <FileText className="w-4 h-4" />
-                    Logs
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+            {/* Drag Handle for Resizing */}
+            <div
+              className="h-1.5 cursor-row-resize bg-transparent hover:bg-blue-400/40 transition-colors flex items-center justify-center group shrink-0"
+              onMouseDown={handleDragStart}
+            >
+              <GripHorizontal className="w-4 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
 
-              <div className="flex items-center gap-2">
+            {/* Panel Header */}
+            <div className="flex items-center justify-between px-4 py-1.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 shrink-0">
+              <div className="flex items-center gap-1">
+                {[
+                  { value: 'debug', icon: Bug, label: 'Debug' },
+                  { value: 'monitoring', icon: Activity, label: 'Monitoring' },
+                  { value: 'terminal', icon: Terminal, label: 'Terminal' },
+                  { value: 'logs', icon: FileText, label: 'Logs' },
+                ].map((tab) => (
+                  <button
+                    key={tab.value}
+                    onClick={() => setActiveBottomTab(tab.value)}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium rounded-md transition-colors',
+                      activeBottomTab === tab.value
+                        ? 'bg-white dark:bg-gray-900 text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-gray-800'
+                    )}
+                  >
+                    <tab.icon className="w-3.5 h-3.5" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -624,22 +670,6 @@ export default function EditorFull() {
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={() => {
-                    if (!isBottomPanelMinimized) {
-                      const newHeight = Math.min(500, bottomPanelHeight + 50)
-                      setBottomPanelHeight(newHeight)
-                      setPreviousBottomPanelHeight(newHeight)
-                    }
-                  }}
-                  disabled={isBottomPanelMinimized}
-                  title="Increase panel height"
-                >
-                  <ChevronUp className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
                   onClick={() => setIsBottomPanelOpen(false)}
                   title="Close panel"
                 >
@@ -648,25 +678,22 @@ export default function EditorFull() {
               </div>
             </div>
 
-            {/* Panel Content */}
+            {/* Panel Content - all panels rendered, only active one visible */}
             {!isBottomPanelMinimized && (
-            <Tabs value={activeBottomTab} className="flex-1 overflow-hidden">
-              <TabsContent value="debug" className="h-full overflow-hidden m-0">
-                <DebugPanel className="h-full" />
-              </TabsContent>
-
-              <TabsContent value="monitoring" className="h-full overflow-hidden m-0">
-                <MonitoringPanel />
-              </TabsContent>
-
-              <TabsContent value="terminal" className="h-full overflow-hidden m-0">
-                <TerminalPanel />
-              </TabsContent>
-
-              <TabsContent value="logs" className="h-full overflow-hidden m-0">
-                <LogsPanel />
-              </TabsContent>
-            </Tabs>
+              <div className="flex-1 overflow-hidden relative">
+                <div className={cn('absolute inset-0', activeBottomTab === 'debug' ? 'block' : 'hidden')}>
+                  <DebugPanel className="h-full" />
+                </div>
+                <div className={cn('absolute inset-0', activeBottomTab === 'monitoring' ? 'block' : 'hidden')}>
+                  <MonitoringPanel />
+                </div>
+                <div className={cn('absolute inset-0', activeBottomTab === 'terminal' ? 'block' : 'hidden')}>
+                  <TerminalPanel />
+                </div>
+                <div className={cn('absolute inset-0', activeBottomTab === 'logs' ? 'block' : 'hidden')}>
+                  <LogsPanel />
+                </div>
+              </div>
             )}
           </div>
         )}

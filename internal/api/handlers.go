@@ -1487,6 +1487,12 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 			continue
 		}
 
+		// Handle tab completion
+		if msg.Type == "complete" {
+			h.handleTabCompletion(c, msg.Command, cwd)
+			continue
+		}
+
 		if msg.Type != "command" || strings.TrimSpace(msg.Command) == "" {
 			log.Printf("[TERMINAL] Ignoring message: type=%q command=%q", msg.Type, msg.Command)
 			continue
@@ -1566,4 +1572,139 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 			"cwd":      cwd,
 		})
 	}
+}
+
+// handleTabCompletion handles tab completion requests for the terminal
+func (h *Handler) handleTabCompletion(c *websocket.Conn, commandLine string, cwd string) {
+	// Extract the last word (partial) from command line
+	parts := strings.Fields(commandLine)
+	partial := ""
+	if len(parts) > 0 {
+		partial = parts[len(parts) - 1]
+	}
+
+	// If command line ends with a space, we're completing from scratch
+	if strings.HasSuffix(commandLine, " ") {
+		partial = ""
+	}
+
+	var suggestions []string
+
+	if runtime.GOOS != "windows" {
+		// Linux/Mac: use compgen for smart completion
+		suggestions = h.compgenComplete(partial, cwd, len(parts) <= 1 && !strings.HasSuffix(commandLine, " "))
+	} else {
+		// Windows: basic file/directory listing
+		suggestions = h.fileComplete(partial, cwd)
+	}
+
+	log.Printf("[TERMINAL] Tab complete: partial=%q suggestions=%d", partial, len(suggestions))
+
+	c.WriteJSON(map[string]interface{}{
+		"type":        "completion",
+		"suggestions": suggestions,
+		"partial":     partial,
+	})
+}
+
+// compgenComplete uses bash compgen for tab completion on Linux/Mac
+func (h *Handler) compgenComplete(partial string, cwd string, isFirstWord bool) []string {
+	var compCmd string
+	if isFirstWord {
+		// First word: complete commands + files
+		compCmd = fmt.Sprintf("cd %s && compgen -c -f -- %s 2>/dev/null | head -20",
+			shellQuote(cwd), shellQuote(partial))
+	} else {
+		// Subsequent words: complete files/directories
+		compCmd = fmt.Sprintf("cd %s && compgen -f -- %s 2>/dev/null | head -20",
+			shellQuote(cwd), shellQuote(partial))
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", compCmd)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Fallback to file completion
+		return h.fileComplete(partial, cwd)
+	}
+
+	raw := strings.TrimSpace(string(output))
+	if raw == "" {
+		return []string{}
+	}
+
+	lines := strings.Split(raw, "\n")
+	suggestions := make([]string, 0, len(lines))
+	seen := make(map[string]bool)
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && !seen[line] {
+			seen[line] = true
+			// Check if it's a directory, append / suffix
+			fullPath := line
+			if !filepath.IsAbs(line) {
+				fullPath = filepath.Join(cwd, line)
+			}
+			if info, err := os.Stat(fullPath); err == nil && info.IsDir() {
+				line = line + "/"
+			}
+			suggestions = append(suggestions, line)
+		}
+	}
+	return suggestions
+}
+
+// fileComplete does basic file/directory name completion
+func (h *Handler) fileComplete(partial string, cwd string) []string {
+	// Determine the directory to list and the prefix to match
+	dir := cwd
+	prefix := partial
+
+	if strings.Contains(partial, "/") || strings.Contains(partial, string(filepath.Separator)) {
+		partialDir := filepath.Dir(partial)
+		prefix = filepath.Base(partial)
+		if filepath.IsAbs(partial) {
+			dir = partialDir
+		} else {
+			dir = filepath.Join(cwd, partialDir)
+		}
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return []string{}
+	}
+
+	suggestions := make([]string, 0)
+	lowerPrefix := strings.ToLower(prefix)
+
+	for _, entry := range entries {
+		name := entry.Name()
+		// Skip hidden files unless partial starts with .
+		if strings.HasPrefix(name, ".") && !strings.HasPrefix(prefix, ".") {
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(name), lowerPrefix) {
+			result := name
+			// If partial had a path prefix, preserve it
+			if strings.Contains(partial, "/") || strings.Contains(partial, string(filepath.Separator)) {
+				result = filepath.Join(filepath.Dir(partial), name)
+			}
+			if entry.IsDir() {
+				result = result + "/"
+			}
+			suggestions = append(suggestions, result)
+		}
+		if len(suggestions) >= 20 {
+			break
+		}
+	}
+	return suggestions
+}
+
+// shellQuote quotes a string for safe use in shell commands
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
