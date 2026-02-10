@@ -123,17 +123,39 @@ func (g *GpiocdevGPIO) SetPull(pin int, pull PullMode) error {
 
 	g.pinPulls[pin] = pull
 
-	// If the line is already open, reconfigure it
-	line, ok := g.lines[pin]
+	// If the line is already open, close and re-request with new pull setting
+	_, ok := g.lines[pin]
 	if !ok {
 		return nil // Pull will be applied when SetMode is called
 	}
 
-	err := line.Reconfigure(pullOption(pull))
-	if err != nil {
-		// Reconfigure may not be supported on older kernels; log but don't fail
-		return fmt.Errorf("failed to set pull on pin %d (may require Linux 5.5+): %w", pin, err)
+	mode, modeOk := g.pinModes[pin]
+	if !modeOk {
+		return nil
 	}
+
+	// Close existing line
+	if err := g.closeLineLocked(pin); err != nil {
+		return fmt.Errorf("failed to close pin %d for pull reconfigure: %w", pin, err)
+	}
+
+	// Re-request with updated pull
+	var opts []gpiocdev.LineReqOption
+	opts = append(opts, pullOption(pull))
+
+	switch mode {
+	case Input:
+		opts = append([]gpiocdev.LineReqOption{gpiocdev.AsInput}, opts...)
+	case Output, PWM:
+		opts = append([]gpiocdev.LineReqOption{gpiocdev.AsOutput(0)}, opts...)
+	}
+
+	line, err := gpiocdev.RequestLine(g.chipName, pin, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to re-request pin %d with pull %v: %w", pin, pull, err)
+	}
+	g.lines[pin] = line
+
 	return nil
 }
 
