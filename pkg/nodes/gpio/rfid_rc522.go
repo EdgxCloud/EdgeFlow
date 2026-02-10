@@ -114,6 +114,7 @@ type RC522Config struct {
 type RC522Executor struct {
 	config      RC522Config
 	hal         hal.HAL
+	spi         hal.SPIProvider
 	mu          sync.Mutex
 	initialized bool
 }
@@ -168,8 +169,8 @@ func (e *RC522Executor) Execute(ctx context.Context, msg node.Message) (node.Mes
 	}
 
 	// Parse command
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		// Default: scan for card
 		return e.scanCard()
 	}
@@ -237,6 +238,15 @@ func (e *RC522Executor) Execute(ctx context.Context, msg node.Message) (node.Mes
 
 // initRC522 initializes the RC522
 func (e *RC522Executor) initRC522() error {
+	// Open SPI device
+	e.spi = e.hal.SPI()
+	if err := e.spi.Open(e.config.SPIBus, e.config.SPIDevice); err != nil {
+		return fmt.Errorf("failed to open SPI bus %d device %d: %w", e.config.SPIBus, e.config.SPIDevice, err)
+	}
+	if err := e.spi.SetSpeed(e.config.Speed); err != nil {
+		return fmt.Errorf("failed to set SPI speed: %w", err)
+	}
+
 	gpio := e.hal.GPIO()
 
 	// Setup reset pin if specified
@@ -774,19 +784,22 @@ func (e *RC522Executor) uidToDecimal(uid []byte) uint64 {
 
 // readRegister reads a register via SPI
 func (e *RC522Executor) readRegister(reg byte) (byte, error) {
-	spi := e.hal.SPI()
 	data := []byte{((reg << 1) & 0x7E) | 0x80, 0x00}
-	if err := spi.Transfer(e.config.SPIBus, e.config.SPIDevice, data, 2); err != nil {
+	resp, err := e.spi.Transfer(data)
+	if err != nil {
 		return 0, err
 	}
-	return data[1], nil
+	if len(resp) < 2 {
+		return 0, fmt.Errorf("SPI read: short response (%d bytes)", len(resp))
+	}
+	return resp[1], nil
 }
 
 // writeRegister writes a register via SPI
 func (e *RC522Executor) writeRegister(reg, value byte) error {
-	spi := e.hal.SPI()
 	data := []byte{(reg << 1) & 0x7E, value}
-	return spi.Transfer(e.config.SPIBus, e.config.SPIDevice, data, 2)
+	_, err := e.spi.Transfer(data)
+	return err
 }
 
 // setBitMask sets bits in a register
@@ -804,5 +817,8 @@ func (e *RC522Executor) clearBitMask(reg, mask byte) {
 // Cleanup releases resources
 func (e *RC522Executor) Cleanup() error {
 	e.setAntennaOff()
+	if e.spi != nil {
+		e.spi.Close()
+	}
 	return nil
 }

@@ -105,7 +105,7 @@ func (e *RCWL0516Executor) Execute(ctx context.Context, msg node.Message) (node.
 	}
 
 	action := "read"
-	if payload, ok := msg.Payload.(map[string]interface{}); ok {
+	if payload := msg.Payload; payload != nil {
 		if a, ok := payload["action"].(string); ok {
 			action = a
 		}
@@ -191,8 +191,8 @@ func (e *RCWL0516Executor) resetCount() (node.Message, error) {
 }
 
 func (e *RCWL0516Executor) handleConfigure(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 

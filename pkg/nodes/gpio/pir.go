@@ -139,7 +139,7 @@ func (n *PIRNode) Start(ctx context.Context) error {
 func (n *PIRNode) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
 	// PIR node primarily outputs data asynchronously
 	// But can respond to queries about current state
-	if msgPayload, ok := msg.Payload.(map[string]interface{}); ok {
+	if msgPayload := msg.Payload; msgPayload != nil {
 		if cmd, ok := msgPayload["command"].(string); ok {
 			switch cmd {
 			case "status":

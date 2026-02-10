@@ -115,8 +115,8 @@ func (e *PN532Executor) Execute(ctx context.Context, msg node.Message) (node.Mes
 		e.initialized = true
 	}
 
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return e.scanTag()
 	}
 
@@ -261,7 +261,7 @@ func (e *PN532Executor) readBlock(block int, keyType string, key []byte) (node.M
 	if err != nil {
 		return node.Message{}, err
 	}
-	payload := scanResult.Payload.(map[string]interface{})
+	payload := scanResult.Payload
 	if !payload["tag_present"].(bool) {
 		return node.Message{}, fmt.Errorf("no tag present")
 	}
@@ -319,7 +319,7 @@ func (e *PN532Executor) writeBlock(block int, keyType string, key, data []byte) 
 	if err != nil {
 		return node.Message{}, err
 	}
-	payload := scanResult.Payload.(map[string]interface{})
+	payload := scanResult.Payload
 	if !payload["tag_present"].(bool) {
 		return node.Message{}, fmt.Errorf("no tag present")
 	}
@@ -382,7 +382,7 @@ func (e *PN532Executor) readNDEF() (node.Message, error) {
 		return node.Message{}, err
 	}
 
-	payload := result.Payload.(map[string]interface{})
+	payload := result.Payload
 	data := payload["data"].([]byte)
 
 	// Parse simple NDEF text record
@@ -478,7 +478,7 @@ func (e *PN532Executor) sendCommand(cmd byte, data []byte) ([]byte, error) {
 
 	// Read ACK
 	ack := make([]byte, 6)
-	if _, err := e.dev.Read(ack); err != nil {
+	if err := e.dev.Tx(nil, ack); err != nil {
 		return nil, err
 	}
 
@@ -486,10 +486,10 @@ func (e *PN532Executor) sendCommand(cmd byte, data []byte) ([]byte, error) {
 
 	// Read response
 	response := make([]byte, 64)
-	n, err := e.dev.Read(response)
-	if err != nil {
+	if err := e.dev.Tx(nil, response); err != nil {
 		return nil, err
 	}
+	n := len(response)
 
 	// Parse response frame
 	if n < 7 {

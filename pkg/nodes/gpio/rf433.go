@@ -233,7 +233,7 @@ func (e *RF433Executor) Execute(ctx context.Context, msg node.Message) (node.Mes
 	}
 
 	action := "status"
-	if payload, ok := msg.Payload.(map[string]interface{}); ok {
+	if payload := msg.Payload; payload != nil {
 		if a, ok := payload["action"].(string); ok {
 			action = a
 		}
@@ -256,8 +256,8 @@ func (e *RF433Executor) Execute(ctx context.Context, msg node.Message) (node.Mes
 }
 
 func (e *RF433Executor) handleSend(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
@@ -299,8 +299,8 @@ func (e *RF433Executor) handleSend(msg node.Message) (node.Message, error) {
 }
 
 func (e *RF433Executor) handleSendTriState(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
@@ -334,8 +334,8 @@ func (e *RF433Executor) handleSendTriState(msg node.Message) (node.Message, erro
 }
 
 func (e *RF433Executor) handleSendBinary(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
@@ -374,8 +374,8 @@ func (e *RF433Executor) handleSendBinary(msg node.Message) (node.Message, error)
 }
 
 func (e *RF433Executor) handleConfigure(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 

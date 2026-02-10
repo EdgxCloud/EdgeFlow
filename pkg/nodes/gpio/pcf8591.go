@@ -211,7 +211,7 @@ func (e *PCF8591Executor) Execute(ctx context.Context, msg node.Message) (node.M
 
 	action := "read"
 	channel := 0
-	if payload, ok := msg.Payload.(map[string]interface{}); ok {
+	if payload := msg.Payload; payload != nil {
 		if a, ok := payload["action"].(string); ok {
 			action = a
 		}
@@ -287,8 +287,8 @@ func (e *PCF8591Executor) handleWriteDAC(msg node.Message) (node.Message, error)
 		return node.Message{}, fmt.Errorf("DAC is not enabled in configuration")
 	}
 
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
@@ -331,8 +331,8 @@ func (e *PCF8591Executor) handleWriteDAC(msg node.Message) (node.Message, error)
 }
 
 func (e *PCF8591Executor) handleConfigure(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 

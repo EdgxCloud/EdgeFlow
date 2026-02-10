@@ -270,7 +270,7 @@ func (e *VEML7700Executor) Execute(ctx context.Context, msg node.Message) (node.
 	}
 
 	action := "read"
-	if payload, ok := msg.Payload.(map[string]interface{}); ok {
+	if payload := msg.Payload; payload != nil {
 		if a, ok := payload["action"].(string); ok {
 			action = a
 		}
@@ -335,8 +335,8 @@ func (e *VEML7700Executor) readLight() (node.Message, error) {
 }
 
 func (e *VEML7700Executor) handleConfigure(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
@@ -389,8 +389,8 @@ func (e *VEML7700Executor) handleConfigure(msg node.Message) (node.Message, erro
 }
 
 func (e *VEML7700Executor) handleSetThreshold(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 

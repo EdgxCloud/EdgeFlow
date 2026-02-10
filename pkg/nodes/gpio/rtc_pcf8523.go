@@ -306,7 +306,7 @@ func (e *PCF8523Executor) Execute(ctx context.Context, msg node.Message) (node.M
 	}
 
 	action := "read"
-	if payload, ok := msg.Payload.(map[string]interface{}); ok {
+	if payload := msg.Payload; payload != nil {
 		if a, ok := payload["action"].(string); ok {
 			action = a
 		}
@@ -358,8 +358,8 @@ func (e *PCF8523Executor) handleRead() (node.Message, error) {
 }
 
 func (e *PCF8523Executor) handleSet(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
@@ -419,8 +419,8 @@ func (e *PCF8523Executor) handleBatteryStatus() (node.Message, error) {
 }
 
 func (e *PCF8523Executor) handleSetAlarm(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
@@ -465,8 +465,8 @@ func (e *PCF8523Executor) handleDisableAlarm() (node.Message, error) {
 }
 
 func (e *PCF8523Executor) handleSetClockout(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 

@@ -13,6 +13,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/node"
 	"periph.io/x/conn/v3/gpio"
 	"periph.io/x/conn/v3/gpio/gpioreg"
+	"periph.io/x/conn/v3/physic"
 	"periph.io/x/conn/v3/spi"
 	"periph.io/x/conn/v3/spi/spireg"
 	"periph.io/x/host/v3"
@@ -156,7 +157,7 @@ func (e *NRF24L01Executor) initHardware() error {
 	}
 	e.spiPort = port
 
-	conn, err := port.Connect(spi.Mode0, 8, e.config.SPISpeed)
+	conn, err := port.Connect(physic.Frequency(e.config.SPISpeed)*physic.Hertz, spi.Mode0, 8)
 	if err != nil {
 		port.Close()
 		return fmt.Errorf("failed to configure SPI: %w", err)
@@ -458,7 +459,7 @@ func (e *NRF24L01Executor) Execute(ctx context.Context, msg node.Message) (node.
 	}
 
 	action := "status"
-	if payload, ok := msg.Payload.(map[string]interface{}); ok {
+	if payload := msg.Payload; payload != nil {
 		if a, ok := payload["action"].(string); ok {
 			action = a
 		}
@@ -481,8 +482,8 @@ func (e *NRF24L01Executor) Execute(ctx context.Context, msg node.Message) (node.
 }
 
 func (e *NRF24L01Executor) handleSend(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
@@ -518,8 +519,8 @@ func (e *NRF24L01Executor) handleSend(msg node.Message) (node.Message, error) {
 }
 
 func (e *NRF24L01Executor) handleReceive(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		payload = make(map[string]interface{})
 	}
 
@@ -551,8 +552,8 @@ func (e *NRF24L01Executor) handleReceive(msg node.Message) (node.Message, error)
 }
 
 func (e *NRF24L01Executor) handleConfigure(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
@@ -591,8 +592,8 @@ func (e *NRF24L01Executor) handleConfigure(msg node.Message) (node.Message, erro
 }
 
 func (e *NRF24L01Executor) handleSetAddress(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 

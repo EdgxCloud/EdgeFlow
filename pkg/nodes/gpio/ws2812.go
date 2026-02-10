@@ -101,8 +101,8 @@ func (e *WS2812Executor) Execute(ctx context.Context, msg node.Message) (node.Me
 	}
 
 	// Parse command
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
