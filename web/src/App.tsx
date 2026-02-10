@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
@@ -61,6 +62,7 @@ function FirstRunWizard() {
 function App() {
   return (
     <ErrorBoundary>
+      <Toaster position="top-right" richColors closeButton />
       <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
         <FirstRunWizard />
         <Routes>

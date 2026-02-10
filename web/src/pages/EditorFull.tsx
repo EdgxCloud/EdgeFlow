@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { ReactFlowProvider } from '@xyflow/react'
+import { toast } from 'sonner'
 
 export default function EditorFull() {
   const { id } = useParams()
@@ -95,29 +96,35 @@ export default function EditorFull() {
       const nodesToSave = flowData?.nodes || []
       const connectionsToSave = flowData?.connections || []
 
-      if (id) {
-        // Update existing flow
-        await updateFlow(id, {
-          name: flowName,
-          nodes: nodesToSave,
-          connections: connectionsToSave,
-          config: currentFlow?.config || {}
-        })
-      } else {
-        // Create new flow, then save nodes to it
+      let flowId = id
+
+      // If no flow ID yet, create a new flow first
+      if (!flowId) {
         const newFlow = await createFlow(flowName, 'Created from editor')
-        if (newFlow) {
-          if (nodesToSave.length > 0) {
-            await updateFlow(newFlow.id, {
-              nodes: nodesToSave,
-              connections: connectionsToSave,
-            })
-          }
-          navigate(`/editor/${newFlow.id}`, { replace: true })
+        if (!newFlow) {
+          toast.error('Failed to create workflow')
+          return
         }
+        flowId = newFlow.id
+      }
+
+      // Save nodes and connections to the flow
+      await updateFlow(flowId, {
+        name: flowName,
+        nodes: nodesToSave,
+        connections: connectionsToSave,
+        config: currentFlow?.config || {}
+      })
+
+      toast.success(`Workflow saved (${nodesToSave.length} nodes, ${connectionsToSave.length} connections)`)
+
+      // Navigate to the flow URL if it was newly created
+      if (!id && flowId) {
+        navigate(`/editor/${flowId}`, { replace: true })
       }
     } catch (error) {
       console.error('Failed to save flow:', error)
+      toast.error('Failed to save workflow')
     } finally {
       setIsSaving(false)
     }
