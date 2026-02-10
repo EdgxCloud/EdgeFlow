@@ -99,7 +99,7 @@ func RegisterAll(registry *node.Registry) error {
 			{Name: "group", Label: "Group", Type: "string"},
 			{Name: "tab", Label: "Tab", Type: "string"},
 			{Name: "buttonLabel", Label: "Button Label", Type: "string", Default: "Button"},
-			{Name: "payload", Label: "Payload", Type: "any"},
+			{Name: "payload", Label: "Payload", Type: "payload"},
 			{Name: "topic", Label: "Topic", Type: "string"},
 			{Name: "icon", Label: "Icon", Type: "string"},
 			{Name: "bgColor", Label: "Background Color", Type: "string", Default: "#3b82f6"},

@@ -184,38 +184,52 @@ func DetectBoard() (*BoardInfo, error) {
 }
 
 func extractModel(cpuinfo string) BoardModel {
+	// First try /proc/cpuinfo Model line
 	lines := strings.Split(cpuinfo, "\n")
-
 	for _, line := range lines {
 		if strings.HasPrefix(line, "Model") {
-			model := strings.ToLower(line)
-
-			if strings.Contains(model, "pi 5") {
-				return BoardRPi5
-			} else if strings.Contains(model, "pi 4") {
-				return BoardRPi4
-			} else if strings.Contains(model, "pi 3 model b+") {
-				return BoardRPi3Plus
-			} else if strings.Contains(model, "pi 3") {
-				return BoardRPi3
-			} else if strings.Contains(model, "pi 2") {
-				return BoardRPi2
-			} else if strings.Contains(model, "pi 1") || strings.Contains(model, "model b") {
-				return BoardRPi1
-			} else if strings.Contains(model, "zero 2 w") {
-				return BoardRPiZero2W
-			} else if strings.Contains(model, "zero w") {
-				return BoardRPiZeroW
-			} else if strings.Contains(model, "zero") {
-				return BoardRPiZero
-			} else if strings.Contains(model, "compute module 4") {
-				return BoardRPiCM4
-			} else if strings.Contains(model, "compute module 3") {
-				return BoardRPiCM3
+			if m := matchBoardModel(line); m != BoardUnknown {
+				return m
 			}
 		}
 	}
 
+	// Fallback: Pi 5 doesn't have Model in cpuinfo, check device-tree
+	if dtModel, err := os.ReadFile("/proc/device-tree/model"); err == nil {
+		if m := matchBoardModel(string(dtModel)); m != BoardUnknown {
+			return m
+		}
+	}
+
+	return BoardUnknown
+}
+
+func matchBoardModel(text string) BoardModel {
+	model := strings.ToLower(text)
+
+	if strings.Contains(model, "pi 5") {
+		return BoardRPi5
+	} else if strings.Contains(model, "pi 4") {
+		return BoardRPi4
+	} else if strings.Contains(model, "pi 3 model b+") {
+		return BoardRPi3Plus
+	} else if strings.Contains(model, "pi 3") {
+		return BoardRPi3
+	} else if strings.Contains(model, "pi 2") {
+		return BoardRPi2
+	} else if strings.Contains(model, "pi 1") || strings.Contains(model, "model b") {
+		return BoardRPi1
+	} else if strings.Contains(model, "zero 2 w") {
+		return BoardRPiZero2W
+	} else if strings.Contains(model, "zero w") {
+		return BoardRPiZeroW
+	} else if strings.Contains(model, "zero") {
+		return BoardRPiZero
+	} else if strings.Contains(model, "compute module 4") {
+		return BoardRPiCM4
+	} else if strings.Contains(model, "compute module 3") {
+		return BoardRPiCM3
+	}
 	return BoardUnknown
 }
 

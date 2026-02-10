@@ -19,6 +19,7 @@ export type PropertyType =
   | 'gpio-pin'
   | 'mqtt-topic'
   | 'mqtt-config' // Full MQTT configuration including broker, topic, QoS, etc.
+  | 'payload'     // Key-value payload builder with presets
 
 export interface PropertySchema {
   name: string

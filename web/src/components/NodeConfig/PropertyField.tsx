@@ -21,6 +21,7 @@ import { ColorPicker } from '@/components/Common/ColorPicker'
 import { IconPicker } from '@/components/Common/IconPicker'
 import { CronBuilder } from '@/components/Common/CronBuilder'
 import { MQTTTopicBuilder } from '@/components/NodeConfig/Specialized/MQTTTopicBuilder'
+import { PayloadBuilder } from '@/components/NodeConfig/Specialized/PayloadBuilder'
 import type { PropertySchema } from '@/types/node'
 import { cn } from '@/lib/utils'
 
@@ -159,6 +160,15 @@ export function PropertyField({
             onChange={onChange}
             enableSeconds={false}
             showPreview={true}
+            disabled={disabled}
+          />
+        )
+
+      case 'payload':
+        return (
+          <PayloadBuilder
+            value={value || {}}
+            onChange={onChange}
             disabled={disabled}
           />
         )

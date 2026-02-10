@@ -10,6 +10,7 @@ export { SwitchRuleBuilder } from './SwitchRuleBuilder'
 export { HTTPRequestBuilder } from './HTTPRequestBuilder'
 export { HTTPWebhookBuilder } from './HTTPWebhookBuilder'
 export { ChangeTransformBuilder } from './ChangeTransformBuilder'
+export { PayloadBuilder } from './PayloadBuilder'
 
 export type { PinMode, PullMode } from './GPIOPinSelector'
 export type { RuleOperator, RuleProperty, SwitchRule } from './SwitchRuleBuilder'

@@ -43,7 +43,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 			{
 				Name:        "payload",
 				Label:       "Payload",
-				Type:        "object",
+				Type:        "payload",
 				Default:     map[string]interface{}{},
 				Required:    false,
 				Description: "Message payload to send",
@@ -247,7 +247,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 			{
 				Name:        "payload",
 				Label:       "Payload",
-				Type:        "object",
+				Type:        "payload",
 				Default:     map[string]interface{}{},
 				Required:    false,
 				Description: "Message payload to send",
@@ -1038,7 +1038,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 			{
 				Name:        "initialPayload",
 				Label:       "Initial Payload",
-				Type:        "any",
+				Type:        "payload",
 				Default:     nil,
 				Required:    false,
 				Description: "Payload to send immediately (null = pass through)",
@@ -1046,7 +1046,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 			{
 				Name:        "secondPayload",
 				Label:       "Second Payload",
-				Type:        "any",
+				Type:        "payload",
 				Default:     nil,
 				Required:    false,
 				Description: "Payload to send after delay (null = no second message)",
