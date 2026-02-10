@@ -109,6 +109,10 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 		moduleRoutes.Delete("/:name", h.moduleAPI.UninstallModule)
 	}
 
+	// Execution history routes
+	api.Get("/executions", h.listExecutions)
+	api.Get("/executions/:id", h.getExecution)
+
 	// Setup/wizard routes
 	api.Post("/setup", h.saveSetup)
 	api.Get("/setup", h.getSetup)
@@ -118,6 +122,15 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 
 	// System info routes
 	api.Get("/system/network", h.getNetworkInfo)
+	api.Get("/system/wifi/scan", h.scanWifiNetworks)
+	api.Post("/system/wifi/connect", h.connectWifi)
+	api.Get("/system/info", h.getSystemInfo)
+
+	// Settings routes
+	api.Get("/settings", h.getSettings)
+	api.Put("/settings", h.saveSettings)
+	api.Post("/system/reboot", h.rebootSystem)
+	api.Post("/system/restart-service", h.restartService)
 
 	// Terminal WebSocket for shell access (must be registered before /ws to avoid prefix match conflict)
 	app.Use("/ws/terminal", func(c *fiber.Ctx) error {
@@ -346,6 +359,11 @@ func (h *Handler) updateFlow(c *fiber.Ctx) error {
 		if nodesUpdated {
 			h.service.UpdateStorageFlow(storageFlow)
 		}
+
+		// Log save details
+		nodeCount := len(storageFlow.Nodes)
+		connCount := len(storageFlow.Connections)
+		h.service.logActivity("success", fmt.Sprintf("Flow saved: %s (%d nodes, %d connections)", flow.Name, nodeCount, connCount), "editor")
 	}
 
 	return c.JSON(flow)
@@ -924,6 +942,39 @@ func (h *Handler) getModuleStats(c *fiber.Ctx) error {
 	return c.JSON(stats)
 }
 
+// Execution history handlers
+func (h *Handler) listExecutions(c *fiber.Ctx) error {
+	executions := h.service.ListExecutions()
+
+	// Filter by status if provided
+	statusFilter := c.Query("status")
+	if statusFilter != "" {
+		filtered := make([]*ExecutionRecord, 0)
+		for _, e := range executions {
+			if e.Status == statusFilter {
+				filtered = append(filtered, e)
+			}
+		}
+		executions = filtered
+	}
+
+	return c.JSON(fiber.Map{
+		"executions": executions,
+		"count":      len(executions),
+	})
+}
+
+func (h *Handler) getExecution(c *fiber.Ctx) error {
+	id := c.Params("id")
+	execution, err := h.service.GetExecution(id)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.JSON(execution)
+}
+
 // Resource handlers
 func (h *Handler) getResourceStats(c *fiber.Ctx) error {
 	stats := h.service.GetResourceStats()
@@ -1037,6 +1088,429 @@ func (h *Handler) getNetworkInfo(c *fiber.Ctx) error {
 }
 
 // ============================================
+// WiFi & System Handlers
+// ============================================
+
+// scanWifiNetworks scans for available WiFi networks using nmcli (Linux) or netsh (Windows)
+func (h *Handler) scanWifiNetworks(c *fiber.Ctx) error {
+	type WifiNetwork struct {
+		SSID      string `json:"ssid"`
+		BSSID     string `json:"bssid"`
+		Signal    int    `json:"signal"`
+		Frequency int    `json:"frequency"`
+		Channel   int    `json:"channel"`
+		Security  string `json:"security"`
+		Connected bool   `json:"connected"`
+	}
+
+	networks := make([]WifiNetwork, 0)
+
+	if runtime.GOOS == "linux" {
+		// استفاده از nmcli برای اسکن شبکه‌های وای‌فای
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		// ابتدا اسکن مجدد
+		rescanCmd := exec.CommandContext(ctx, "nmcli", "device", "wifi", "rescan")
+		rescanCmd.Run() // اگر خطا بدهد مهم نیست
+
+		// دریافت لیست شبکه‌ها
+		cmd := exec.CommandContext(ctx, "nmcli", "-t", "-f",
+			"SSID,BSSID,SIGNAL,FREQ,CHAN,SECURITY,ACTIVE", "device", "wifi", "list")
+		output, err := cmd.Output()
+		if err != nil {
+			return c.JSON(fiber.Map{
+				"networks": networks,
+				"error":    fmt.Sprintf("WiFi scan failed: %v", err),
+				"platform": runtime.GOOS,
+			})
+		}
+
+		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+		for _, line := range lines {
+			if line == "" {
+				continue
+			}
+			// nmcli -t فیلدها را با : جدا می‌کند
+			// BSSID خودش : دارد، بنابراین باید با دقت پارس کنیم
+			fields := strings.Split(line, ":")
+			if len(fields) < 7 {
+				continue
+			}
+
+			ssid := fields[0]
+			if ssid == "" || ssid == "--" {
+				continue
+			}
+
+			// BSSID 6 بایت دارد با : جداشده
+			bssid := ""
+			if len(fields) >= 12 {
+				bssid = strings.Join(fields[1:7], ":")
+				fields = append([]string{fields[0], bssid}, fields[7:]...)
+			}
+
+			signal := 0
+			freq := 0
+			channel := 0
+			security := "open"
+			active := false
+
+			if len(fields) >= 7 {
+				fmt.Sscanf(fields[2], "%d", &signal)
+				fmt.Sscanf(fields[3], "%d", &freq)
+				fmt.Sscanf(fields[4], "%d", &channel)
+				security = strings.ToLower(fields[5])
+				if security == "" || security == "--" {
+					security = "open"
+				}
+				active = fields[6] == "yes"
+			}
+
+			// تبدیل درصد سیگنال به dBm تقریبی
+			signalDbm := -100 + signal
+			if signalDbm > -20 {
+				signalDbm = -20
+			}
+
+			networks = append(networks, WifiNetwork{
+				SSID:      ssid,
+				BSSID:     bssid,
+				Signal:    signalDbm,
+				Frequency: freq,
+				Channel:   channel,
+				Security:  security,
+				Connected: active,
+			})
+		}
+
+		// مرتب‌سازی بر اساس قدرت سیگنال
+		sort.Slice(networks, func(i, j int) bool {
+			return networks[i].Signal > networks[j].Signal
+		})
+	} else if runtime.GOOS == "windows" {
+		// Windows: netsh wlan show networks
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		cmd := exec.CommandContext(ctx, "netsh", "wlan", "show", "networks", "mode=bssid")
+		output, err := cmd.Output()
+		if err != nil {
+			return c.JSON(fiber.Map{
+				"networks": networks,
+				"error":    fmt.Sprintf("WiFi scan failed: %v", err),
+				"platform": runtime.GOOS,
+			})
+		}
+
+		var current WifiNetwork
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "SSID") && !strings.HasPrefix(line, "BSSID") {
+				parts := strings.SplitN(line, ":", 2)
+				if len(parts) == 2 {
+					ssid := strings.TrimSpace(parts[1])
+					if ssid != "" {
+						if current.SSID != "" {
+							networks = append(networks, current)
+						}
+						current = WifiNetwork{SSID: ssid, Security: "open"}
+					}
+				}
+			} else if strings.HasPrefix(line, "BSSID") {
+				parts := strings.SplitN(line, ":", 2)
+				if len(parts) == 2 {
+					current.BSSID = strings.TrimSpace(parts[1])
+				}
+			} else if strings.HasPrefix(line, "Signal") || strings.Contains(line, "Signal") {
+				parts := strings.SplitN(line, ":", 2)
+				if len(parts) == 2 {
+					sigStr := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(parts[1]), "%"))
+					sig := 0
+					fmt.Sscanf(sigStr, "%d", &sig)
+					current.Signal = -100 + sig
+				}
+			} else if strings.HasPrefix(line, "Authentication") || strings.Contains(line, "Authentication") {
+				parts := strings.SplitN(line, ":", 2)
+				if len(parts) == 2 {
+					auth := strings.ToLower(strings.TrimSpace(parts[1]))
+					if strings.Contains(auth, "wpa3") {
+						current.Security = "wpa3"
+					} else if strings.Contains(auth, "wpa2") {
+						current.Security = "wpa2"
+					} else if strings.Contains(auth, "wpa") {
+						current.Security = "wpa"
+					} else if strings.Contains(auth, "open") {
+						current.Security = "open"
+					}
+				}
+			} else if strings.HasPrefix(line, "Channel") || strings.Contains(line, "Channel") {
+				parts := strings.SplitN(line, ":", 2)
+				if len(parts) == 2 {
+					fmt.Sscanf(strings.TrimSpace(parts[1]), "%d", &current.Channel)
+				}
+			}
+		}
+		if current.SSID != "" {
+			networks = append(networks, current)
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"networks":  networks,
+		"count":     len(networks),
+		"platform":  runtime.GOOS,
+		"timestamp": time.Now(),
+	})
+}
+
+// connectWifi connects to a WiFi network using nmcli
+func (h *Handler) connectWifi(c *fiber.Ctx) error {
+	var req struct {
+		SSID     string `json:"ssid"`
+		Password string `json:"password"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	if req.SSID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "SSID is required",
+		})
+	}
+
+	if runtime.GOOS != "linux" {
+		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
+			"error":    "WiFi connection management is only supported on Linux",
+			"platform": runtime.GOOS,
+		})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	args := []string{"device", "wifi", "connect", req.SSID}
+	if req.Password != "" {
+		args = append(args, "password", req.Password)
+	}
+
+	cmd := exec.CommandContext(ctx, "nmcli", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		h.service.logActivity("error", fmt.Sprintf("WiFi connection to %s failed: %v", req.SSID, err), "system")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   fmt.Sprintf("Failed to connect: %s", strings.TrimSpace(string(output))),
+			"details": string(output),
+		})
+	}
+
+	h.service.logActivity("success", fmt.Sprintf("Connected to WiFi: %s", req.SSID), "system")
+
+	return c.JSON(fiber.Map{
+		"message": fmt.Sprintf("Successfully connected to %s", req.SSID),
+		"output":  strings.TrimSpace(string(output)),
+	})
+}
+
+// getSystemInfo returns comprehensive system information
+func (h *Handler) getSystemInfo(c *fiber.Ctx) error {
+	hostname, _ := os.Hostname()
+	stats := h.service.GetResourceStats()
+	sysInfo := stats.SysInfo
+
+	// دریافت آپتایم به فرمت خوانا
+	uptime := sysInfo.Uptime
+	uptimeStr := ""
+	if uptime > 0 {
+		days := uptime / 86400
+		hours := (uptime % 86400) / 3600
+		minutes := (uptime % 3600) / 60
+		if days > 0 {
+			uptimeStr = fmt.Sprintf("%dd %dh %dm", days, hours, minutes)
+		} else if hours > 0 {
+			uptimeStr = fmt.Sprintf("%dh %dm", hours, minutes)
+		} else {
+			uptimeStr = fmt.Sprintf("%dm", minutes)
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"hostname":    hostname,
+		"os":          sysInfo.OS,
+		"arch":        sysInfo.Arch,
+		"board_model": sysInfo.BoardModel,
+		"uptime":      uptime,
+		"uptime_str":  uptimeStr,
+		"temperature": sysInfo.Temperature,
+		"cpu": fiber.Map{
+			"cores":         stats.CPUCores,
+			"usage_percent": sysInfo.CPUUsagePercent,
+		},
+		"memory": fiber.Map{
+			"total_bytes": stats.MemoryTotal,
+			"used_bytes":  stats.MemoryUsed,
+			"free_bytes":  stats.MemoryAvailable,
+			"percent":     stats.MemoryPercent,
+		},
+		"disk": fiber.Map{
+			"total_bytes": stats.DiskTotal,
+			"used_bytes":  stats.DiskUsed,
+			"free_bytes":  stats.DiskAvailable,
+			"percent":     stats.DiskPercent,
+		},
+		"network": fiber.Map{
+			"rx_bytes": sysInfo.NetRxBytes,
+			"tx_bytes": sysInfo.NetTxBytes,
+		},
+		"load_avg": fiber.Map{
+			"1min":  sysInfo.LoadAvg1,
+			"5min":  sysInfo.LoadAvg5,
+			"15min": sysInfo.LoadAvg15,
+		},
+		"go_version": runtime.Version(),
+		"goroutines": stats.GoroutineCount,
+		"platform":   runtime.GOOS,
+		"timestamp":  time.Now(),
+	})
+}
+
+// ============================================
+// Settings Handlers
+// ============================================
+
+const settingsConfigFile = "./data/settings.json"
+
+// getSettings retrieves the current application settings
+func (h *Handler) getSettings(c *fiber.Ctx) error {
+	data, err := os.ReadFile(settingsConfigFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// بازگرداندن تنظیمات پیش‌فرض
+			return c.JSON(fiber.Map{
+				"configured": false,
+				"settings":   getDefaultSettings(),
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to read settings: %v", err),
+		})
+	}
+
+	var settings map[string]interface{}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to parse settings",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"configured": true,
+		"settings":   settings,
+	})
+}
+
+// saveSettings saves application settings
+func (h *Handler) saveSettings(c *fiber.Ctx) error {
+	var settings map[string]interface{}
+	if err := c.BodyParser(&settings); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid settings data",
+		})
+	}
+
+	settings["updatedAt"] = time.Now().Format(time.RFC3339)
+
+	if err := os.MkdirAll(filepath.Dir(settingsConfigFile), 0755); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to create data directory: %v", err),
+		})
+	}
+
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to marshal settings",
+		})
+	}
+
+	if err := os.WriteFile(settingsConfigFile, data, 0644); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to save settings: %v", err),
+		})
+	}
+
+	h.service.logActivity("success", "Settings saved", "system")
+
+	return c.JSON(fiber.Map{
+		"message":  "Settings saved successfully",
+		"settings": settings,
+	})
+}
+
+func getDefaultSettings() map[string]interface{} {
+	return map[string]interface{}{
+		"server": map[string]interface{}{
+			"host": "0.0.0.0",
+			"port": "8080",
+		},
+		"engine": map[string]interface{}{
+			"logLevel":      "info",
+			"maxExecutions": 100,
+			"enableWS":      true,
+		},
+		"network": map[string]interface{}{
+			"hostname":         "edgeflow-device",
+			"primaryInterface": "ethernet",
+		},
+	}
+}
+
+// rebootSystem reboots the device (Linux only)
+func (h *Handler) rebootSystem(c *fiber.Ctx) error {
+	if runtime.GOOS != "linux" {
+		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
+			"error": "Reboot is only supported on Linux",
+		})
+	}
+
+	h.service.logActivity("warn", "System reboot initiated", "system")
+
+	// اجرای ریبوت با تاخیر 2 ثانیه تا response ارسال شود
+	go func() {
+		time.Sleep(2 * time.Second)
+		exec.Command("sudo", "reboot").Run()
+	}()
+
+	return c.JSON(fiber.Map{
+		"message": "System will reboot in 2 seconds",
+	})
+}
+
+// restartService restarts the EdgeFlow service (Linux only)
+func (h *Handler) restartService(c *fiber.Ctx) error {
+	if runtime.GOOS != "linux" {
+		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
+			"error": "Service restart is only supported on Linux",
+		})
+	}
+
+	h.service.logActivity("warn", "Service restart initiated", "system")
+
+	go func() {
+		time.Sleep(2 * time.Second)
+		exec.Command("sudo", "systemctl", "restart", "edgeflow").Run()
+	}()
+
+	return c.JSON(fiber.Map{
+		"message": "EdgeFlow service will restart in 2 seconds",
+	})
+}
+
+// ============================================
 // Setup/Wizard Handlers
 // ============================================
 
@@ -1075,6 +1549,8 @@ func (h *Handler) saveSetup(c *fiber.Ctx) error {
 			"error": fmt.Sprintf("Failed to save config: %v", err),
 		})
 	}
+
+	h.service.logActivity("success", "Device setup configuration saved", "system")
 
 	return c.JSON(fiber.Map{
 		"message": "Setup configuration saved successfully",
@@ -1500,6 +1976,7 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 
 		command := strings.TrimSpace(msg.Command)
 		log.Printf("[TERMINAL] Executing: %s (cwd: %s)", command, cwd)
+		h.service.logActivity("debug", fmt.Sprintf("Terminal: %s", command), "terminal")
 
 		// Handle cd command specially
 		if command == "cd" || strings.HasPrefix(command, "cd ") {

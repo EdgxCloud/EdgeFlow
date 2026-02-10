@@ -291,6 +291,39 @@ export const modulesApi = {
     api.delete<{ message: string }>(`/modules/${name}`),
 }
 
+export interface ExecutionRecord {
+  id: string
+  flow_id: string
+  flow_name: string
+  status: 'running' | 'completed' | 'failed'
+  start_time: string
+  end_time?: string
+  duration?: number
+  node_count: number
+  completed_nodes: number
+  error_nodes: number
+  error?: string
+  node_events?: NodeExecutionEvent[]
+}
+
+export interface NodeExecutionEvent {
+  node_id: string
+  node_name: string
+  node_type: string
+  status: string
+  execution_time: number
+  timestamp: number
+  error?: string
+}
+
+export const executionsApi = {
+  list: (status?: string) => {
+    const params = status ? `?status=${status}` : ''
+    return api.get<{ executions: ExecutionRecord[]; count: number }>(`/executions${params}`)
+  },
+  get: (id: string) => api.get<ExecutionRecord>(`/executions/${id}`),
+}
+
 export const resourcesApi = {
   stats: () => api.get<ResourceStats>('/resources/stats'),
   report: () => api.get<ResourceStats>('/resources/report'),

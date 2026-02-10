@@ -7,7 +7,7 @@ import ExecutionDataPanel from '../components/panels/ExecutionDataPanel'
 import DebugPanel from '../components/panels/DebugPanel'
 import { TerminalPanel } from '../components/panels/TerminalPanel'
 import { MonitoringPanel } from '../components/panels/MonitoringPanel'
-import { LogsPanel } from '../components/panels/LogsPanel'
+import { LogsPanel, pushLog } from '../components/panels/LogsPanel'
 import {
   Play,
   Square,
@@ -74,14 +74,19 @@ export default function EditorFull() {
 
   useEffect(() => {
     if (id) {
-      fetchFlow(id).catch((error) => {
+      fetchFlow(id).then(() => {
+        pushLog('info', `Workflow loaded: ${id}`, 'editor')
+      }).catch((error) => {
         console.error('Failed to load flow:', error)
+        pushLog('error', `Failed to load workflow: ${error}`, 'editor')
         // If flow not found, redirect to create new flow
         if (error.response?.status === 404) {
           console.log('Flow not found, redirecting to new flow editor')
           navigate('/editor', { replace: true })
         }
       })
+    } else {
+      pushLog('info', 'New workflow editor opened', 'editor')
     }
   }, [id, fetchFlow, navigate])
 
@@ -121,20 +126,24 @@ export default function EditorFull() {
       })
 
       toast.success(`Workflow saved (${nodesToSave.length} nodes, ${connectionsToSave.length} connections)`)
+      pushLog('success', `Workflow saved: ${flowName} (${nodesToSave.length} nodes, ${connectionsToSave.length} connections)`, 'editor')
 
       // Navigate to the flow URL if it was newly created
       if (!id && flowId) {
         navigate(`/editor/${flowId}`, { replace: true })
+        pushLog('info', `New workflow created: ${flowName}`, 'editor')
       }
     } catch (error) {
       console.error('Failed to save flow:', error)
       toast.error('Failed to save workflow')
+      pushLog('error', `Failed to save workflow: ${error}`, 'editor')
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDeploy = async () => {
+    pushLog('info', `Deploying workflow: ${flowName}...`, 'editor')
     try {
       // Save first (this also creates the flow if needed)
       await handleSave()
@@ -146,9 +155,11 @@ export default function EditorFull() {
       await startFlow(flowId)
       setIsRunning(true)
       toast.success('Flow deployed and running')
+      pushLog('success', `Workflow deployed and running: ${flowName}`, 'deploy')
     } catch (error) {
       console.error('Failed to deploy flow:', error)
       toast.error('Failed to deploy flow')
+      pushLog('error', `Failed to deploy workflow: ${error}`, 'deploy')
     }
   }
 
@@ -159,11 +170,14 @@ export default function EditorFull() {
         await startFlow(flowId)
         setIsRunning(true)
         toast.success('Flow started')
+        pushLog('success', `Flow started: ${flowName}`, 'runtime')
       } catch (error) {
         toast.error('Failed to start flow')
+        pushLog('error', `Failed to start flow: ${error}`, 'runtime')
       }
     } else {
       toast.error('Save the flow first before running')
+      pushLog('warn', 'Cannot run: flow not saved yet', 'runtime')
     }
   }
 
@@ -174,8 +188,10 @@ export default function EditorFull() {
         await stopFlow(flowId)
         setIsRunning(false)
         toast.success('Flow stopped')
+        pushLog('info', `Flow stopped: ${flowName}`, 'runtime')
       } catch (error) {
         toast.error('Failed to stop flow')
+        pushLog('error', `Failed to stop flow: ${error}`, 'runtime')
       }
     }
   }
@@ -678,9 +694,8 @@ export default function EditorFull() {
               </div>
             </div>
 
-            {/* Panel Content - all panels rendered, only active one visible */}
-            {!isBottomPanelMinimized && (
-              <div className="flex-1 overflow-hidden relative">
+            {/* Panel Content - all panels always rendered, CSS hides inactive/minimized */}
+              <div className={cn('flex-1 overflow-hidden relative', isBottomPanelMinimized && 'hidden')}>
                 <div className={cn('absolute inset-0', activeBottomTab === 'debug' ? 'block' : 'hidden')}>
                   <DebugPanel className="h-full" />
                 </div>
@@ -694,7 +709,6 @@ export default function EditorFull() {
                   <LogsPanel />
                 </div>
               </div>
-            )}
           </div>
         )}
 

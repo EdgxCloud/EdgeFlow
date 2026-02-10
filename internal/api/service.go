@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/edgeflow/edgeflow/internal/engine"
 	"github.com/edgeflow/edgeflow/internal/node"
@@ -13,6 +15,34 @@ import (
 	// "github.com/google/uuid"
 )
 
+// ExecutionRecord represents a tracked flow execution
+type ExecutionRecord struct {
+	ID             string                `json:"id"`
+	FlowID         string                `json:"flow_id"`
+	FlowName       string                `json:"flow_name"`
+	Status         string                `json:"status"` // running, completed, failed
+	StartTime      time.Time             `json:"start_time"`
+	EndTime        *time.Time            `json:"end_time,omitempty"`
+	Duration       *int64                `json:"duration,omitempty"` // milliseconds
+	NodeCount      int                   `json:"node_count"`
+	CompletedNodes int                   `json:"completed_nodes"`
+	ErrorNodes     int                   `json:"error_nodes"`
+	Error          string                `json:"error,omitempty"`
+	NodeEvents     []NodeExecutionEvent  `json:"node_events,omitempty"`
+	mu             sync.Mutex
+}
+
+// NodeExecutionEvent is a single node execution within a flow run
+type NodeExecutionEvent struct {
+	NodeID        string                 `json:"node_id"`
+	NodeName      string                 `json:"node_name"`
+	NodeType      string                 `json:"node_type"`
+	Status        string                 `json:"status"`
+	ExecutionTime int64                  `json:"execution_time"`
+	Timestamp     int64                  `json:"timestamp"`
+	Error         string                 `json:"error,omitempty"`
+}
+
 // Service handles business logic for the API
 type Service struct {
 	storage         storage.Storage
@@ -21,6 +51,8 @@ type Service struct {
 	resourceMonitor *resources.Monitor
 	flows           map[string]*engine.Flow // Active flows in memory
 	wsHub           *websocket.Hub
+	executions      []*ExecutionRecord // In-memory execution history
+	execMu          sync.RWMutex
 }
 
 // NewService creates a new API service
@@ -48,7 +80,17 @@ func NewService(storage storage.Storage, registry *node.Registry, wsHub *websock
 		resourceMonitor: resourceMonitor,
 		flows:           make(map[string]*engine.Flow),
 		wsHub:           wsHub,
+		executions:      make([]*ExecutionRecord, 0),
 	}
+}
+
+// logActivity broadcasts an activity log entry to all WebSocket clients
+func (s *Service) logActivity(level, message, source string) {
+	s.wsHub.Broadcast(websocket.MessageTypeLog, map[string]interface{}{
+		"level":   level,
+		"message": message,
+		"source":  source,
+	})
 }
 
 // CreateFlow creates a new flow
@@ -70,6 +112,7 @@ func (s *Service) CreateFlow(name, description string) (*engine.Flow, error) {
 		"action":  "created",
 		"name":    flow.Name,
 	})
+	s.logActivity("info", fmt.Sprintf("Flow created: %s", name), "flow")
 
 	return flow, nil
 }
@@ -117,6 +160,7 @@ func (s *Service) UpdateFlow(flow *engine.Flow) error {
 		"action":  "updated",
 		"name":    flow.Name,
 	})
+	s.logActivity("info", fmt.Sprintf("Flow updated: %s", flow.Name), "flow")
 
 	return nil
 }
@@ -144,6 +188,7 @@ func (s *Service) DeleteFlow(id string) error {
 		"flow_id": id,
 		"action":  "deleted",
 	})
+	s.logActivity("warn", fmt.Sprintf("Flow deleted: %s", id), "flow")
 
 	return nil
 }
@@ -155,9 +200,71 @@ func (s *Service) StartFlow(id string) error {
 		return err
 	}
 
+	// Create execution record
+	execID := fmt.Sprintf("exec-%d", time.Now().UnixNano())
+	record := &ExecutionRecord{
+		ID:        execID,
+		FlowID:    flow.ID,
+		FlowName:  flow.Name,
+		Status:    "running",
+		StartTime: time.Now(),
+		NodeCount: len(flow.Nodes),
+	}
+	s.execMu.Lock()
+	// Keep max 100 execution records
+	if len(s.executions) >= 100 {
+		s.executions = s.executions[len(s.executions)-99:]
+	}
+	s.executions = append(s.executions, record)
+	s.execMu.Unlock()
+
+	// Set execution callback to broadcast node execution data via WebSocket
+	flowID := flow.ID
+	flow.SetExecutionCallback(func(event node.ExecutionEvent) {
+		// Broadcast via WebSocket
+		s.wsHub.Broadcast(websocket.MessageTypeExecution, map[string]interface{}{
+			"flow_id":        flowID,
+			"node_id":        event.NodeID,
+			"node_name":      event.NodeName,
+			"node_type":      event.NodeType,
+			"input":          event.Input,
+			"output":         event.Output,
+			"status":         event.Status,
+			"error":          event.Error,
+			"execution_time": event.ExecutionTime,
+			"timestamp":      event.Timestamp,
+		})
+
+		// Track in execution record
+		record.mu.Lock()
+		record.NodeEvents = append(record.NodeEvents, NodeExecutionEvent{
+			NodeID:        event.NodeID,
+			NodeName:      event.NodeName,
+			NodeType:      event.NodeType,
+			Status:        event.Status,
+			ExecutionTime: event.ExecutionTime,
+			Timestamp:     event.Timestamp,
+			Error:         event.Error,
+		})
+		if event.Status == "success" {
+			record.CompletedNodes++
+		} else if event.Status == "error" {
+			record.ErrorNodes++
+		}
+		record.mu.Unlock()
+	})
+
 	// Start the flow
 	ctx := context.Background()
 	if err := flow.Start(ctx); err != nil {
+		record.mu.Lock()
+		record.Status = "failed"
+		now := time.Now()
+		record.EndTime = &now
+		dur := now.Sub(record.StartTime).Milliseconds()
+		record.Duration = &dur
+		record.Error = err.Error()
+		record.mu.Unlock()
 		return fmt.Errorf("failed to start flow: %w", err)
 	}
 
@@ -170,6 +277,7 @@ func (s *Service) StartFlow(id string) error {
 		"action":  "started",
 		"status":  flow.Status,
 	})
+	s.logActivity("success", fmt.Sprintf("Flow started: %s", flow.Name), "runtime")
 
 	return nil
 }
@@ -185,12 +293,16 @@ func (s *Service) StopFlow(id string) error {
 		return fmt.Errorf("failed to stop flow: %w", err)
 	}
 
+	// Finalize execution record
+	s.finalizeExecution(id, "completed", "")
+
 	// Notify via WebSocket
 	s.wsHub.Broadcast(websocket.MessageTypeFlowStatus, map[string]interface{}{
 		"flow_id": flow.ID,
 		"action":  "stopped",
 		"status":  flow.Status,
 	})
+	s.logActivity("info", fmt.Sprintf("Flow stopped: %s", flow.Name), "runtime")
 
 	return nil
 }
@@ -232,6 +344,7 @@ func (s *Service) AddNodeToFlow(flowID, nodeType, nodeName string, config map[st
 		"action":  "added",
 		"type":    nodeType,
 	})
+	s.logActivity("info", fmt.Sprintf("Node added: %s (%s)", nodeName, nodeType), "node")
 
 	return newNode, nil
 }
@@ -258,6 +371,7 @@ func (s *Service) RemoveNodeFromFlow(flowID, nodeID string) error {
 		"node_id": nodeID,
 		"action":  "removed",
 	})
+	s.logActivity("warn", fmt.Sprintf("Node removed: %s from flow %s", nodeID, flowID), "node")
 
 	return nil
 }
@@ -393,4 +507,55 @@ func (s *Service) UpdateStorageFlow(flow *storage.Flow) error {
 // ListStorageFlows retrieves all flows from storage in raw format
 func (s *Service) ListStorageFlows() ([]*storage.Flow, error) {
 	return s.storage.ListFlows()
+}
+
+// finalizeExecution marks an execution record as completed/failed
+func (s *Service) finalizeExecution(flowID, status, errMsg string) {
+	s.execMu.RLock()
+	defer s.execMu.RUnlock()
+
+	// Find the latest running execution for this flow
+	for i := len(s.executions) - 1; i >= 0; i-- {
+		rec := s.executions[i]
+		if rec.FlowID == flowID && rec.Status == "running" {
+			rec.mu.Lock()
+			rec.Status = status
+			now := time.Now()
+			rec.EndTime = &now
+			dur := now.Sub(rec.StartTime).Milliseconds()
+			rec.Duration = &dur
+			if errMsg != "" {
+				rec.Error = errMsg
+			}
+			if rec.ErrorNodes > 0 && status != "failed" {
+				rec.Status = "completed"
+			}
+			rec.mu.Unlock()
+			return
+		}
+	}
+}
+
+// ListExecutions returns all execution records
+func (s *Service) ListExecutions() []*ExecutionRecord {
+	s.execMu.RLock()
+	defer s.execMu.RUnlock()
+	// Return in reverse order (newest first)
+	result := make([]*ExecutionRecord, len(s.executions))
+	for i, rec := range s.executions {
+		result[len(s.executions)-1-i] = rec
+	}
+	return result
+}
+
+// GetExecution returns a single execution record by ID
+func (s *Service) GetExecution(id string) (*ExecutionRecord, error) {
+	s.execMu.RLock()
+	defer s.execMu.RUnlock()
+	for _, rec := range s.executions {
+		if rec.ID == id {
+			return rec, nil
+		}
+	}
+	return nil, fmt.Errorf("execution not found: %s", id)
 }

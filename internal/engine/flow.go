@@ -31,6 +31,7 @@ type Flow struct {
 	mu          sync.RWMutex
 	ctx         context.Context
 	cancel      context.CancelFunc
+	onExecution node.ExecutionCallback
 }
 
 // Connection represents a link between two nodes
@@ -139,6 +140,13 @@ func (f *Flow) Disconnect(connectionID string) error {
 	return fmt.Errorf("connection %s not found", connectionID)
 }
 
+// SetExecutionCallback sets a callback for node execution events
+func (f *Flow) SetExecutionCallback(cb node.ExecutionCallback) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.onExecution = cb
+}
+
 // Start begins executing the flow
 func (f *Flow) Start(ctx context.Context) error {
 	f.mu.Lock()
@@ -151,11 +159,14 @@ func (f *Flow) Start(ctx context.Context) error {
 	f.ctx, f.cancel = context.WithCancel(ctx)
 	f.Status = FlowStatusRunning
 
-	// Start all nodes
-	for _, node := range f.Nodes {
-		if err := node.Start(f.ctx); err != nil {
+	// Start all nodes and set execution callback
+	for _, n := range f.Nodes {
+		if f.onExecution != nil {
+			n.SetExecutionCallback(f.onExecution)
+		}
+		if err := n.Start(f.ctx); err != nil {
 			f.Status = FlowStatusError
-			return fmt.Errorf("failed to start node %s: %w", node.ID, err)
+			return fmt.Errorf("failed to start node %s: %w", n.ID, err)
 		}
 	}
 

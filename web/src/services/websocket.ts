@@ -39,8 +39,14 @@ export interface NodeStatusMessage {
 export interface ExecutionMessage {
   flow_id: string
   node_id: string
-  msg: Record<string, unknown>
-  timestamp: string
+  node_name: string
+  node_type: string
+  input: Record<string, unknown> | null
+  output: Record<string, unknown> | null
+  status: 'success' | 'error'
+  error?: string
+  execution_time: number
+  timestamp: number
 }
 
 export interface LogMessage {

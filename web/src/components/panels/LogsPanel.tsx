@@ -1,6 +1,7 @@
 /**
  * Logs Panel
- * Real-time log streaming via WebSocket + backend log API
+ * Real-time activity & log streaming via WebSocket
+ * Captures: backend logs, flow events, node events, frontend actions
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
@@ -21,6 +22,22 @@ interface LogEntry {
 
 let logCounter = 0
 
+// Global log buffer for frontend activity logs
+type LogListener = (entry: LogEntry) => void
+const listeners = new Set<LogListener>()
+
+/** Push a frontend activity log entry to the Logs panel */
+export function pushLog(level: LogEntry['level'], message: string, source = 'frontend') {
+  const entry: LogEntry = {
+    id: logCounter++,
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    source,
+  }
+  listeners.forEach(fn => fn(entry))
+}
+
 const LEVEL_COLORS: Record<string, string> = {
   info: 'text-gray-400',
   debug: 'text-blue-400',
@@ -37,14 +54,26 @@ const LEVEL_BADGES: Record<string, string> = {
   success: 'text-green-500 bg-green-500/10',
 }
 
+// Map flow_status actions to log levels
+function flowActionToLevel(action: string): LogEntry['level'] {
+  switch (action) {
+    case 'started': return 'success'
+    case 'stopped': return 'info'
+    case 'deleted': return 'warn'
+    case 'created': return 'info'
+    case 'updated': return 'info'
+    default: return 'info'
+  }
+}
+
 export function LogsPanel() {
   const [logs, setLogs] = useState<LogEntry[]>([
     {
       id: logCounter++,
       timestamp: new Date().toISOString(),
       level: 'info',
-      message: 'Log panel initialized. Listening for backend logs...',
-      source: 'frontend',
+      message: 'Activity log initialized. All user actions will be recorded here.',
+      source: 'system',
     },
   ])
   const [filter, setFilter] = useState('')
@@ -53,6 +82,14 @@ export function LogsPanel() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const pausedLogsRef = useRef<LogEntry[]>([])
 
+  const addEntry = useCallback((entry: LogEntry) => {
+    if (isPaused) {
+      pausedLogsRef.current.push(entry)
+    } else {
+      setLogs(prev => [...prev.slice(-500), entry])
+    }
+  }, [isPaused])
+
   // Auto-scroll
   useEffect(() => {
     if (autoScroll && scrollRef.current && !isPaused) {
@@ -60,31 +97,66 @@ export function LogsPanel() {
     }
   }, [logs, autoScroll, isPaused])
 
-  // Subscribe to WebSocket log messages
+  // Subscribe to frontend pushLog calls
+  useEffect(() => {
+    const handler: LogListener = (entry) => addEntry(entry)
+    listeners.add(handler)
+    return () => { listeners.delete(handler) }
+  }, [addEntry])
+
+  // Subscribe to WebSocket messages (log + flow_status + node_status)
   useEffect(() => {
     if (!wsClient.isConnected()) {
       wsClient.connect()
     }
 
-    const unsubscribe = wsClient.on('log', (msg: WSMessage) => {
+    // Backend log messages
+    const unsubLog = wsClient.on('log', (msg: WSMessage) => {
       const data = msg.data as Record<string, unknown>
-      const entry: LogEntry = {
+      addEntry({
         id: logCounter++,
-        timestamp: (data.timestamp as string) || new Date().toISOString(),
+        timestamp: (data.timestamp as string) || msg.timestamp || new Date().toISOString(),
         level: (data.level as LogEntry['level']) || 'info',
         message: (data.message as string) || JSON.stringify(data),
         source: (data.source as string) || 'backend',
-      }
-
-      if (isPaused) {
-        pausedLogsRef.current.push(entry)
-      } else {
-        setLogs(prev => [...prev.slice(-500), entry]) // Keep last 500 entries
-      }
+      })
     })
 
-    return () => unsubscribe()
-  }, [isPaused])
+    // Flow status events
+    const unsubFlow = wsClient.on('flow_status', (msg: WSMessage) => {
+      const data = msg.data as Record<string, unknown>
+      const action = (data.action as string) || 'unknown'
+      const name = (data.name as string) || (data.flow_id as string) || ''
+      addEntry({
+        id: logCounter++,
+        timestamp: msg.timestamp || new Date().toISOString(),
+        level: flowActionToLevel(action),
+        message: `Flow ${action}: ${name}`,
+        source: 'flow',
+      })
+    })
+
+    // Node status events
+    const unsubNode = wsClient.on('node_status', (msg: WSMessage) => {
+      const data = msg.data as Record<string, unknown>
+      const action = (data.action as string) || 'unknown'
+      const nodeId = (data.node_id as string) || ''
+      const nodeType = (data.type as string) || ''
+      addEntry({
+        id: logCounter++,
+        timestamp: msg.timestamp || new Date().toISOString(),
+        level: action === 'removed' ? 'warn' : 'info',
+        message: `Node ${action}: ${nodeId}${nodeType ? ` (${nodeType})` : ''}`,
+        source: 'node',
+      })
+    })
+
+    return () => {
+      unsubLog()
+      unsubFlow()
+      unsubNode()
+    }
+  }, [addEntry])
 
   const handleResume = useCallback(() => {
     setIsPaused(false)
@@ -176,7 +248,7 @@ export function LogsPanel() {
       <div ref={scrollRef} className="flex-1 overflow-auto font-mono text-xs">
         {filteredLogs.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">
-            No logs yet. Deploy and run a flow to see logs.
+            No logs yet. Actions you perform will appear here.
           </div>
         ) : (
           filteredLogs.map((log) => (

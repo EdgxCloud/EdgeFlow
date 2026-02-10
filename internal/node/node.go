@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -44,6 +45,22 @@ const (
 	NodeStatusError   NodeStatus = "error"
 )
 
+// ExecutionEvent represents a single node execution result for debugging
+type ExecutionEvent struct {
+	NodeID        string                 `json:"node_id"`
+	NodeName      string                 `json:"node_name"`
+	NodeType      string                 `json:"node_type"`
+	Input         map[string]interface{} `json:"input"`
+	Output        map[string]interface{} `json:"output"`
+	Status        string                 `json:"status"` // "success" or "error"
+	Error         string                 `json:"error,omitempty"`
+	ExecutionTime int64                  `json:"execution_time"` // milliseconds
+	Timestamp     int64                  `json:"timestamp"`
+}
+
+// ExecutionCallback is called after each node execution with the result
+type ExecutionCallback func(event ExecutionEvent)
+
 // Node represents a single processing unit in a flow
 type Node struct {
 	ID          string                 `json:"id"`
@@ -60,6 +77,7 @@ type Node struct {
 	outputChans []chan Message
 	ctx         context.Context
 	cancel      context.CancelFunc
+	onExecution ExecutionCallback
 }
 
 // Executor defines the interface for node execution logic
@@ -163,15 +181,42 @@ func (n *Node) process() {
 	}
 }
 
+// SetExecutionCallback sets a callback that fires after each execution
+func (n *Node) SetExecutionCallback(cb ExecutionCallback) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.onExecution = cb
+}
+
 // handleMessage processes a single message
 func (n *Node) handleMessage(msg Message) {
+	startTime := time.Now()
+
 	// Execute node logic
 	result, err := n.executor.Execute(n.ctx, msg)
+
+	elapsed := time.Since(startTime).Milliseconds()
 
 	if err != nil {
 		n.mu.Lock()
 		n.Status = NodeStatusError
+		cb := n.onExecution
 		n.mu.Unlock()
+
+		// Emit execution event
+		if cb != nil {
+			cb(ExecutionEvent{
+				NodeID:        n.ID,
+				NodeName:      n.Name,
+				NodeType:      n.Type,
+				Input:         msg.Payload,
+				Output:        nil,
+				Status:        "error",
+				Error:         err.Error(),
+				ExecutionTime: elapsed,
+				Timestamp:     time.Now().UnixMilli(),
+			})
+		}
 
 		// Send error message to outputs
 		errorMsg := Message{
@@ -184,6 +229,23 @@ func (n *Node) handleMessage(msg Message) {
 		}
 		n.sendToOutputs(errorMsg)
 		return
+	}
+
+	// Emit execution event
+	n.mu.RLock()
+	cb := n.onExecution
+	n.mu.RUnlock()
+	if cb != nil {
+		cb(ExecutionEvent{
+			NodeID:        n.ID,
+			NodeName:      n.Name,
+			NodeType:      n.Type,
+			Input:         msg.Payload,
+			Output:        result.Payload,
+			Status:        "success",
+			ExecutionTime: elapsed,
+			Timestamp:     time.Now().UnixMilli(),
+		})
 	}
 
 	// Send result to connected nodes
