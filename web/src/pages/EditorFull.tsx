@@ -46,6 +46,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { ReactFlowProvider } from '@xyflow/react'
 
 export default function EditorFull() {
   const { id } = useParams()
@@ -482,17 +483,19 @@ export default function EditorFull() {
 
           {/* Flow Canvas */}
           <div className="relative h-full">
-            <FlowCanvas
-              ref={canvasRef}
-              flowId={id}
-              onNodeSelect={(nodeId, nodeName) => {
-                setSelectedNodeId(nodeId || undefined)
-                setSelectedNodeName(nodeName)
-                if (nodeId) {
-                  setIsDataPanelOpen(true)
-                }
-              }}
-            />
+            <ReactFlowProvider>
+              <FlowCanvas
+                ref={canvasRef}
+                flowId={id}
+                onNodeSelect={(nodeId, nodeName) => {
+                  setSelectedNodeId(nodeId || undefined)
+                  setSelectedNodeName(nodeName)
+                  if (nodeId) {
+                    setIsDataPanelOpen(true)
+                  }
+                }}
+              />
+            </ReactFlowProvider>
           </div>
 
           {/* Right Panel - Execution Data */}

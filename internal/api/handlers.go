@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -111,6 +112,9 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 
 	// Resource routes
 	api.Get("/resources/stats", h.getResourceStats)
+
+	// System info routes
+	api.Get("/system/network", h.getNetworkInfo)
 
 	// WebSocket for real-time updates
 	app.Use("/ws", func(c *fiber.Ctx) error {
@@ -917,6 +921,68 @@ func (h *Handler) getResourceStats(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
+}
+
+// ============================================
+// System Info Handlers
+// ============================================
+
+// getNetworkInfo returns real network interface information
+func (h *Handler) getNetworkInfo(c *fiber.Ctx) error {
+	hostname, _ := os.Hostname()
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to get network interfaces: %v", err),
+		})
+	}
+
+	type InterfaceInfo struct {
+		Name   string   `json:"name"`
+		MAC    string   `json:"mac"`
+		MTU    int      `json:"mtu"`
+		Status string   `json:"status"`
+		IPv4   []string `json:"ipv4"`
+		IPv6   []string `json:"ipv6"`
+	}
+
+	interfaceList := make([]InterfaceInfo, 0)
+	for _, iface := range interfaces {
+		info := InterfaceInfo{
+			Name: iface.Name,
+			MAC:  iface.HardwareAddr.String(),
+			MTU:  iface.MTU,
+			IPv4: make([]string, 0),
+			IPv6: make([]string, 0),
+		}
+
+		if iface.Flags&net.FlagUp != 0 {
+			info.Status = "up"
+		} else {
+			info.Status = "down"
+		}
+
+		addrs, err := iface.Addrs()
+		if err == nil {
+			for _, addr := range addrs {
+				addrStr := addr.String()
+				if strings.Contains(addrStr, ":") {
+					info.IPv6 = append(info.IPv6, addrStr)
+				} else {
+					info.IPv4 = append(info.IPv4, addrStr)
+				}
+			}
+		}
+
+		interfaceList = append(interfaceList, info)
+	}
+
+	return c.JSON(fiber.Map{
+		"hostname":   hostname,
+		"interfaces": interfaceList,
+		"timestamp":  time.Now(),
+	})
 }
 
 // ============================================

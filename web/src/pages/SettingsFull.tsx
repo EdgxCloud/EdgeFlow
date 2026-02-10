@@ -36,6 +36,7 @@ import {
   type WifiSecurityType,
 } from '@/components/SetupWizard/types'
 import { cn } from '@/lib/utils'
+import { networkApi, type NetworkInfo, type NetworkInterface } from '@/services/network'
 
 interface WifiNetwork {
   ssid: string
@@ -90,6 +91,8 @@ export default function SettingsFull() {
   const [wifiNetworks, setWifiNetworks] = useState<WifiNetwork[]>([])
   const [showNetworkAdvanced, setShowNetworkAdvanced] = useState(false)
   const [showDnsPresets, setShowDnsPresets] = useState(false)
+  const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null)
+  const [networkLoading, setNetworkLoading] = useState(false)
 
   const [settings, setSettings] = useState({
     serverHost: 'localhost',
@@ -138,6 +141,17 @@ export default function SettingsFull() {
       setScanning(false)
     }, 2000)
   }, [])
+
+  // Fetch real network info when diagnostics panel opens
+  useEffect(() => {
+    if (showNetworkAdvanced) {
+      setNetworkLoading(true)
+      networkApi.getInfo()
+        .then(data => setNetworkInfo(data))
+        .catch(err => console.error('Failed to fetch network info:', err))
+        .finally(() => setNetworkLoading(false))
+    }
+  }, [showNetworkAdvanced])
 
   // Auto-scan on WiFi enable
   useEffect(() => {
@@ -689,45 +703,104 @@ export default function SettingsFull() {
 
           {showNetworkAdvanced && (
             <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Interface:</span>
-                  <span className="ml-2 font-mono text-gray-900 dark:text-white">
-                    {networkSettings.primaryInterface === 'wifi' ? 'wlan0' : 'eth0'}
-                  </span>
+              {networkLoading ? (
+                <div className="flex items-center justify-center py-4 gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Loading network info...</span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Status:</span>
-                  <span className="ml-2 text-green-500 font-medium">Connected</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">IP Method:</span>
-                  <span className="ml-2 font-mono text-gray-900 dark:text-white uppercase">
-                    {currentInterface.ipMethod}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">MAC:</span>
-                  <span className="ml-2 font-mono text-gray-900 dark:text-white">
-                    {networkSettings.primaryInterface === 'wifi' ? 'DC:A6:32:XX:XX:XX' : 'DC:A6:32:YY:YY:YY'}
-                  </span>
-                </div>
-              </div>
+              ) : networkInfo ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Hostname:</span>
+                      <span className="ml-2 font-mono text-gray-900 dark:text-white">
+                        {networkInfo.hostname}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Active Interface:</span>
+                      <span className="ml-2 font-mono text-gray-900 dark:text-white">
+                        {networkInfo.interfaces.find(i => i.status === 'up' && i.ipv4.length > 0 && i.name !== 'lo')?.name || 'None'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Status:</span>
+                      {(() => {
+                        const active = networkInfo.interfaces.find(i => i.status === 'up' && i.ipv4.length > 0 && i.name !== 'lo')
+                        return (
+                          <span className={`ml-2 font-medium ${active ? 'text-green-500' : 'text-red-500'}`}>
+                            {active ? 'Connected' : 'Disconnected'}
+                          </span>
+                        )
+                      })()}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">IP Address:</span>
+                      <span className="ml-2 font-mono text-gray-900 dark:text-white">
+                        {networkInfo.interfaces.find(i => i.status === 'up' && i.ipv4.length > 0 && i.name !== 'lo')?.ipv4?.[0] || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">MAC:</span>
+                      <span className="ml-2 font-mono text-gray-900 dark:text-white">
+                        {networkInfo.interfaces.find(i => i.status === 'up' && i.ipv4.length > 0 && i.name !== 'lo')?.mac || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">IP Method:</span>
+                      <span className="ml-2 font-mono text-gray-900 dark:text-white uppercase">
+                        {currentInterface.ipMethod}
+                      </span>
+                    </div>
+                  </div>
 
-              <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
-                <p className="text-xs text-muted-foreground mb-2">Diagnostic Commands:</p>
-                <div className="flex flex-wrap gap-2">
-                  <code className="text-xs bg-gray-800 text-gray-100 px-2 py-1 rounded">
-                    nmcli device status
-                  </code>
-                  <code className="text-xs bg-gray-800 text-gray-100 px-2 py-1 rounded">
-                    ip addr show
-                  </code>
-                  <code className="text-xs bg-gray-800 text-gray-100 px-2 py-1 rounded">
-                    nmcli c show
-                  </code>
+                  {networkInfo.interfaces.filter(i => i.name !== 'lo').length > 1 && (
+                    <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
+                      <p className="text-xs text-muted-foreground mb-2">All Interfaces:</p>
+                      <div className="space-y-1">
+                        {networkInfo.interfaces
+                          .filter(i => i.name !== 'lo')
+                          .map(iface => (
+                            <div key={iface.name} className="flex items-center gap-3 text-xs font-mono">
+                              <span className={`w-2 h-2 rounded-full ${iface.status === 'up' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                              <span className="w-16">{iface.name}</span>
+                              <span className="text-muted-foreground">{iface.mac || 'no mac'}</span>
+                              <span className="text-gray-900 dark:text-white">{iface.ipv4?.[0] || 'no ip'}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
+                    <p className="text-xs text-muted-foreground mb-2">Diagnostic Commands:</p>
+                    <div className="flex flex-wrap gap-2">
+                      <code className="text-xs bg-gray-800 text-gray-100 px-2 py-1 rounded">
+                        nmcli device status
+                      </code>
+                      <code className="text-xs bg-gray-800 text-gray-100 px-2 py-1 rounded">
+                        ip addr show
+                      </code>
+                      <code className="text-xs bg-gray-800 text-gray-100 px-2 py-1 rounded">
+                        nmcli c show
+                      </code>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Interface:</span>
+                    <span className="ml-2 font-mono text-gray-900 dark:text-white">
+                      {networkSettings.primaryInterface === 'wifi' ? 'wlan0' : 'eth0'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>
+                    <span className="ml-2 text-yellow-500 font-medium">Unknown</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>

@@ -7,6 +7,7 @@ export { api, healthCheck, WS_URL } from './api'
 export { flowsApi } from './flows'
 export { nodesApi } from './nodes'
 export { resourcesApi } from './resources'
+export { networkApi } from './network'
 export { wsClient, WebSocketClient } from './websocket'
 
 export type {
@@ -33,6 +34,11 @@ export type {
   DiskStats,
   NetworkStats,
 } from './resources'
+
+export type {
+  NetworkInfo,
+  NetworkInterface,
+} from './network'
 
 export type {
   WSMessage,
