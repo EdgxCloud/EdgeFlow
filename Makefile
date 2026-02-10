@@ -9,7 +9,10 @@ BINARY_NAME=edgeflow
 VERSION?=0.1.0
 BUILD_DIR=bin
 GO=go
+GOPROXY?=direct
 PROFILE?=standard
+
+export GOPROXY
 
 # Build profile configurations
 ifeq ($(PROFILE),minimal)
