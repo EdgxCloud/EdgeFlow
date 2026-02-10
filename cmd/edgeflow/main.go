@@ -34,6 +34,9 @@ func main() {
 	fmt.Println("║   پلتفرم اتوماسیون سبک Edge و IoT    ║")
 	fmt.Println("╚═══════════════════════════════════════╝")
 
+	// Initialize Hardware Abstraction Layer (GPIO, I2C, SPI)
+	initHAL()
+
 	// Initialize storage
 	storageBackend, err := storage.NewFileStorage("./data")
 	if err != nil {

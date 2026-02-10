@@ -8,14 +8,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/edgeflow/edgeflow/internal/hal"
 	"github.com/edgeflow/edgeflow/internal/node"
-	"github.com/stianeikeland/go-rpio/v4"
 )
 
 type HCSR04Node struct {
-	triggerPin int
-	echoPin    int
-	unit       string // "cm" or "inch"
+	triggerPin  int
+	echoPin     int
+	unit        string // "cm" or "inch"
+	halInstance hal.HAL
 }
 
 func NewHCSR04Node() *HCSR04Node {
@@ -41,39 +42,61 @@ func (n *HCSR04Node) Init(config map[string]interface{}) error {
 		n.unit = unit
 	}
 
-	if err := rpio.Open(); err != nil {
-		return fmt.Errorf("failed to open GPIO: %w", err)
+	// Get HAL and configure GPIO pins
+	h, err := hal.GetGlobalHAL()
+	if err != nil {
+		return fmt.Errorf("failed to get HAL: %w", err)
 	}
+	n.halInstance = h
 
-	trigger := rpio.Pin(n.triggerPin)
-	echo := rpio.Pin(n.echoPin)
+	gpio := h.GPIO()
 
-	trigger.Output()
-	echo.Input()
+	if err := gpio.SetMode(n.triggerPin, hal.Output); err != nil {
+		return fmt.Errorf("failed to set trigger pin %d as output: %w", n.triggerPin, err)
+	}
+	if err := gpio.SetMode(n.echoPin, hal.Input); err != nil {
+		return fmt.Errorf("failed to set echo pin %d as input: %w", n.echoPin, err)
+	}
 
 	return nil
 }
 
 func (n *HCSR04Node) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
-	trigger := rpio.Pin(n.triggerPin)
-	echo := rpio.Pin(n.echoPin)
+	gpio := n.halInstance.GPIO()
 
-	trigger.Low()
+	// Send trigger pulse
+	gpio.DigitalWrite(n.triggerPin, false)
 	time.Sleep(2 * time.Microsecond)
-	trigger.High()
+	gpio.DigitalWrite(n.triggerPin, true)
 	time.Sleep(10 * time.Microsecond)
-	trigger.Low()
+	gpio.DigitalWrite(n.triggerPin, false)
 
+	// Wait for echo to go high
 	timeout := time.Now().Add(100 * time.Millisecond)
-	for echo.Read() == rpio.Low {
+	for {
+		val, err := gpio.DigitalRead(n.echoPin)
+		if err != nil {
+			return msg, fmt.Errorf("failed to read echo pin: %w", err)
+		}
+		if val {
+			break
+		}
 		if time.Now().After(timeout) {
 			return msg, fmt.Errorf("timeout waiting for echo")
 		}
 	}
 	startTime := time.Now()
 
+	// Wait for echo to go low
 	timeout = time.Now().Add(100 * time.Millisecond)
-	for echo.Read() == rpio.High {
+	for {
+		val, err := gpio.DigitalRead(n.echoPin)
+		if err != nil {
+			return msg, fmt.Errorf("failed to read echo pin: %w", err)
+		}
+		if !val {
+			break
+		}
 		if time.Now().After(timeout) {
 			return msg, fmt.Errorf("timeout reading echo")
 		}
@@ -98,7 +121,7 @@ func (n *HCSR04Node) Execute(ctx context.Context, msg node.Message) (node.Messag
 }
 
 func (n *HCSR04Node) Cleanup() error {
-	return rpio.Close()
+	return nil
 }
 
 func NewHCSR04Executor(config map[string]interface{}) (node.Executor, error) {

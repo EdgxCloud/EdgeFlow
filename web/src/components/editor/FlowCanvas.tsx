@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import {
   ReactFlow,
   Background,
@@ -12,17 +12,36 @@ import {
   Node,
   NodeTypes,
   SelectionMode,
-  Panel,
+  useReactFlow,
+  XYPosition,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import CustomNode from './CustomNode'
-import { MousePointer2, BoxSelect } from 'lucide-react'
 import { NodeConfigDialog } from '../NodeConfig/NodeConfigDialog'
 import { useFlowStore } from '../../stores/flowStore'
 import { toObjectPosition, toArrayPosition } from '@/utils/position'
+import { useCopyPaste, useKeyboardShortcuts } from '@/hooks/useCopyPaste'
+import { useUndoRedo } from '@/hooks/useUndoRedo'
+import { toast } from 'sonner'
+import CanvasContextMenu, { ContextMenuState } from './CanvasContextMenu'
 
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
+}
+
+export interface FlowCanvasRef {
+  handleCopy: () => void
+  handlePaste: () => void
+  handleCut: () => void
+  handleDelete: () => void
+  handleDuplicate: () => void
+  handleUndo: () => void
+  handleRedo: () => void
+  handleSelectAll: () => void
+  canUndo: boolean
+  canRedo: boolean
+  canPaste: boolean
+  hasSelection: boolean
 }
 
 interface FlowCanvasProps {
@@ -30,33 +49,39 @@ interface FlowCanvasProps {
   onNodeSelect?: (nodeId: string | null, nodeName?: string) => void
 }
 
-export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
+const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeSelect }, ref) => {
   const { currentFlow, updateFlow } = useFlowStore()
+  const { getNodes, getEdges, screenToFlowPosition, fitView } = useReactFlow()
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
 
-  // Selection mode: 'pan' for normal drag-to-pan, 'select' for marquee selection
-  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    type: 'pane',
+  })
 
-  // Load nodes from currentFlow when it changes
-  // Track if we've loaded this specific flow to avoid re-loading on user edits
+  // Copy/Paste functionality
+  const { copy, paste, cut, canPaste } = useCopyPaste()
+
+  // Undo/Redo functionality
+  const [historyState, undoRedoActions] = useUndoRedo({ nodes, edges })
+
+  // Track if we've loaded this specific flow
   const [loadedFlowId, setLoadedFlowId] = useState<string | null>(null)
 
-  // Reset loadedFlowId when flowId prop changes (navigating to different flow)
+  // Reset loadedFlowId when flowId prop changes
   useEffect(() => {
     if (flowId !== loadedFlowId) {
-      console.log('FlowId prop changed, resetting loadedFlowId')
       setLoadedFlowId(null)
     }
   }, [flowId])
 
   useEffect(() => {
-    // Only load if we have a currentFlow that matches our flowId and we haven't loaded it yet
-    // This prevents re-loading when user edits nodes (which updates currentFlow)
-
-    // Handle nodes as both array and object formats
     const nodesData = currentFlow?.nodes
     const nodeArray = nodesData
       ? (Array.isArray(nodesData) ? nodesData : Object.values(nodesData))
@@ -65,25 +90,10 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
     const flowHasNodes = nodeArray.length > 0
     const isNewFlow = currentFlow?.id !== loadedFlowId
 
-    console.log('FlowCanvas useEffect:', {
-      flowId,
-      currentFlowId: currentFlow?.id,
-      loadedFlowId,
-      flowHasNodes,
-      isNewFlow,
-      nodesIsArray: Array.isArray(nodesData),
-      nodeCount: nodeArray.length,
-      connectionsCount: currentFlow?.connections?.length || 0
-    })
-
     if (currentFlow && flowHasNodes && isNewFlow) {
-      console.log('Loading flow into canvas:', currentFlow.id, 'with', nodeArray.length, 'nodes')
-
       const flowNodes: Node[] = nodeArray.map((node: any, index) => ({
         id: node.id,
         type: 'custom',
-        // Convert n8n-style [x, y] array to ReactFlow {x, y} object format
-        // Use stored position if available, otherwise calculate grid position
         position: node.position
           ? toObjectPosition(node.position)
           : { x: 100 + (index % 3) * 300, y: 100 + Math.floor(index / 3) * 150 },
@@ -95,27 +105,20 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
       }))
       setNodes(flowNodes)
 
-      // Convert connections to edges
       const connections = currentFlow.connections || []
-      console.log('Loading connections:', connections.length, connections)
-
       const flowEdges: Edge[] = connections.map((conn: any, index) => ({
         id: conn.id || `edge-${conn.source}-${conn.target}-${index}`,
         source: conn.source,
         target: conn.target,
-        // Don't set sourceHandle/targetHandle - nodes use default handles without IDs
         type: 'default',
         animated: false,
         style: { stroke: '#3b82f6', strokeWidth: 2 },
       }))
       setEdges(flowEdges)
 
-      console.log('Loaded', flowNodes.length, 'nodes and', flowEdges.length, 'edges')
-
-      // Mark this flow as loaded
       setLoadedFlowId(currentFlow.id)
     }
-  }, [currentFlow?.id, currentFlow?.nodes, currentFlow?.connections, flowId]) // Re-run when currentFlow changes
+  }, [currentFlow?.id, currentFlow?.nodes, currentFlow?.connections, flowId])
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -126,12 +129,13 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
     (event: React.DragEvent) => {
       event.preventDefault()
 
-      if (!reactFlowInstance) return
+      const instance = reactFlowInstance
+      if (!instance) return
 
       const type = event.dataTransfer.getData('application/reactflow')
       if (!type) return
 
-      const position = reactFlowInstance.screenToFlowPosition({
+      const position = instance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       })
@@ -148,8 +152,9 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
       }
 
       setNodes((nds) => nds.concat(newNode))
+      undoRedoActions.push({ nodes: [...getNodes(), newNode], edges: getEdges() })
     },
-    [reactFlowInstance, setNodes]
+    [reactFlowInstance, setNodes, undoRedoActions, getNodes, getEdges]
   )
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -157,19 +162,164 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
     event.dataTransfer.dropEffect = 'move'
   }, [])
 
+  // ========== Copy/Paste/Cut/Delete/Duplicate/Undo/Redo handlers ==========
+
+  const handleCopy = useCallback(() => {
+    const selectedNodes = nodes.filter(node => node.selected)
+    const selectedNodeIds = new Set(selectedNodes.map(n => n.id))
+    const selectedEdges = edges.filter(edge =>
+      selectedNodeIds.has(edge.source) && selectedNodeIds.has(edge.target)
+    )
+
+    if (selectedNodes.length > 0) {
+      copy(selectedNodes, selectedEdges)
+      toast.success(`Copied ${selectedNodes.length} node${selectedNodes.length > 1 ? 's' : ''}`)
+    }
+  }, [nodes, edges, copy])
+
+  const handlePaste = useCallback((position?: XYPosition) => {
+    const pasted = paste(position)
+    if (pasted) {
+      setNodes(nds => nds.map(n => ({ ...n, selected: false })))
+      setEdges(eds => eds.map(e => ({ ...e, selected: false })))
+      setNodes(nds => [...nds, ...pasted.nodes])
+      setEdges(eds => [...eds, ...pasted.edges])
+      undoRedoActions.push({ nodes: getNodes(), edges: getEdges() })
+      toast.success(`Pasted ${pasted.nodes.length} node${pasted.nodes.length > 1 ? 's' : ''}`)
+    }
+  }, [paste, setNodes, setEdges, undoRedoActions, getNodes, getEdges])
+
+  const handleCut = useCallback(() => {
+    const selectedNodes = nodes.filter(node => node.selected)
+    const selectedNodeIds = new Set(selectedNodes.map(n => n.id))
+    const selectedEdges = edges.filter(edge =>
+      selectedNodeIds.has(edge.source) && selectedNodeIds.has(edge.target)
+    )
+
+    if (selectedNodes.length > 0) {
+      cut(selectedNodes, selectedEdges)
+      setNodes(nds => nds.filter(n => !n.selected))
+      setEdges(eds => eds.filter(e => {
+        if (e.selected) return false
+        if (selectedNodeIds.has(e.source) || selectedNodeIds.has(e.target)) return false
+        return true
+      }))
+      undoRedoActions.push({ nodes: getNodes(), edges: getEdges() })
+      toast.success(`Cut ${selectedNodes.length} node${selectedNodes.length > 1 ? 's' : ''}`)
+    }
+  }, [nodes, edges, cut, setNodes, setEdges, undoRedoActions, getNodes, getEdges])
+
+  const handleDelete = useCallback(() => {
+    const selectedNodes = nodes.filter(n => n.selected)
+    const selectedNodeIds = new Set(selectedNodes.map(n => n.id))
+    const hasSelection = selectedNodes.length > 0 || edges.some(e => e.selected)
+
+    if (hasSelection) {
+      setNodes(nds => nds.filter(n => !n.selected))
+      setEdges(eds => eds.filter(e => {
+        if (e.selected) return false
+        if (selectedNodeIds.has(e.source) || selectedNodeIds.has(e.target)) return false
+        return true
+      }))
+      undoRedoActions.push({ nodes: getNodes(), edges: getEdges() })
+      if (selectedNodes.length > 0) {
+        toast.success(`Deleted ${selectedNodes.length} node${selectedNodes.length > 1 ? 's' : ''}`)
+      }
+    }
+  }, [nodes, edges, setNodes, setEdges, undoRedoActions, getNodes, getEdges])
+
+  const handleSelectAll = useCallback(() => {
+    setNodes(nds => nds.map(n => ({ ...n, selected: true })))
+    setEdges(eds => eds.map(e => ({ ...e, selected: true })))
+  }, [setNodes, setEdges])
+
+  const handleDuplicate = useCallback(() => {
+    const selectedNodes = nodes.filter(node => node.selected)
+    const selectedNodeIds = new Set(selectedNodes.map(n => n.id))
+    const selectedEdges = edges.filter(edge =>
+      selectedNodeIds.has(edge.source) && selectedNodeIds.has(edge.target)
+    )
+
+    if (selectedNodes.length > 0) {
+      copy(selectedNodes, selectedEdges)
+      const pasted = paste()
+      if (pasted) {
+        setNodes(nds => nds.map(n => ({ ...n, selected: false })))
+        setEdges(eds => eds.map(e => ({ ...e, selected: false })))
+        setNodes(nds => [...nds, ...pasted.nodes])
+        setEdges(eds => [...eds, ...pasted.edges])
+        undoRedoActions.push({ nodes: getNodes(), edges: getEdges() })
+        toast.success(`Duplicated ${pasted.nodes.length} node${pasted.nodes.length > 1 ? 's' : ''}`)
+      }
+    }
+  }, [nodes, edges, copy, paste, setNodes, setEdges, undoRedoActions, getNodes, getEdges])
+
+  const handleUndo = useCallback(() => {
+    if (undoRedoActions.canUndo) {
+      undoRedoActions.undo()
+      const prevState = historyState as { nodes: Node[], edges: Edge[] }
+      if (prevState.nodes) setNodes(prevState.nodes)
+      if (prevState.edges) setEdges(prevState.edges)
+    }
+  }, [undoRedoActions, historyState, setNodes, setEdges])
+
+  const handleRedo = useCallback(() => {
+    if (undoRedoActions.canRedo) {
+      undoRedoActions.redo()
+      const nextState = historyState as { nodes: Node[], edges: Edge[] }
+      if (nextState.nodes) setNodes(nextState.nodes)
+      if (nextState.edges) setEdges(nextState.edges)
+    }
+  }, [undoRedoActions, historyState, setNodes, setEdges])
+
+  const hasSelection = nodes.some(n => n.selected)
+
+  // Expose handlers to parent via ref
+  useImperativeHandle(ref, () => ({
+    handleCopy,
+    handlePaste: () => handlePaste(),
+    handleCut,
+    handleDelete,
+    handleDuplicate,
+    handleUndo,
+    handleRedo,
+    handleSelectAll,
+    canUndo: undoRedoActions.canUndo,
+    canRedo: undoRedoActions.canRedo,
+    canPaste,
+    hasSelection,
+  }), [handleCopy, handlePaste, handleCut, handleDelete, handleDuplicate, handleUndo, handleRedo, handleSelectAll, undoRedoActions.canUndo, undoRedoActions.canRedo, canPaste, hasSelection])
+
+  // Keyboard shortcuts
+  const handleKeyDown = useKeyboardShortcuts(
+    handleCopy,
+    () => handlePaste(),
+    handleCut,
+    handleDelete,
+    handleUndo,
+    handleRedo,
+    handleSelectAll,
+    handleDuplicate
+  )
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
+
+  // ========== Save & Sync ==========
+
   const handleSave = async () => {
     if (!currentFlow || !flowId) return
 
-    // Convert ReactFlow nodes to EdgeFlow format with n8n-style [x, y] positions (as array)
     const flowNodes = nodes.map((node) => ({
       id: node.id,
       type: node.data.nodeType || 'unknown',
       name: node.data.label || node.data.nodeType,
       config: node.data.config || {},
-      position: toArrayPosition(node.position), // Store as n8n-style [x, y] array
+      position: toArrayPosition(node.position),
     }))
 
-    // Convert ReactFlow edges to EdgeFlow connections
     const connections = edges.map((edge) => ({
       id: edge.id,
       source: edge.source,
@@ -177,44 +327,35 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
       sourceOutput: edge.sourceHandle ? parseInt(edge.sourceHandle) : 0,
     }))
 
-    await updateFlow(flowId, {
-      nodes: flowNodes,
-      connections: connections,
-    })
+    await updateFlow(flowId, { nodes: flowNodes, connections })
   }
 
-  // Track if initial load sync has happened (to avoid overwriting connections on first render)
+  // Track if initial load sync has happened
   const [initialSyncDone, setInitialSyncDone] = useState(false)
 
-  // Mark initial sync as done after edges are loaded
   useEffect(() => {
     if (loadedFlowId && edges.length > 0 && !initialSyncDone) {
       setInitialSyncDone(true)
-      console.log('Initial sync marked as done, edges loaded:', edges.length)
     }
   }, [loadedFlowId, edges.length, initialSyncDone])
 
-  // Reset initialSyncDone when switching flows
   useEffect(() => {
     if (flowId !== loadedFlowId) {
       setInitialSyncDone(false)
     }
   }, [flowId, loadedFlowId])
 
-  // Sync nodes/edges to currentFlow whenever they change
-  // Only sync after initial load is complete AND edges have been loaded
+  // Sync nodes/edges to currentFlow
   useEffect(() => {
     if (currentFlow && flowId && loadedFlowId && initialSyncDone && nodes.length > 0) {
-      // Convert nodes to EdgeFlow format with n8n-style [x, y] positions (as array)
       const flowNodes = nodes.map((node) => ({
         id: node.id,
         type: node.data.nodeType || 'unknown',
         name: node.data.label || node.data.nodeType,
         config: node.data.config || {},
-        position: toArrayPosition(node.position), // Store as n8n-style [x, y] array
+        position: toArrayPosition(node.position),
       }))
 
-      // Convert edges to connections
       const connections = edges.map((edge) => ({
         id: edge.id,
         source: edge.source,
@@ -222,17 +363,15 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
         sourceOutput: edge.sourceHandle ? parseInt(edge.sourceHandle) : 0,
       }))
 
-      // Update currentFlow directly (mutations are OK with Zustand)
       currentFlow.nodes = flowNodes
       currentFlow.connections = connections
-
-      console.log('Canvas synced to store:', flowNodes.length, 'nodes,', connections.length, 'connections')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, flowId, loadedFlowId, initialSyncDone]) // Don't include currentFlow to avoid infinite loop
+  }, [nodes, edges, flowId, loadedFlowId, initialSyncDone])
+
+  // ========== Node events ==========
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-    // Notify parent component of node selection for execution data display
     if (onNodeSelect) {
       onNodeSelect(node.id, node.data.label || node.data.nodeType)
     }
@@ -256,7 +395,73 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
       })
     )
     setSelectedNode(null)
-  }, [setNodes])
+    undoRedoActions.push({ nodes: getNodes(), edges: getEdges() })
+  }, [setNodes, undoRedoActions, getNodes, getEdges])
+
+  // ========== Context menu ==========
+
+  const onPaneContextMenu = useCallback((event: React.MouseEvent) => {
+    event.preventDefault()
+    setContextMenu({
+      visible: true,
+      x: event.clientX,
+      y: event.clientY,
+      type: 'pane',
+      flowPosition: screenToFlowPosition({ x: event.clientX, y: event.clientY }),
+    })
+  }, [screenToFlowPosition])
+
+  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+    event.preventDefault()
+    // Select the right-clicked node if not already selected
+    if (!node.selected) {
+      setNodes(nds => nds.map(n => ({ ...n, selected: n.id === node.id })))
+    }
+    setContextMenu({
+      visible: true,
+      x: event.clientX,
+      y: event.clientY,
+      type: hasSelection && nodes.filter(n => n.selected).length > 1 ? 'selection' : 'node',
+      nodeId: node.id,
+    })
+  }, [hasSelection, nodes, setNodes])
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(prev => ({ ...prev, visible: false }))
+  }, [])
+
+  const handleContextMenuAction = useCallback((action: string) => {
+    switch (action) {
+      case 'copy':
+        handleCopy()
+        break
+      case 'paste':
+        handlePaste(contextMenu.flowPosition)
+        break
+      case 'cut':
+        handleCut()
+        break
+      case 'duplicate':
+        handleDuplicate()
+        break
+      case 'delete':
+        handleDelete()
+        break
+      case 'selectAll':
+        handleSelectAll()
+        break
+      case 'fitView':
+        fitView({ padding: 0.2, duration: 300 })
+        break
+      case 'configure':
+        if (contextMenu.nodeId) {
+          const node = nodes.find(n => n.id === contextMenu.nodeId)
+          if (node) setSelectedNode(node)
+        }
+        break
+    }
+    closeContextMenu()
+  }, [handleCopy, handlePaste, handleCut, handleDuplicate, handleDelete, handleSelectAll, fitView, contextMenu, nodes, closeContextMenu])
 
   const defaultEdgeOptions = {
     type: 'default',
@@ -264,28 +469,8 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
     style: { stroke: '#3b82f6', strokeWidth: 2 },
   }
 
-  // Handle keyboard shortcut for selection mode (hold Shift)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Shift' && !e.repeat) {
-        setIsSelectionMode(true)
-      }
-    }
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') {
-        setIsSelectionMode(false)
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
-    }
-  }, [])
-
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full relative">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -297,17 +482,23 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
         onDragOver={onDragOver}
         onNodeClick={onNodeClick}
         onNodeDoubleClick={onNodeDoubleClick}
+        onPaneContextMenu={onPaneContextMenu}
+        onNodeContextMenu={onNodeContextMenu}
+        onPaneClick={closeContextMenu}
         nodeTypes={nodeTypes}
         defaultEdgeOptions={defaultEdgeOptions}
         fitView
+        snapToGrid
+        snapGrid={[15, 15]}
         className="bg-gray-50 dark:bg-gray-900"
-        // Enable marquee selection when in selection mode
-        selectionOnDrag={isSelectionMode}
+        selectionOnDrag
         selectionMode={SelectionMode.Partial}
-        panOnDrag={!isSelectionMode}
-        // Allow multi-selection with Ctrl/Cmd click
+        panOnDrag={[1, 2]}
         multiSelectionKeyCode="Control"
         selectionKeyCode={null}
+        deleteKeyCode={null}
+        minZoom={0.1}
+        maxZoom={4}
       >
         <Background />
         <Controls />
@@ -316,37 +507,15 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
           maskColor="rgba(0, 0, 0, 0.1)"
         />
 
-        {/* Selection Mode Toggle Panel */}
-        <Panel position="top-left" className="flex gap-1">
-          <button
-            onClick={() => setIsSelectionMode(false)}
-            className={`p-2 rounded-lg border transition-all ${
-              !isSelectionMode
-                ? 'bg-blue-500 text-white border-blue-500 shadow-lg'
-                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-            }`}
-            title="Pan Mode (Default)"
-          >
-            <MousePointer2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setIsSelectionMode(true)}
-            className={`p-2 rounded-lg border transition-all ${
-              isSelectionMode
-                ? 'bg-blue-500 text-white border-blue-500 shadow-lg'
-                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-            }`}
-            title="Selection Mode (Hold Shift)"
-          >
-            <BoxSelect className="w-4 h-4" />
-          </button>
-          {isSelectionMode && (
-            <span className="ml-2 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-md flex items-center">
-              Drag to select multiple nodes
-            </span>
-          )}
-        </Panel>
       </ReactFlow>
+
+      {/* Context Menu */}
+      <CanvasContextMenu
+        state={contextMenu}
+        canPaste={canPaste}
+        onAction={handleContextMenuAction}
+        onClose={closeContextMenu}
+      />
 
       {/* Node Settings Panel */}
       <NodeConfigDialog
@@ -362,4 +531,8 @@ export default function FlowCanvas({ flowId, onNodeSelect }: FlowCanvasProps) {
       />
     </div>
   )
-}
+})
+
+FlowCanvas.displayName = 'FlowCanvas'
+
+export default FlowCanvas

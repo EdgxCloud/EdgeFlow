@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useFlowStore } from '../stores/flowStore'
-import FlowCanvas from '../components/editor/FlowCanvas'
+import FlowCanvas, { FlowCanvasRef } from '../components/editor/FlowCanvas'
 import NodePalette from '../components/editor/NodePalette'
 import ExecutionDataPanel from '../components/panels/ExecutionDataPanel'
 import {
@@ -26,6 +26,13 @@ import {
   ChevronDown,
   X,
   Database,
+  Undo,
+  Redo,
+  Copy,
+  Scissors,
+  ClipboardPaste,
+  CopyPlus,
+  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +50,7 @@ import { cn } from '@/lib/utils'
 export default function EditorFull() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const canvasRef = useRef<FlowCanvasRef>(null)
   const { currentFlow, fetchFlow, startFlow, stopFlow, updateFlow, createFlow } = useFlowStore()
   const [isRunning, setIsRunning] = useState(false)
   const [isPaletteOpen, setIsPaletteOpen] = useState(true)
@@ -240,6 +248,80 @@ export default function EditorFull() {
 
         {/* Center Section - Quick Actions */}
         <div className="flex items-center gap-2">
+          {/* Edit Toolbar */}
+          <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => canvasRef.current?.handleUndo()}
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => canvasRef.current?.handleRedo()}
+              title="Redo (Ctrl+Y)"
+            >
+              <Redo className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+
+          <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
+
+          <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => canvasRef.current?.handleCopy()}
+              title="Copy (Ctrl+C)"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => canvasRef.current?.handleCut()}
+              title="Cut (Ctrl+X)"
+            >
+              <Scissors className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => canvasRef.current?.handlePaste()}
+              title="Paste (Ctrl+V)"
+            >
+              <ClipboardPaste className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => canvasRef.current?.handleDuplicate()}
+              title="Duplicate (Ctrl+D)"
+            >
+              <CopyPlus className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => canvasRef.current?.handleDelete()}
+              title="Delete (Del)"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+
+          <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
+
           {isRunning ? (
             <Button
               onClick={handleStop}
@@ -401,6 +483,7 @@ export default function EditorFull() {
           {/* Flow Canvas */}
           <div className="relative h-full">
             <FlowCanvas
+              ref={canvasRef}
               flowId={id}
               onNodeSelect={(nodeId, nodeName) => {
                 setSelectedNodeId(nodeId || undefined)

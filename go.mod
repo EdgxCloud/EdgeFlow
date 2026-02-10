@@ -20,8 +20,8 @@ require (
 	github.com/redis/go-redis/v9 v9.4.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/viper v1.18.2
-	github.com/stianeikeland/go-rpio/v4 v4.6.0
 	github.com/stretchr/testify v1.11.1
+	github.com/warthog618/go-gpiocdev v0.9.1
 	go.bug.st/serial v1.6.4
 	go.mongodb.org/mongo-driver v1.13.1
 	go.uber.org/zap v1.26.0
@@ -99,6 +99,3 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
-
-// Exclude go-rpio on Windows - only works on Linux
-replace github.com/stianeikeland/go-rpio/v4 => ./stub/rpio

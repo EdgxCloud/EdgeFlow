@@ -9,13 +9,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/edgeflow/edgeflow/internal/hal"
 	"github.com/edgeflow/edgeflow/internal/node"
-	"github.com/stianeikeland/go-rpio/v4"
 )
 
-// PIRNode handles PIR motion sensor input
+// PIRNode handles PIR motion sensor input via the HAL GPIO provider.
 type PIRNode struct {
-	pin           rpio.Pin
 	pinNumber     int
 	debounce      time.Duration
 	sensitivity   string
@@ -29,6 +28,7 @@ type PIRNode struct {
 	pullMode      string
 	triggerMode   string // "rising", "falling", "both"
 	retriggerTime time.Duration
+	halInstance   hal.HAL
 }
 
 // NewPIRNode creates a new PIR sensor node
@@ -87,24 +87,32 @@ func (n *PIRNode) Init(config map[string]interface{}) error {
 		n.retriggerTime = duration
 	}
 
-	// Initialize GPIO
-	if err := rpio.Open(); err != nil {
-		return fmt.Errorf("failed to open GPIO: %w", err)
+	// Get HAL and configure GPIO pin
+	h, err := hal.GetGlobalHAL()
+	if err != nil {
+		return fmt.Errorf("failed to get HAL: %w", err)
+	}
+	n.halInstance = h
+
+	gpio := h.GPIO()
+	if err := gpio.SetMode(n.pinNumber, hal.Input); err != nil {
+		return fmt.Errorf("failed to set pin %d as input: %w", n.pinNumber, err)
 	}
 
-	n.pin = rpio.Pin(n.pinNumber)
-	n.pin.Input()
-
 	// Set pull mode
+	var pull hal.PullMode
 	switch n.pullMode {
 	case "up":
-		n.pin.PullUp()
+		pull = hal.PullUp
 	case "down":
-		n.pin.PullDown()
+		pull = hal.PullDown
 	case "off":
-		n.pin.PullOff()
+		pull = hal.PullNone
 	default:
-		n.pin.PullDown() // Default to pull down
+		pull = hal.PullDown
+	}
+	if err := gpio.SetPull(n.pinNumber, pull); err != nil {
+		return fmt.Errorf("failed to set pull on pin %d: %w", n.pinNumber, err)
 	}
 
 	return nil
@@ -133,51 +141,53 @@ func (n *PIRNode) Execute(ctx context.Context, msg node.Message) (node.Message, 
 	// But can respond to queries about current state
 	if msgPayload, ok := msg.Payload.(map[string]interface{}); ok {
 		if cmd, ok := msgPayload["command"].(string); ok {
-		switch cmd {
-		case "status":
-			n.mu.RLock()
-			triggered := n.triggered
-			lastTrigger := n.lastTrigger
-			n.mu.RUnlock()
+			switch cmd {
+			case "status":
+				n.mu.RLock()
+				triggered := n.triggered
+				lastTrigger := n.lastTrigger
+				n.mu.RUnlock()
 
-			return node.Message{
-				Type: node.MessageTypeData,
-				Payload: map[string]interface{}{
-					"motion":      triggered,
-					"lastTrigger": lastTrigger.Unix(),
-					"pin":         n.pinNumber,
-				},
-				Topic: msg.Topic,
-			}, nil
+				return node.Message{
+					Type: node.MessageTypeData,
+					Payload: map[string]interface{}{
+						"motion":      triggered,
+						"lastTrigger": lastTrigger.Unix(),
+						"pin":         n.pinNumber,
+					},
+					Topic: msg.Topic,
+				}, nil
 
-		case "reset":
-			n.mu.Lock()
-			n.triggered = false
-			n.lastTrigger = time.Time{}
-			n.mu.Unlock()
+			case "reset":
+				n.mu.Lock()
+				n.triggered = false
+				n.lastTrigger = time.Time{}
+				n.mu.Unlock()
 
-			return node.Message{
-				Type: node.MessageTypeData,
-				Payload: map[string]interface{}{
-					"reset": true,
-				},
-				Topic: msg.Topic,
-			}, nil
-		}
+				return node.Message{
+					Type: node.MessageTypeData,
+					Payload: map[string]interface{}{
+						"reset": true,
+					},
+					Topic: msg.Topic,
+				}, nil
+			}
 		}
 	}
 
 	return node.Message{}, nil
 }
 
-// monitorMotion continuously monitors the PIR sensor
+// monitorMotion continuously monitors the PIR sensor via HAL
 func (n *PIRNode) monitorMotion() {
 	defer n.wg.Done()
+
+	gpio := n.halInstance.GPIO()
 
 	ticker := time.NewTicker(n.debounce)
 	defer ticker.Stop()
 
-	var lastState rpio.State
+	var lastState bool
 	var stateChangeTime time.Time
 
 	for {
@@ -186,14 +196,17 @@ func (n *PIRNode) monitorMotion() {
 			return
 
 		case <-ticker.C:
-			currentState := n.pin.Read()
+			currentVal, err := gpio.DigitalRead(n.pinNumber)
+			if err != nil {
+				continue
+			}
 
 			// Detect state change
-			if currentState != lastState {
+			if currentVal != lastState {
 				stateChangeTime = time.Now()
-				lastState = currentState
+				lastState = currentVal
 
-				// Check if enough time has passed since last trigger (retrigger prevention)
+				// Check if enough time has passed since last trigger
 				n.mu.RLock()
 				timeSinceLastTrigger := time.Since(n.lastTrigger)
 				n.mu.RUnlock()
@@ -204,19 +217,19 @@ func (n *PIRNode) monitorMotion() {
 
 				switch n.triggerMode {
 				case "rising":
-					if currentState == rpio.High && timeSinceLastTrigger >= n.retriggerTime {
+					if currentVal && timeSinceLastTrigger >= n.retriggerTime {
 						shouldTrigger = true
 						motionDetected = true
 					}
 				case "falling":
-					if currentState == rpio.Low && timeSinceLastTrigger >= n.retriggerTime {
+					if !currentVal && timeSinceLastTrigger >= n.retriggerTime {
 						shouldTrigger = true
 						motionDetected = false
 					}
 				case "both":
 					if timeSinceLastTrigger >= n.retriggerTime {
 						shouldTrigger = true
-						motionDetected = currentState == rpio.High
+						motionDetected = currentVal
 					}
 				}
 
@@ -233,7 +246,7 @@ func (n *PIRNode) monitorMotion() {
 							"motion":    motionDetected,
 							"timestamp": stateChangeTime.Unix(),
 							"pin":       n.pinNumber,
-							"state":     currentState,
+							"state":     currentVal,
 						},
 						Topic: "pir/motion",
 					}
@@ -254,7 +267,7 @@ func (n *PIRNode) GetOutputChannel() <-chan node.Message {
 	return n.outputChan
 }
 
-// Cleanup stops monitoring and closes GPIO
+// Cleanup stops monitoring and releases resources
 func (n *PIRNode) Cleanup() error {
 	if n.cancel != nil {
 		n.cancel()
@@ -266,7 +279,7 @@ func (n *PIRNode) Cleanup() error {
 		close(n.outputChan)
 	}
 
-	return rpio.Close()
+	return nil
 }
 
 // NewPIRExecutor creates a new PIR executor

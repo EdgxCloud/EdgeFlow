@@ -106,7 +106,8 @@ export function useKeyboardShortcuts(
   onDelete: () => void,
   onUndo?: () => void,
   onRedo?: () => void,
-  onSelectAll?: () => void
+  onSelectAll?: () => void,
+  onDuplicate?: () => void
 ) {
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -137,6 +138,10 @@ export function useKeyboardShortcuts(
             event.preventDefault()
             onCut()
             break
+          case 'd':
+            event.preventDefault()
+            onDuplicate?.()
+            break
           case 'z':
             event.preventDefault()
             if (event.shiftKey) {
@@ -161,7 +166,7 @@ export function useKeyboardShortcuts(
         onDelete()
       }
     },
-    [onCopy, onPaste, onCut, onDelete, onUndo, onRedo, onSelectAll]
+    [onCopy, onPaste, onCut, onDelete, onUndo, onRedo, onSelectAll, onDuplicate]
   )
 
   return handleKeyDown

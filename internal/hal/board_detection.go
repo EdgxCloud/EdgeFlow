@@ -34,6 +34,16 @@ type BoardInfo struct {
 	NumSPI     int
 	CPUCores   int
 	RAMSize    int
+	GPIOChip   string
+}
+
+// GPIOChipName returns the GPIO character device name for this board model.
+// Pi 5 uses gpiochip4 (RP1 southbridge), all others use gpiochip0.
+func (b BoardModel) GPIOChipName() string {
+	if b == BoardRPi5 {
+		return "gpiochip4"
+	}
+	return "gpiochip0"
 }
 
 func DetectBoard() (*BoardInfo, error) {
@@ -60,6 +70,7 @@ func DetectBoard() (*BoardInfo, error) {
 		info.NumSPI = 2
 		info.CPUCores = 1
 		info.RAMSize = 512
+		info.GPIOChip = model.GPIOChipName()
 
 	case BoardRPiZeroW:
 		info.Name = "Raspberry Pi Zero W"
@@ -71,6 +82,7 @@ func DetectBoard() (*BoardInfo, error) {
 		info.NumSPI = 2
 		info.CPUCores = 1
 		info.RAMSize = 512
+		info.GPIOChip = model.GPIOChipName()
 
 	case BoardRPiZero2W:
 		info.Name = "Raspberry Pi Zero 2 W"
@@ -82,6 +94,7 @@ func DetectBoard() (*BoardInfo, error) {
 		info.NumSPI = 2
 		info.CPUCores = 4
 		info.RAMSize = 512
+		info.GPIOChip = model.GPIOChipName()
 
 	case BoardRPi3:
 		info.Name = "Raspberry Pi 3"
@@ -93,6 +106,7 @@ func DetectBoard() (*BoardInfo, error) {
 		info.NumSPI = 2
 		info.CPUCores = 4
 		info.RAMSize = 1024
+		info.GPIOChip = model.GPIOChipName()
 
 	case BoardRPi3Plus:
 		info.Name = "Raspberry Pi 3 Model B+"
@@ -104,6 +118,7 @@ func DetectBoard() (*BoardInfo, error) {
 		info.NumSPI = 2
 		info.CPUCores = 4
 		info.RAMSize = 1024
+		info.GPIOChip = model.GPIOChipName()
 
 	case BoardRPi4:
 		info.Name = "Raspberry Pi 4"
@@ -115,6 +130,7 @@ func DetectBoard() (*BoardInfo, error) {
 		info.NumSPI = 5
 		info.CPUCores = 4
 		info.RAMSize = detectRAMSize()
+		info.GPIOChip = model.GPIOChipName()
 
 	case BoardRPi5:
 		info.Name = "Raspberry Pi 5"
@@ -126,6 +142,7 @@ func DetectBoard() (*BoardInfo, error) {
 		info.NumSPI = 5
 		info.CPUCores = 4
 		info.RAMSize = detectRAMSize()
+		info.GPIOChip = model.GPIOChipName()
 
 	case BoardRPiCM4:
 		info.Name = "Raspberry Pi Compute Module 4"
@@ -137,6 +154,7 @@ func DetectBoard() (*BoardInfo, error) {
 		info.NumSPI = 5
 		info.CPUCores = 4
 		info.RAMSize = detectRAMSize()
+		info.GPIOChip = model.GPIOChipName()
 
 	default:
 		info.Name = "Unknown Board"
@@ -146,6 +164,7 @@ func DetectBoard() (*BoardInfo, error) {
 		info.NumSPI = 1
 		info.CPUCores = 1
 		info.RAMSize = 512
+		info.GPIOChip = "gpiochip0"
 	}
 
 	return info, nil
