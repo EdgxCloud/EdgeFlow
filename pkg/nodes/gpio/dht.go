@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package gpio
@@ -296,7 +297,11 @@ func (e *DHTExecutor) readBitBang() (float64, float64, error) {
 func (e *DHTExecutor) readBits(gpio hal.GPIOProvider, pin int) ([]byte, error) {
 	// Wait for DHT to pull low (response signal)
 	timeout := time.Now().Add(100 * time.Millisecond)
-	for gpio.DigitalRead(pin) {
+	for {
+		val, _ := gpio.DigitalRead(pin)
+		if !val {
+			break
+		}
 		if time.Now().After(timeout) {
 			return nil, fmt.Errorf("timeout waiting for DHT response (initial low)")
 		}
@@ -304,7 +309,11 @@ func (e *DHTExecutor) readBits(gpio hal.GPIOProvider, pin int) ([]byte, error) {
 
 	// Wait for DHT to pull high
 	timeout = time.Now().Add(100 * time.Millisecond)
-	for !gpio.DigitalRead(pin) {
+	for {
+		val, _ := gpio.DigitalRead(pin)
+		if val {
+			break
+		}
 		if time.Now().After(timeout) {
 			return nil, fmt.Errorf("timeout waiting for DHT response (initial high)")
 		}
@@ -312,7 +321,11 @@ func (e *DHTExecutor) readBits(gpio hal.GPIOProvider, pin int) ([]byte, error) {
 
 	// Wait for DHT to pull low again (start of data)
 	timeout = time.Now().Add(100 * time.Millisecond)
-	for gpio.DigitalRead(pin) {
+	for {
+		val, _ := gpio.DigitalRead(pin)
+		if !val {
+			break
+		}
 		if time.Now().After(timeout) {
 			return nil, fmt.Errorf("timeout waiting for data start")
 		}
@@ -323,7 +336,11 @@ func (e *DHTExecutor) readBits(gpio hal.GPIOProvider, pin int) ([]byte, error) {
 	for i := 0; i < 40; i++ {
 		// Wait for high (end of 50us low pulse)
 		timeout = time.Now().Add(100 * time.Millisecond)
-		for !gpio.DigitalRead(pin) {
+		for {
+			val, _ := gpio.DigitalRead(pin)
+			if val {
+				break
+			}
 			if time.Now().After(timeout) {
 				return nil, fmt.Errorf("timeout at bit %d (waiting for high)", i)
 			}
@@ -332,7 +349,11 @@ func (e *DHTExecutor) readBits(gpio hal.GPIOProvider, pin int) ([]byte, error) {
 		// Measure high pulse duration
 		start := time.Now()
 		timeout = time.Now().Add(100 * time.Millisecond)
-		for gpio.DigitalRead(pin) {
+		for {
+			val, _ := gpio.DigitalRead(pin)
+			if !val {
+				break
+			}
 			if time.Now().After(timeout) {
 				return nil, fmt.Errorf("timeout at bit %d (waiting for low)", i)
 			}

@@ -297,7 +297,7 @@ func (e *CCS811Executor) Execute(ctx context.Context, msg node.Message) (node.Me
 	}
 
 	action := "read"
-	if payload, ok := msg.Payload.(map[string]interface{}); ok {
+	if payload := msg.Payload; payload != nil {
 		if a, ok := payload["action"].(string); ok {
 			action = a
 		}
@@ -391,8 +391,8 @@ func (e *CCS811Executor) readRaw() (node.Message, error) {
 }
 
 func (e *CCS811Executor) handleSetEnvironment(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
@@ -433,8 +433,8 @@ func (e *CCS811Executor) handleGetBaseline() (node.Message, error) {
 }
 
 func (e *CCS811Executor) handleSetBaseline(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 

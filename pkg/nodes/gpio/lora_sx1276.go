@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package gpio
@@ -87,6 +88,7 @@ type SX1276Config struct {
 type SX1276Executor struct {
 	config      SX1276Config
 	hal         hal.HAL
+	spi         hal.SPIProvider
 	mu          sync.Mutex
 	initialized bool
 	receiving   bool
@@ -159,8 +161,8 @@ func (e *SX1276Executor) Execute(ctx context.Context, msg node.Message) (node.Me
 		e.initialized = true
 	}
 
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		return node.Message{}, fmt.Errorf("invalid payload type")
 	}
 
@@ -252,6 +254,19 @@ func (e *SX1276Executor) Execute(ctx context.Context, msg node.Message) (node.Me
 // initSX1276 initializes the SX1276
 func (e *SX1276Executor) initSX1276() error {
 	gpio := e.hal.GPIO()
+
+	// Open SPI device
+	e.spi = e.hal.SPI()
+	if err := e.spi.Open(e.config.SPIBus, e.config.SPIDevice); err != nil {
+		return fmt.Errorf("failed to open SPI bus %d device %d: %w", e.config.SPIBus, e.config.SPIDevice, err)
+	}
+
+	// Set SPI speed if configured
+	if e.config.Speed > 0 {
+		if err := e.spi.SetSpeed(e.config.Speed); err != nil {
+			return fmt.Errorf("failed to set SPI speed: %w", err)
+		}
+	}
 
 	// Reset if pin specified
 	if e.config.ResetPin > 0 {
@@ -640,23 +655,28 @@ func (e *SX1276Executor) setCodingRate(cr int) {
 
 // readRegister reads a register
 func (e *SX1276Executor) readRegister(reg byte) (byte, error) {
-	spi := e.hal.SPI()
 	data := []byte{reg & 0x7F, 0x00}
-	if err := spi.Transfer(e.config.SPIBus, e.config.SPIDevice, data, 2); err != nil {
+	result, err := e.spi.Transfer(data)
+	if err != nil {
 		return 0, err
 	}
-	return data[1], nil
+	return result[1], nil
 }
 
 // writeRegister writes a register
 func (e *SX1276Executor) writeRegister(reg, value byte) error {
-	spi := e.hal.SPI()
-	return spi.Transfer(e.config.SPIBus, e.config.SPIDevice, []byte{reg | 0x80, value}, 2)
+	_, err := e.spi.Transfer([]byte{reg | 0x80, value})
+	return err
 }
 
 // Cleanup releases resources
 func (e *SX1276Executor) Cleanup() error {
 	e.stopReceive()
-	e.setMode(sx1276ModeSleep)
+	if e.initialized {
+		e.setMode(sx1276ModeSleep)
+	}
+	if e.spi != nil {
+		e.spi.Close()
+	}
 	return nil
 }
