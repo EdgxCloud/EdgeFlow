@@ -795,7 +795,20 @@ func (v *Validator) validateNode(nodeInfo *parser.NodeInfo, basePath string, res
 // scanForSecurityIssues scans source files for security issues
 func (v *Validator) scanForSecurityIssues(basePath string, result *ValidationResult) {
 	filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			return nil
+		}
+
+		// Skip test, docs, examples, and node_modules directories
+		if info.IsDir() {
+			dirName := strings.ToLower(info.Name())
+			switch dirName {
+			case "test", "tests", "spec", "specs", "__tests__",
+				"docs", "doc", "documentation",
+				"examples", "example", "samples",
+				"node_modules", ".git", "coverage":
+				return filepath.SkipDir
+			}
 			return nil
 		}
 

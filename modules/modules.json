@@ -1,4 +1,126 @@
 {
+  "@blokcert/node-red-contrib-delayed-job": {
+    "info": {
+      "format": "node-red",
+      "name": "@blokcert/node-red-contrib-delayed-job",
+      "version": "0.3.0",
+      "description": "A Node-RED node for Redis-backed delayed job queues using BullMQ",
+      "author": "caspar.wei",
+      "license": "MIT",
+      "homepage": "",
+      "repository": "https://github.com/MingShyanWei/node-red-contrib-delayed-job.git",
+      "keywords": [
+        "node-red"
+      ],
+      "nodes": [
+        {
+          "type": "delayed-job-redis",
+          "name": "Delayed Job Redis",
+          "category": "config",
+          "description": "",
+          "icon": "",
+          "color": "",
+          "inputs": 1,
+          "outputs": 1,
+          "properties": [],
+          "source_file": "delayed-job/delayed-job-redis.js",
+          "ui_file": "delayed-job/delayed-job-redis.html",
+          "config": null
+        },
+        {
+          "type": "delayed-job",
+          "name": "Delayed Job",
+          "category": "function",
+          "description": "",
+          "icon": "",
+          "color": "#D63384",
+          "inputs": 1,
+          "outputs": 1,
+          "properties": [],
+          "source_file": "delayed-job/delayed-job.js",
+          "ui_file": "delayed-job/delayed-job.html",
+          "config": null
+        }
+      ],
+      "config": {},
+      "source_path": "modules\\@blokcert\\node-red-contrib-delayed-job"
+    },
+    "status": "installed",
+    "installed_at": "2026-02-10T23:23:02.4039862+03:30",
+    "updated_at": "2026-02-10T23:23:02.4039862+03:30",
+    "enabled": true,
+    "validation": {
+      "valid": true,
+      "warnings": [
+        {
+          "code": "ATTRIBUTION_REQUIRED",
+          "message": "License 'MIT' requires attribution. Include copyright notice in your project.",
+          "severity": "info"
+        }
+      ],
+      "score": 100,
+      "license_info": {
+        "license": "MIT",
+        "license_type": "permissive",
+        "is_osi_approved": true,
+        "commercial_use": true,
+        "modification": true,
+        "distribution": true,
+        "patent_grant": false,
+        "attribution_required": true,
+        "share_alike": false,
+        "compatibility": "compatible",
+        "compatibility_msg": "",
+        "permissions": [
+          "Commercial use",
+          "Modification",
+          "Distribution",
+          "Private use"
+        ],
+        "conditions": [
+          "License and copyright notice"
+        ],
+        "limitations": [
+          "No liability",
+          "No warranty"
+        ]
+      }
+    },
+    "license_info": {
+      "license": "MIT",
+      "license_type": "permissive",
+      "is_osi_approved": true,
+      "commercial_use": true,
+      "modification": true,
+      "distribution": true,
+      "patent_grant": false,
+      "attribution_required": true,
+      "share_alike": false,
+      "compatibility": "compatible",
+      "compatibility_msg": "",
+      "permissions": [
+        "Commercial use",
+        "Modification",
+        "Distribution",
+        "Private use"
+      ],
+      "conditions": [
+        "License and copyright notice"
+      ],
+      "limitations": [
+        "No liability",
+        "No warranty"
+      ]
+    },
+    "attribution": {
+      "module_name": "@blokcert/node-red-contrib-delayed-job",
+      "module_version": "0.3.0",
+      "license": "MIT",
+      "author": "caspar.wei",
+      "repository": "https://github.com/MingShyanWei/node-red-contrib-delayed-job.git",
+      "accepted_at": "2026-02-10T23:23:02.4039862+03:30"
+    }
+  },
   "node-red-node-random": {
     "info": {
       "format": "node-red",
@@ -113,6 +235,124 @@
       "repository": "https://github.com/node-red/node-red-nodes.git",
       "license_text": "Copyright 2016,2020 JS Foundation and other contributors, https://js.foundation/\nCopyright 2013-2016 IBM Corp.\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\nhttp://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License.\n",
       "accepted_at": "2026-01-24T15:47:53.5871122+03:30"
+    }
+  },
+  "node-red-node-smooth": {
+    "info": {
+      "format": "node-red",
+      "name": "node-red-node-smooth",
+      "version": "0.1.2",
+      "description": "A Node-RED node that provides several simple smoothing algorithms for incoming data values.",
+      "author": "Dave Conway-Jones \u003cceejay@vnet.ibm.com\u003e",
+      "license": "Apache-2.0",
+      "homepage": "",
+      "repository": "https://github.com/node-red/node-red-nodes/tree/master/function/smooth",
+      "keywords": [
+        "node-red",
+        "smooth",
+        "average",
+        "standard deviation"
+      ],
+      "nodes": [
+        {
+          "type": "smooth",
+          "name": "Smooth",
+          "category": "function",
+          "description": "A simple node to provide various functions across several previous values, including max, min, mean, high and low pass filters.",
+          "icon": "",
+          "color": "#E2D96E",
+          "inputs": 1,
+          "outputs": 1,
+          "properties": [],
+          "source_file": "17-smooth.js",
+          "ui_file": "17-smooth.html",
+          "config": null
+        }
+      ],
+      "config": {},
+      "source_path": "modules\\node-red-node-smooth"
+    },
+    "status": "installed",
+    "installed_at": "2026-02-10T23:10:46.8394843+03:30",
+    "updated_at": "2026-02-10T23:10:46.8394843+03:30",
+    "enabled": true,
+    "validation": {
+      "valid": true,
+      "warnings": [
+        {
+          "code": "ATTRIBUTION_REQUIRED",
+          "message": "License 'Apache-2.0' requires attribution. Include copyright notice in your project.",
+          "severity": "info"
+        }
+      ],
+      "score": 100,
+      "license_info": {
+        "license": "Apache-2.0",
+        "license_type": "permissive",
+        "is_osi_approved": true,
+        "commercial_use": true,
+        "modification": true,
+        "distribution": true,
+        "patent_grant": true,
+        "attribution_required": true,
+        "share_alike": false,
+        "compatibility": "compatible",
+        "compatibility_msg": "",
+        "permissions": [
+          "Commercial use",
+          "Modification",
+          "Distribution",
+          "Patent use",
+          "Private use"
+        ],
+        "conditions": [
+          "License and copyright notice",
+          "State changes"
+        ],
+        "limitations": [
+          "No liability",
+          "No warranty",
+          "No trademark use"
+        ]
+      }
+    },
+    "license_info": {
+      "license": "Apache-2.0",
+      "license_type": "permissive",
+      "is_osi_approved": true,
+      "commercial_use": true,
+      "modification": true,
+      "distribution": true,
+      "patent_grant": true,
+      "attribution_required": true,
+      "share_alike": false,
+      "compatibility": "compatible",
+      "compatibility_msg": "",
+      "permissions": [
+        "Commercial use",
+        "Modification",
+        "Distribution",
+        "Patent use",
+        "Private use"
+      ],
+      "conditions": [
+        "License and copyright notice",
+        "State changes"
+      ],
+      "limitations": [
+        "No liability",
+        "No warranty",
+        "No trademark use"
+      ]
+    },
+    "attribution": {
+      "module_name": "node-red-node-smooth",
+      "module_version": "0.1.2",
+      "license": "Apache-2.0",
+      "author": "Dave Conway-Jones \u003cceejay@vnet.ibm.com\u003e",
+      "repository": "https://github.com/node-red/node-red-nodes/tree/master/function/smooth",
+      "license_text": "Copyright 2016 JS Foundation and other contributors, https://js.foundation/\nCopyright 2013-2016 IBM Corp.\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\nhttp://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License.\n",
+      "accepted_at": "2026-02-10T23:10:46.8394843+03:30"
     }
   }
 }

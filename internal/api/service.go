@@ -427,68 +427,6 @@ func (s *Service) Close() error {
 	return nil
 }
 
-// Module Management Methods (temporarily disabled)
-
-// ListModules returns all available modules
-func (s *Service) ListModules() []map[string]interface{} {
-	// return // s.pluginManager.ListPlugins()
-	return []map[string]interface{}{}
-}
-
-// GetModuleInfo returns info for a specific module
-func (s *Service) GetModuleInfo(name string) (map[string]interface{}, error) {
-	// return // s.pluginManager.GetPluginInfo(name)
-	return map[string]interface{}{}, fmt.Errorf("plugin manager disabled")
-}
-
-// LoadModule loads a module
-func (s *Service) LoadModule(name string) error {
-	// Temporarily disabled
-	return fmt.Errorf("plugin manager disabled")
-}
-
-// UnloadModule unloads a module
-func (s *Service) UnloadModule(name string) error {
-	// Temporarily disabled
-	return fmt.Errorf("plugin manager disabled")
-}
-
-// EnableModule enables a module
-func (s *Service) EnableModule(name string) error {
-	// Temporarily disabled
-	return fmt.Errorf("plugin manager disabled")
-}
-
-// DisableModule disables a module
-func (s *Service) DisableModule(name string) error {
-	// Temporarily disabled
-	return fmt.Errorf("plugin manager disabled")
-}
-
-// ReloadModule reloads a module
-func (s *Service) ReloadModule(name string) error {
-	// Temporarily disabled
-	return fmt.Errorf("plugin manager disabled")
-
-	// if err := s.pluginManager.ReloadPlugin(name); err != nil {
-	// 	return err
-	// }
-
-	// // Notify via WebSocket
-	// s.wsHub.Broadcast(websocket.MessageTypeModuleStatus, map[string]interface{}{
-	// 	"module": name,
-	// 	"action": "reloaded",
-	// })
-
-	// return nil
-}
-
-// GetModuleStats returns module statistics
-func (s *Service) GetModuleStats() map[string]interface{} {
-	// return s.pluginManager.GetStats()
-	return map[string]interface{}{"error": "plugin manager disabled"}
-}
-
 // GetResourceStats returns resource statistics
 func (s *Service) GetResourceStats() resources.ResourceStats {
 	return s.resourceMonitor.GetStats()

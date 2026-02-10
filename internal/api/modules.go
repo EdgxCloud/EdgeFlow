@@ -122,33 +122,166 @@ func SetupModuleRoutes(app *fiber.App, api *ModuleAPI) {
 
 // ListModules returns all installed modules
 func (api *ModuleAPI) ListModules(c *fiber.Ctx) error {
+	if api.manager == nil {
+		return c.JSON(fiber.Map{
+			"modules": []interface{}{},
+			"count":   0,
+		})
+	}
+
 	modules := api.manager.List()
 
 	result := make([]fiber.Map, 0, len(modules))
 	for _, mod := range modules {
+		// Map manager status to frontend status
+		status := mapModuleStatus(mod.Status, mod.Enabled)
+
+		// Build nodes array for frontend
+		nodes := make([]fiber.Map, 0, len(mod.Info.Nodes))
+		for _, n := range mod.Info.Nodes {
+			nodes = append(nodes, fiber.Map{
+				"type":        n.Type,
+				"name":        n.Name,
+				"category":    n.Category,
+				"description": n.Description,
+				"icon":        n.Icon,
+				"color":       n.Color,
+				"inputs":      n.Inputs,
+				"outputs":     n.Outputs,
+			})
+		}
+
+		// Determine category from the first node, or default
+		category := "advanced"
+		if len(mod.Info.Nodes) > 0 && mod.Info.Nodes[0].Category != "" {
+			category = mod.Info.Nodes[0].Category
+		}
+
+		// Dependencies from keywords/config (modules don't have explicit deps yet)
+		dependencies := make([]string, 0)
+
 		result = append(result, fiber.Map{
-			"name":         mod.Info.Name,
-			"version":      mod.Info.Version,
-			"description":  mod.Info.Description,
-			"format":       mod.Info.Format,
-			"status":       mod.Status,
-			"enabled":      mod.Enabled,
-			"installed_at": mod.InstalledAt,
-			"updated_at":   mod.UpdatedAt,
-			"node_count":   len(mod.Info.Nodes),
-			"error":        mod.Error,
+			"name":               mod.Info.Name,
+			"version":            mod.Info.Version,
+			"description":        mod.Info.Description,
+			"author":             mod.Info.Author,
+			"category":           category,
+			"status":             status,
+			"loaded_at":          mod.InstalledAt,
+			"error":              mod.Error,
+			"required_memory_mb": 0,
+			"required_disk_mb":   0,
+			"dependencies":       dependencies,
+			"nodes":              nodes,
+			"config":             mod.Info.Config,
+			"compatible":         true,
+			"compatible_reason":  "",
 		})
 	}
 
 	return c.JSON(fiber.Map{
 		"modules": result,
-		"total":   len(result),
+		"count":   len(result),
+	})
+}
+
+// mapModuleStatus converts manager.ModuleStatus to frontend status strings
+func mapModuleStatus(status manager.ModuleStatus, enabled bool) string {
+	switch status {
+	case manager.StatusLoaded:
+		return "loaded"
+	case manager.StatusError:
+		return "error"
+	case manager.StatusDisabled:
+		return "not_loaded"
+	case manager.StatusInstalled, manager.StatusPending:
+		return "not_loaded"
+	default:
+		return "not_loaded"
+	}
+}
+
+// ReloadModule unloads and reloads a module
+func (api *ModuleAPI) ReloadModule(c *fiber.Ctx) error {
+	name := c.Params("name")
+
+	if api.manager == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "Module manager not available",
+		})
+	}
+
+	// Unload then load
+	if err := api.manager.Unload(name); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("Reload failed (unload): %v", err),
+		})
+	}
+
+	if err := api.manager.Load(name); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("Reload failed (load): %v", err),
+		})
+	}
+
+	mod, _ := api.manager.Get(name)
+	return c.JSON(fiber.Map{
+		"message":      "Module reloaded",
+		"loaded_nodes": mod.LoadedNodes,
+	})
+}
+
+// GetModuleStats returns module statistics
+func (api *ModuleAPI) GetModuleStats(c *fiber.Ctx) error {
+	if api.manager == nil {
+		return c.JSON(fiber.Map{
+			"total_plugins":       0,
+			"loaded_plugins":      0,
+			"enabled_plugins":     0,
+			"total_nodes":         0,
+			"load_order":          []string{},
+			"memory_available_mb": 0,
+		})
+	}
+
+	modules := api.manager.List()
+
+	totalPlugins := len(modules)
+	loadedPlugins := 0
+	enabledPlugins := 0
+	totalNodes := 0
+	loadOrder := make([]string, 0)
+
+	for _, mod := range modules {
+		if mod.Status == manager.StatusLoaded {
+			loadedPlugins++
+			loadOrder = append(loadOrder, mod.Info.Name)
+		}
+		if mod.Enabled {
+			enabledPlugins++
+		}
+		totalNodes += len(mod.Info.Nodes)
+	}
+
+	return c.JSON(fiber.Map{
+		"total_plugins":       totalPlugins,
+		"loaded_plugins":      loadedPlugins,
+		"enabled_plugins":     enabledPlugins,
+		"total_nodes":         totalNodes,
+		"load_order":          loadOrder,
+		"memory_available_mb": 0,
 	})
 }
 
 // GetModule returns details of a specific module
 func (api *ModuleAPI) GetModule(c *fiber.Ctx) error {
 	name := c.Params("name")
+
+	if api.manager == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "Module manager not available",
+		})
+	}
 
 	mod, ok := api.manager.Get(name)
 	if !ok {
@@ -157,15 +290,46 @@ func (api *ModuleAPI) GetModule(c *fiber.Ctx) error {
 		})
 	}
 
+	status := mapModuleStatus(mod.Status, mod.Enabled)
+
+	// Build nodes array
+	nodes := make([]fiber.Map, 0, len(mod.Info.Nodes))
+	for _, n := range mod.Info.Nodes {
+		nodes = append(nodes, fiber.Map{
+			"type":        n.Type,
+			"name":        n.Name,
+			"category":    n.Category,
+			"description": n.Description,
+			"icon":        n.Icon,
+			"color":       n.Color,
+			"inputs":      n.Inputs,
+			"outputs":     n.Outputs,
+		})
+	}
+
+	category := "advanced"
+	if len(mod.Info.Nodes) > 0 && mod.Info.Nodes[0].Category != "" {
+		category = mod.Info.Nodes[0].Category
+	}
+
 	return c.JSON(fiber.Map{
-		"module":     mod.Info,
-		"status":     mod.Status,
-		"enabled":    mod.Enabled,
-		"installed_at": mod.InstalledAt,
-		"updated_at": mod.UpdatedAt,
-		"validation": mod.Validation,
-		"loaded_nodes": mod.LoadedNodes,
-		"error":      mod.Error,
+		"name":               mod.Info.Name,
+		"version":            mod.Info.Version,
+		"description":        mod.Info.Description,
+		"author":             mod.Info.Author,
+		"category":           category,
+		"status":             status,
+		"loaded_at":          mod.InstalledAt,
+		"error":              mod.Error,
+		"required_memory_mb": 0,
+		"required_disk_mb":   0,
+		"dependencies":       []string{},
+		"nodes":              nodes,
+		"config":             mod.Info.Config,
+		"compatible":         true,
+		"compatible_reason":  "",
+		"validation":         mod.Validation,
+		"loaded_nodes":       mod.LoadedNodes,
 	})
 }
 
@@ -399,6 +563,12 @@ func (api *ModuleAPI) UninstallModule(c *fiber.Ctx) error {
 func (api *ModuleAPI) EnableModule(c *fiber.Ctx) error {
 	name := c.Params("name")
 
+	if api.manager == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "Module manager not available",
+		})
+	}
+
 	if err := api.manager.Enable(name); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("Enable failed: %v", err),
@@ -414,6 +584,12 @@ func (api *ModuleAPI) EnableModule(c *fiber.Ctx) error {
 func (api *ModuleAPI) DisableModule(c *fiber.Ctx) error {
 	name := c.Params("name")
 
+	if api.manager == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "Module manager not available",
+		})
+	}
+
 	if err := api.manager.Disable(name); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("Disable failed: %v", err),
@@ -428,6 +604,12 @@ func (api *ModuleAPI) DisableModule(c *fiber.Ctx) error {
 // LoadModule loads a module into the runtime
 func (api *ModuleAPI) LoadModule(c *fiber.Ctx) error {
 	name := c.Params("name")
+
+	if api.manager == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "Module manager not available",
+		})
+	}
 
 	if err := api.manager.Load(name); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -445,6 +627,12 @@ func (api *ModuleAPI) LoadModule(c *fiber.Ctx) error {
 // UnloadModule unloads a module from the runtime
 func (api *ModuleAPI) UnloadModule(c *fiber.Ctx) error {
 	name := c.Params("name")
+
+	if api.manager == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "Module manager not available",
+		})
+	}
 
 	if err := api.manager.Unload(name); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -752,9 +940,13 @@ func parseGitHubRepo(repo string) (owner, name, branch string) {
 	return parts[0], parts[1], branch
 }
 
-// CopyToTemp copies an io.Reader to a temp file
-func CopyToTemp(r io.Reader, destDir, prefix string) (string, error) {
-	tmpFile, err := os.CreateTemp(destDir, prefix+"_*")
+// CopyToTemp copies an io.Reader to a temp file, preserving the file extension
+func CopyToTemp(r io.Reader, destDir, filename string) (string, error) {
+	ext := filepath.Ext(filename)
+	base := strings.TrimSuffix(filename, ext)
+	// Place the wildcard before the extension so os.CreateTemp preserves it
+	// e.g. "module_*.tgz" produces "module_1234567890.tgz"
+	tmpFile, err := os.CreateTemp(destDir, base+"_*"+ext)
 	if err != nil {
 		return "", err
 	}

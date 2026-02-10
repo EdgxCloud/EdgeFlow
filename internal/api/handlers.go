@@ -89,23 +89,20 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 	api.Get("/modules/search/nodered", h.searchNodeRED)
 	api.Get("/modules/search/github", h.searchGitHub)
 
-	// Module install/upload routes
+	// Module routes - all delegated to ModuleAPI
 	if h.moduleAPI != nil {
 		api.Post("/modules/install", h.moduleAPI.InstallModule)
 		api.Post("/modules/upload", h.moduleAPI.UploadModule)
-	}
 
-	// Module routes
-	moduleRoutes := api.Group("/modules")
-	moduleRoutes.Get("/", h.listModules)
-	moduleRoutes.Get("/stats", h.getModuleStats)
-	moduleRoutes.Get("/:name", h.getModule)
-	moduleRoutes.Post("/:name/load", h.loadModule)
-	moduleRoutes.Post("/:name/unload", h.unloadModule)
-	moduleRoutes.Post("/:name/enable", h.enableModule)
-	moduleRoutes.Post("/:name/disable", h.disableModule)
-	moduleRoutes.Post("/:name/reload", h.reloadModule)
-	if h.moduleAPI != nil {
+		moduleRoutes := api.Group("/modules")
+		moduleRoutes.Get("/", h.moduleAPI.ListModules)
+		moduleRoutes.Get("/stats", h.moduleAPI.GetModuleStats)
+		moduleRoutes.Get("/:name", h.moduleAPI.GetModule)
+		moduleRoutes.Post("/:name/load", h.moduleAPI.LoadModule)
+		moduleRoutes.Post("/:name/unload", h.moduleAPI.UnloadModule)
+		moduleRoutes.Post("/:name/enable", h.moduleAPI.EnableModule)
+		moduleRoutes.Post("/:name/disable", h.moduleAPI.DisableModule)
+		moduleRoutes.Post("/:name/reload", h.moduleAPI.ReloadModule)
 		moduleRoutes.Delete("/:name", h.moduleAPI.UninstallModule)
 	}
 
@@ -119,6 +116,7 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 
 	// Resource routes
 	api.Get("/resources/stats", h.getResourceStats)
+	api.Get("/resources/report", h.getResourceReport)
 
 	// System info routes
 	api.Get("/system/network", h.getNetworkInfo)
@@ -838,109 +836,6 @@ func (h *Handler) getNodeType(c *fiber.Ctx) error {
 	return c.JSON(info)
 }
 
-// Module handlers
-func (h *Handler) listModules(c *fiber.Ctx) error {
-	modules := h.service.ListModules()
-
-	return c.JSON(fiber.Map{
-		"modules": modules,
-		"count":   len(modules),
-	})
-}
-
-func (h *Handler) getModule(c *fiber.Ctx) error {
-	name := c.Params("name")
-
-	module, err := h.service.GetModuleInfo(name)
-	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Module not found",
-		})
-	}
-
-	return c.JSON(module)
-}
-
-func (h *Handler) loadModule(c *fiber.Ctx) error {
-	name := c.Params("name")
-
-	if err := h.service.LoadModule(name); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "Module loaded successfully",
-		"module":  name,
-	})
-}
-
-func (h *Handler) unloadModule(c *fiber.Ctx) error {
-	name := c.Params("name")
-
-	if err := h.service.UnloadModule(name); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "Module unloaded successfully",
-		"module":  name,
-	})
-}
-
-func (h *Handler) enableModule(c *fiber.Ctx) error {
-	name := c.Params("name")
-
-	if err := h.service.EnableModule(name); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "Module enabled successfully",
-		"module":  name,
-	})
-}
-
-func (h *Handler) disableModule(c *fiber.Ctx) error {
-	name := c.Params("name")
-
-	if err := h.service.DisableModule(name); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "Module disabled successfully",
-		"module":  name,
-	})
-}
-
-func (h *Handler) reloadModule(c *fiber.Ctx) error {
-	name := c.Params("name")
-
-	if err := h.service.ReloadModule(name); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "Module reloaded successfully",
-		"module":  name,
-	})
-}
-
-func (h *Handler) getModuleStats(c *fiber.Ctx) error {
-	stats := h.service.GetModuleStats()
-
-	return c.JSON(stats)
-}
 
 // Execution history handlers
 func (h *Handler) listExecutions(c *fiber.Ctx) error {
@@ -1023,6 +918,31 @@ func (h *Handler) getResourceStats(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
+}
+
+// getResourceReport returns resource stats in the format expected by the Module Manager page
+func (h *Handler) getResourceReport(c *fiber.Ctx) error {
+	stats := h.service.GetResourceStats()
+
+	return c.JSON(fiber.Map{
+		"timestamp": stats.Timestamp,
+		"memory": fiber.Map{
+			"total_mb":     stats.MemoryTotal / (1024 * 1024),
+			"used_mb":      stats.MemoryUsed / (1024 * 1024),
+			"available_mb": stats.MemoryAvailable / (1024 * 1024),
+			"percent":      fmt.Sprintf("%.1f%%", stats.MemoryPercent),
+		},
+		"disk": fiber.Map{
+			"total_mb":     stats.DiskTotal / (1024 * 1024),
+			"used_mb":      stats.DiskUsed / (1024 * 1024),
+			"available_mb": stats.DiskAvailable / (1024 * 1024),
+			"percent":      fmt.Sprintf("%.1f%%", stats.DiskPercent),
+		},
+		"cpu": fiber.Map{
+			"cores":      stats.CPUCores,
+			"goroutines": stats.GoroutineCount,
+		},
+	})
 }
 
 // ============================================
