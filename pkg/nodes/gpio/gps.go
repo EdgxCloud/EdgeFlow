@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package gpio
@@ -127,8 +128,8 @@ func (e *GPSExecutor) Execute(ctx context.Context, msg node.Message) (node.Messa
 	}
 
 	// Parse command
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
+	payload := msg.Payload
+	if payload == nil {
 		// Default: return current GPS data
 		return e.getCurrentData()
 	}

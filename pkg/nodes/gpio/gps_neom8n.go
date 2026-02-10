@@ -14,9 +14,7 @@ import (
 	"time"
 
 	"github.com/edgeflow/edgeflow/internal/node"
-	"periph.io/x/conn/v3/uart"
-	"periph.io/x/conn/v3/uart/uartreg"
-	"periph.io/x/host/v3"
+	"go.bug.st/serial"
 )
 
 // NEOM8NConfig holds configuration for NEO-M8N GPS module
@@ -26,28 +24,11 @@ type NEOM8NConfig struct {
 	PollInterval int    `json:"poll_interval_ms"`
 }
 
-// GPSData holds parsed GPS information
-type GPSData struct {
-	Latitude    float64   `json:"latitude"`
-	Longitude   float64   `json:"longitude"`
-	Altitude    float64   `json:"altitude"`
-	Speed       float64   `json:"speed"`      // km/h
-	Course      float64   `json:"course"`     // degrees
-	Satellites  int       `json:"satellites"`
-	HDOP        float64   `json:"hdop"`
-	FixQuality  int       `json:"fix_quality"`
-	FixType     string    `json:"fix_type"`
-	DateTime    time.Time `json:"datetime"`
-	Valid       bool      `json:"valid"`
-}
-
 // NEOM8NExecutor implements NEO-M8N GPS receiver
 type NEOM8NExecutor struct {
 	config      NEOM8NConfig
-	port        uart.PortCloser
-	conn        uart.Conn
+	port        serial.Port
 	mu          sync.Mutex
-	hostInited  bool
 	initialized bool
 	lastData    GPSData
 	reader      *bufio.Reader
@@ -78,31 +59,18 @@ func (e *NEOM8NExecutor) initHardware() error {
 		return nil
 	}
 
-	if !e.hostInited {
-		if _, err := host.Init(); err != nil {
-			return fmt.Errorf("failed to initialize periph host: %w", err)
-		}
-		e.hostInited = true
+	mode := &serial.Mode{
+		BaudRate: e.config.BaudRate,
+		DataBits: 8,
+		Parity:   serial.NoParity,
+		StopBits: serial.OneStopBit,
 	}
-
-	port, err := uartreg.Open(e.config.SerialPort)
+	port, err := serial.Open(e.config.SerialPort, mode)
 	if err != nil {
 		return fmt.Errorf("failed to open serial port %s: %w", e.config.SerialPort, err)
 	}
 	e.port = port
-
-	conn, err := port.Connect(uart.Params{
-		BaudRate: e.config.BaudRate,
-		DataBits: 8,
-		Parity:   uart.NoParity,
-		StopBits: uart.OneStopBit,
-	})
-	if err != nil {
-		port.Close()
-		return fmt.Errorf("failed to configure serial port: %w", err)
-	}
-	e.conn = conn
-	e.reader = bufio.NewReader(conn)
+	e.reader = bufio.NewReader(port)
 
 	e.initialized = true
 	return nil
@@ -242,7 +210,7 @@ func (e *NEOM8NExecutor) parseRMC(parts []string) {
 
 	// Speed over ground (knots to km/h)
 	if speed, err := strconv.ParseFloat(parts[7], 64); err == nil {
-		e.lastData.Speed = speed * 1.852 // knots to km/h
+		e.lastData.SpeedKmh = speed * 1.852 // knots to km/h
 	}
 
 	// Course over ground
@@ -291,7 +259,7 @@ func (e *NEOM8NExecutor) parseVTG(parts []string) {
 
 	// Speed in km/h
 	if speed, err := strconv.ParseFloat(parts[7], 64); err == nil {
-		e.lastData.Speed = speed
+		e.lastData.SpeedKmh = speed
 	}
 }
 
@@ -345,10 +313,10 @@ func (e *NEOM8NExecutor) parseTime(timeStr string) {
 	seconds, _ := strconv.Atoi(timeStr[4:6])
 
 	now := time.Now().UTC()
-	e.lastData.DateTime = time.Date(
+	e.lastData.Timestamp = time.Date(
 		now.Year(), now.Month(), now.Day(),
 		hours, minutes, seconds, 0, time.UTC,
-	)
+	).Unix()
 }
 
 func (e *NEOM8NExecutor) parseDateTime(timeStr, dateStr string) {
@@ -365,10 +333,10 @@ func (e *NEOM8NExecutor) parseDateTime(timeStr, dateStr string) {
 	year, _ := strconv.Atoi(dateStr[4:6])
 	year += 2000
 
-	e.lastData.DateTime = time.Date(
+	e.lastData.Timestamp = time.Date(
 		year, time.Month(month), day,
 		hours, minutes, seconds, 0, time.UTC,
-	)
+	).Unix()
 }
 
 func (e *NEOM8NExecutor) sendUBXCommand(class, id byte, payload []byte) error {
@@ -390,7 +358,7 @@ func (e *NEOM8NExecutor) sendUBXCommand(class, id byte, payload []byte) error {
 	}
 	msg = append(msg, ckA, ckB)
 
-	_, err := e.conn.Write(msg)
+	_, err := e.port.Write(msg)
 	return err
 }
 
@@ -403,7 +371,8 @@ func (e *NEOM8NExecutor) Execute(ctx context.Context, msg node.Message) (node.Me
 	}
 
 	action := "read"
-	if payload, ok := msg.Payload.(map[string]interface{}); ok {
+	payload := msg.Payload
+	if payload != nil {
 		if a, ok := payload["action"].(string); ok {
 			action = a
 		}
@@ -451,23 +420,22 @@ func (e *NEOM8NExecutor) readGPS() (node.Message, error) {
 			"latitude":    e.lastData.Latitude,
 			"longitude":   e.lastData.Longitude,
 			"altitude":    e.lastData.Altitude,
-			"speed":       e.lastData.Speed,
+			"speed_kmh":   e.lastData.SpeedKmh,
 			"course":      e.lastData.Course,
 			"satellites":  e.lastData.Satellites,
 			"hdop":        e.lastData.HDOP,
 			"fix_quality": e.lastData.FixQuality,
 			"fix_type":    e.lastData.FixType,
 			"valid":       e.lastData.Valid,
-			"datetime":    e.lastData.DateTime.Format(time.RFC3339),
 			"timestamp":   time.Now().Unix(),
 		},
 	}, nil
 }
 
 func (e *NEOM8NExecutor) handleConfigure(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
-		return node.Message{}, fmt.Errorf("invalid payload type")
+	payload := msg.Payload
+	if payload == nil {
+		return node.Message{}, fmt.Errorf("payload is nil")
 	}
 
 	// Configure dynamic model
@@ -514,9 +482,9 @@ func (e *NEOM8NExecutor) handleConfigure(msg node.Message) (node.Message, error)
 }
 
 func (e *NEOM8NExecutor) handleSetRate(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
-		return node.Message{}, fmt.Errorf("invalid payload type")
+	payload := msg.Payload
+	if payload == nil {
+		return node.Message{}, fmt.Errorf("payload is nil")
 	}
 
 	rateMs := 1000.0

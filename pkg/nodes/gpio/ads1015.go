@@ -327,7 +327,8 @@ func (e *ADS1015Executor) Execute(ctx context.Context, msg node.Message) (node.M
 
 	action := "read"
 	channel := 0
-	if payload, ok := msg.Payload.(map[string]interface{}); ok {
+	payload := msg.Payload
+	if payload != nil {
 		if a, ok := payload["action"].(string); ok {
 			action = a
 		}
@@ -415,9 +416,9 @@ func (e *ADS1015Executor) handleReadAll() (node.Message, error) {
 }
 
 func (e *ADS1015Executor) handleReadDifferential(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
-		return node.Message{}, fmt.Errorf("invalid payload type")
+	payload := msg.Payload
+	if payload == nil {
+		return node.Message{}, fmt.Errorf("payload is nil")
 	}
 
 	posChannel := 0
@@ -448,9 +449,9 @@ func (e *ADS1015Executor) handleReadDifferential(msg node.Message) (node.Message
 }
 
 func (e *ADS1015Executor) handleConfigure(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
-		return node.Message{}, fmt.Errorf("invalid payload type")
+	payload := msg.Payload
+	if payload == nil {
+		return node.Message{}, fmt.Errorf("payload is nil")
 	}
 
 	if gain, ok := payload["gain"].(string); ok {

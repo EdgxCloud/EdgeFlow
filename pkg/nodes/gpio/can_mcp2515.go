@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package gpio
@@ -34,7 +35,9 @@ const (
 	mcp2515RegTXB0CTRL  = 0x30
 	mcp2515RegTXB0SIDH  = 0x31
 	mcp2515RegTXB1CTRL  = 0x40
+	mcp2515RegTXB1SIDH  = 0x41
 	mcp2515RegTXB2CTRL  = 0x50
+	mcp2515RegTXB2SIDH  = 0x51
 	mcp2515RegRXB0CTRL  = 0x60
 	mcp2515RegRXB0SIDH  = 0x61
 	mcp2515RegRXB1CTRL  = 0x70
@@ -91,6 +94,7 @@ type MCP2515Config struct {
 type MCP2515Executor struct {
 	config      MCP2515Config
 	hal         hal.HAL
+	spi         hal.SPIProvider
 	mu          sync.Mutex
 	initialized bool
 	running     bool
@@ -156,9 +160,9 @@ func (e *MCP2515Executor) Execute(ctx context.Context, msg node.Message) (node.M
 	}
 
 	// Parse command
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
-		return node.Message{}, fmt.Errorf("invalid payload type")
+	payload := msg.Payload
+	if payload == nil {
+		return node.Message{}, fmt.Errorf("payload is nil")
 	}
 
 	action, _ := payload["action"].(string)
@@ -289,10 +293,15 @@ func (e *MCP2515Executor) Execute(ctx context.Context, msg node.Message) (node.M
 
 // initMCP2515 initializes the MCP2515 CAN controller
 func (e *MCP2515Executor) initMCP2515() error {
+	// Open SPI device via HAL
 	spi := e.hal.SPI()
+	if err := spi.Open(e.config.SPIBus, e.config.SPIDevice); err != nil {
+		return fmt.Errorf("failed to open SPI device: %w", err)
+	}
+	e.spi = spi
 
 	// Reset MCP2515
-	if err := spi.Transfer(e.config.SPIBus, e.config.SPIDevice, []byte{mcp2515CmdReset}, 1); err != nil {
+	if _, err := e.spiTransfer([]byte{mcp2515CmdReset}); err != nil {
 		return fmt.Errorf("reset failed: %w", err)
 	}
 	time.Sleep(10 * time.Millisecond)
@@ -345,6 +354,11 @@ func (e *MCP2515Executor) initMCP2515() error {
 	}
 
 	return nil
+}
+
+// spiTransfer performs an SPI transfer using the HAL provider
+func (e *MCP2515Executor) spiTransfer(data []byte) ([]byte, error) {
+	return e.spi.Transfer(data)
 }
 
 // calculateBitTiming calculates CNF1, CNF2, CNF3 for desired bitrate
@@ -452,13 +466,12 @@ func (e *MCP2515Executor) sendMessage(msg CANMessage) error {
 	txData[5] = dlc
 	copy(txData[6:], msg.Data)
 
-	spi := e.hal.SPI()
-	if err := spi.Transfer(e.config.SPIBus, e.config.SPIDevice, txData, len(txData)); err != nil {
+	if _, err := e.spiTransfer(txData); err != nil {
 		return fmt.Errorf("failed to load TX buffer: %w", err)
 	}
 
 	// Request to send
-	if err := spi.Transfer(e.config.SPIBus, e.config.SPIDevice, []byte{rtsCmd}, 1); err != nil {
+	if _, err := e.spiTransfer([]byte{rtsCmd}); err != nil {
 		return fmt.Errorf("failed to send RTS: %w", err)
 	}
 
@@ -503,15 +516,13 @@ func (e *MCP2515Executor) receiveMessage() (*CANMessage, error) {
 	}
 
 	// Read RX buffer
-	spi := e.hal.SPI()
 	txData := make([]byte, 14)
 	txData[0] = readCmd
-	rxData := make([]byte, 14)
 
-	if err := spi.Transfer(e.config.SPIBus, e.config.SPIDevice, txData, 14); err != nil {
+	rxData, err := e.spiTransfer(txData)
+	if err != nil {
 		return nil, fmt.Errorf("failed to read RX buffer: %w", err)
 	}
-	copy(rxData, txData) // Transfer returns data in same buffer
 
 	// Parse message
 	sidh := rxData[1]
@@ -520,24 +531,24 @@ func (e *MCP2515Executor) receiveMessage() (*CANMessage, error) {
 	eid0 := rxData[4]
 	dlc := rxData[5]
 
-	msg := &CANMessage{}
+	canMsg := &CANMessage{}
 
 	if sidl&0x08 != 0 { // Extended frame
-		msg.Extended = true
-		msg.ID = uint32(sidh)<<21 | uint32(sidl&0xE0)<<13 | uint32(sidl&0x03)<<16 | uint32(eid8)<<8 | uint32(eid0)
+		canMsg.Extended = true
+		canMsg.ID = uint32(sidh)<<21 | uint32(sidl&0xE0)<<13 | uint32(sidl&0x03)<<16 | uint32(eid8)<<8 | uint32(eid0)
 	} else { // Standard frame
-		msg.Extended = false
-		msg.ID = uint32(sidh)<<3 | uint32(sidl>>5)
+		canMsg.Extended = false
+		canMsg.ID = uint32(sidh)<<3 | uint32(sidl>>5)
 	}
 
-	msg.RTR = dlc&0x40 != 0
-	msg.DLC = dlc & 0x0F
-	if msg.DLC > 8 {
-		msg.DLC = 8
+	canMsg.RTR = dlc&0x40 != 0
+	canMsg.DLC = dlc & 0x0F
+	if canMsg.DLC > 8 {
+		canMsg.DLC = 8
 	}
 
-	msg.Data = make([]byte, msg.DLC)
-	copy(msg.Data, rxData[6:6+msg.DLC])
+	canMsg.Data = make([]byte, canMsg.DLC)
+	copy(canMsg.Data, rxData[6:6+canMsg.DLC])
 
 	// Clear interrupt flag
 	if rxCtrl == mcp2515RegRXB0CTRL {
@@ -546,7 +557,7 @@ func (e *MCP2515Executor) receiveMessage() (*CANMessage, error) {
 		e.bitModify(mcp2515RegCANINTF, 0x02, 0x00)
 	}
 
-	return msg, nil
+	return canMsg, nil
 }
 
 // setFilter sets a CAN acceptance filter
@@ -642,6 +653,8 @@ func (e *MCP2515Executor) getStatus() (node.Message, error) {
 	rec, _ := e.readRegister(mcp2515RegREC)
 	intFlag, _ := e.readRegister(mcp2515RegCANINTF)
 
+	_ = canCtrl // Available for future use
+
 	// Decode mode
 	var mode string
 	switch canStat & 0xE0 {
@@ -680,56 +693,59 @@ func (e *MCP2515Executor) getStatus() (node.Message, error) {
 
 // reset resets the MCP2515
 func (e *MCP2515Executor) reset() error {
-	spi := e.hal.SPI()
-	return spi.Transfer(e.config.SPIBus, e.config.SPIDevice, []byte{mcp2515CmdReset}, 1)
+	_, err := e.spiTransfer([]byte{mcp2515CmdReset})
+	return err
 }
 
 // readRegister reads a register
 func (e *MCP2515Executor) readRegister(reg byte) (byte, error) {
-	spi := e.hal.SPI()
 	data := []byte{mcp2515CmdRead, reg, 0x00}
-	if err := spi.Transfer(e.config.SPIBus, e.config.SPIDevice, data, 3); err != nil {
+	rxData, err := e.spiTransfer(data)
+	if err != nil {
 		return 0, err
 	}
-	return data[2], nil
+	return rxData[2], nil
 }
 
 // writeRegister writes a register
 func (e *MCP2515Executor) writeRegister(reg, value byte) error {
-	spi := e.hal.SPI()
-	return spi.Transfer(e.config.SPIBus, e.config.SPIDevice, []byte{mcp2515CmdWrite, reg, value}, 3)
+	_, err := e.spiTransfer([]byte{mcp2515CmdWrite, reg, value})
+	return err
 }
 
 // bitModify modifies bits in a register
 func (e *MCP2515Executor) bitModify(reg, mask, data byte) error {
-	spi := e.hal.SPI()
-	return spi.Transfer(e.config.SPIBus, e.config.SPIDevice, []byte{mcp2515CmdBitModify, reg, mask, data}, 4)
+	_, err := e.spiTransfer([]byte{mcp2515CmdBitModify, reg, mask, data})
+	return err
 }
 
 // readStatus reads the status register
 func (e *MCP2515Executor) readStatus() (byte, error) {
-	spi := e.hal.SPI()
 	data := []byte{mcp2515CmdReadStatus, 0x00}
-	if err := spi.Transfer(e.config.SPIBus, e.config.SPIDevice, data, 2); err != nil {
+	rxData, err := e.spiTransfer(data)
+	if err != nil {
 		return 0, err
 	}
-	return data[1], nil
+	return rxData[1], nil
 }
 
 // rxStatus reads the RX status
 func (e *MCP2515Executor) rxStatus() (byte, error) {
-	spi := e.hal.SPI()
 	data := []byte{mcp2515CmdRXStatus, 0x00}
-	if err := spi.Transfer(e.config.SPIBus, e.config.SPIDevice, data, 2); err != nil {
+	rxData, err := e.spiTransfer(data)
+	if err != nil {
 		return 0, err
 	}
-	return data[1], nil
+	return rxData[1], nil
 }
 
 // Cleanup releases resources
 func (e *MCP2515Executor) Cleanup() error {
 	if e.running {
 		close(e.stopChan)
+	}
+	if e.spi != nil {
+		e.spi.Close()
 	}
 	return nil
 }

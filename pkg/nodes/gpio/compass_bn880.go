@@ -15,10 +15,9 @@ import (
 	"time"
 
 	"github.com/edgeflow/edgeflow/internal/node"
+	"go.bug.st/serial"
 	"periph.io/x/conn/v3/i2c"
 	"periph.io/x/conn/v3/i2c/i2creg"
-	"periph.io/x/conn/v3/uart"
-	"periph.io/x/conn/v3/uart/uartreg"
 	"periph.io/x/host/v3"
 )
 
@@ -57,8 +56,7 @@ type BN880Config struct {
 // BN880Executor implements BN-880 GPS + Compass module
 type BN880Executor struct {
 	config      BN880Config
-	port        uart.PortCloser
-	conn        uart.Conn
+	port        serial.Port
 	bus         i2c.BusCloser
 	compassDev  i2c.Dev
 	mu          sync.Mutex
@@ -123,25 +121,19 @@ func (e *BN880Executor) initHardware() error {
 		e.hostInited = true
 	}
 
-	// Initialize GPS serial
-	port, err := uartreg.Open(e.config.SerialPort)
+	// Initialize GPS serial using go.bug.st/serial
+	mode := &serial.Mode{
+		BaudRate: e.config.BaudRate,
+		DataBits: 8,
+		Parity:   serial.NoParity,
+		StopBits: serial.OneStopBit,
+	}
+	port, err := serial.Open(e.config.SerialPort, mode)
 	if err != nil {
 		return fmt.Errorf("failed to open serial port %s: %w", e.config.SerialPort, err)
 	}
 	e.port = port
-
-	conn, err := port.Connect(uart.Params{
-		BaudRate: e.config.BaudRate,
-		DataBits: 8,
-		Parity:   uart.NoParity,
-		StopBits: uart.OneStopBit,
-	})
-	if err != nil {
-		port.Close()
-		return fmt.Errorf("failed to configure serial port: %w", err)
-	}
-	e.conn = conn
-	e.reader = bufio.NewReader(conn)
+	e.reader = bufio.NewReader(port)
 
 	// Initialize compass I2C
 	bus, err := i2creg.Open(e.config.I2CBus)
@@ -419,7 +411,8 @@ func (e *BN880Executor) Execute(ctx context.Context, msg node.Message) (node.Mes
 	}
 
 	action := "read"
-	if payload, ok := msg.Payload.(map[string]interface{}); ok {
+	payload := msg.Payload
+	if payload != nil {
 		if a, ok := payload["action"].(string); ok {
 			action = a
 		}
@@ -536,9 +529,9 @@ func (e *BN880Executor) readCompassData() (node.Message, error) {
 }
 
 func (e *BN880Executor) handleCalibrate(msg node.Message) (node.Message, error) {
-	payload, ok := msg.Payload.(map[string]interface{})
-	if !ok {
-		return node.Message{}, fmt.Errorf("invalid payload type")
+	payload := msg.Payload
+	if payload == nil {
+		return node.Message{}, fmt.Errorf("payload is nil")
 	}
 
 	if declination, ok := payload["declination"].(float64); ok {
