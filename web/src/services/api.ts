@@ -6,7 +6,7 @@
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios'
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 const API_VERSION = '/api/v1'
 
 // Create axios instance with defaults
@@ -87,8 +87,11 @@ export const api = {
     apiClient.patch<T>(url, data, config).then(res => res.data),
 }
 
-// WebSocket URL
-export const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws'
+// WebSocket URL - derive from current page location for remote access
+export const WS_URL = import.meta.env.VITE_WS_URL ||
+  (typeof window !== 'undefined'
+    ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
+    : 'ws://localhost:8080/ws')
 
 // Health check endpoint (no version prefix)
 export const healthCheck = () =>

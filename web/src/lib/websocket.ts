@@ -115,7 +115,10 @@ export class WebSocketClient {
 }
 
 // Create singleton instance
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws'
+const WS_URL = import.meta.env.VITE_WS_URL ||
+  (typeof window !== 'undefined'
+    ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
+    : 'ws://localhost:8080/ws')
 export const wsClient = new WebSocketClient(WS_URL)
 
 // Auto-connect
