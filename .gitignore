@@ -85,7 +85,7 @@ test-subflow.json
 .claude/
 
 # Development artifacts
-edgeflow/
+/edgeflow/
 edgeflow-starter.zip
 
 # Temporary Windows files

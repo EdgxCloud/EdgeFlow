@@ -1,0 +1,29 @@
+[Unit]
+Description=EdgeFlow Backend Server
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=admin
+Group=admin
+WorkingDirectory=/home/admin/edgeflow
+ExecStart=/home/admin/edgeflow/bin/edgeflow
+Restart=always
+RestartSec=5
+Environment=EDGEFLOW_SERVER_PORT=8080
+Environment=EDGEFLOW_SERVER_HOST=0.0.0.0
+Environment=GOPROXY=direct
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=edgeflow
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/admin/edgeflow/data
+
+[Install]
+WantedBy=multi-user.target
