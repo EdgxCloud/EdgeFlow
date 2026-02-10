@@ -1,11 +1,9 @@
 package api
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -928,12 +926,12 @@ func (h *Handler) getModuleStats(c *fiber.Ctx) error {
 // Resource handlers
 func (h *Handler) getResourceStats(c *fiber.Ctx) error {
 	stats := h.service.GetResourceStats()
+	sysInfo := stats.SysInfo
 
-	// Transform to frontend format
 	response := fiber.Map{
 		"timestamp": stats.Timestamp,
 		"cpu": fiber.Map{
-			"usage_percent": 0.0, // Placeholder - need CPU monitoring
+			"usage_percent": sysInfo.CPUUsagePercent,
 			"cores":         stats.CPUCores,
 		},
 		"memory": fiber.Map{
@@ -949,6 +947,27 @@ func (h *Handler) getResourceStats(c *fiber.Ctx) error {
 			"usage_percent": stats.DiskPercent,
 		},
 		"goroutines": stats.GoroutineCount,
+		"system": fiber.Map{
+			"hostname":    sysInfo.Hostname,
+			"os":          sysInfo.OS,
+			"arch":        sysInfo.Arch,
+			"board_model": sysInfo.BoardModel,
+			"uptime":      sysInfo.Uptime,
+			"temperature": sysInfo.Temperature,
+			"load_avg": fiber.Map{
+				"1min":  sysInfo.LoadAvg1,
+				"5min":  sysInfo.LoadAvg5,
+				"15min": sysInfo.LoadAvg15,
+			},
+			"swap": fiber.Map{
+				"total_bytes": sysInfo.OSSwapTotal,
+				"used_bytes":  sysInfo.OSSwapUsed,
+			},
+			"network": fiber.Map{
+				"rx_bytes": sysInfo.NetRxBytes,
+				"tx_bytes": sysInfo.NetTxBytes,
+			},
+		},
 	}
 
 	return c.JSON(response)
@@ -1416,19 +1435,36 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 
 	// Determine shell
 	shell := "/bin/bash"
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+	shellFlag := "-c"
+	if runtime.GOOS == "windows" {
 		shell = "cmd.exe"
+		shellFlag = "/c"
 	}
 	if _, err := exec.LookPath(shell); err != nil {
 		shell = "/bin/sh"
+		shellFlag = "-c"
 	}
 
 	// Working directory
 	userHome, err := os.UserHomeDir()
 	if err != nil {
-		userHome = "/"
+		if runtime.GOOS == "windows" {
+			userHome = "C:\\"
+		} else {
+			userHome = "/"
+		}
 	}
 	cwd := userHome
+
+	// Send initial ready message with cwd
+	c.WriteJSON(map[string]interface{}{
+		"type":   "system",
+		"output": fmt.Sprintf("Shell: %s | OS: %s\n", shell, runtime.GOOS),
+	})
+	c.WriteJSON(map[string]interface{}{
+		"type": "done",
+		"cwd":  cwd,
+	})
 
 	for {
 		// Read command from WebSocket
@@ -1489,72 +1525,34 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 
 		// Execute command
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		var cmd *exec.Cmd
-		if runtime.GOOS == "windows" {
-			cmd = exec.CommandContext(ctx, shell, "/c", command)
-		} else {
-			cmd = exec.CommandContext(ctx, shell, "-c", command)
-		}
+		cmd := exec.CommandContext(ctx, shell, shellFlag, command)
 		cmd.Dir = cwd
 
-		// Capture stdout and stderr together
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			cancel()
-			c.WriteJSON(map[string]interface{}{
-				"type":   "error",
-				"output": fmt.Sprintf("Failed to create pipe: %v\n", err),
-			})
-			c.WriteJSON(map[string]interface{}{
-				"type": "done",
-				"cwd":  cwd,
-			})
-			continue
-		}
+		// Capture stdout and stderr via combined output for simplicity
+		output, cmdErr := cmd.CombinedOutput()
+		cancel()
 
-		cmd.Stderr = cmd.Stdout // Merge stderr into stdout
-
-		if err := cmd.Start(); err != nil {
-			cancel()
-			c.WriteJSON(map[string]interface{}{
-				"type":   "error",
-				"output": fmt.Sprintf("Failed to start command: %v\n", err),
-			})
-			c.WriteJSON(map[string]interface{}{
-				"type": "done",
-				"cwd":  cwd,
-			})
-			continue
-		}
-
-		// Stream output line by line
-		scanner := bufio.NewScanner(stdout)
-		scanner.Buffer(make([]byte, 64*1024), 64*1024)
-		for scanner.Scan() {
-			line := scanner.Text()
+		// Send output if any
+		if len(output) > 0 {
 			c.WriteJSON(map[string]interface{}{
 				"type":   "output",
-				"output": line + "\n",
+				"output": string(output),
 			})
 		}
 
-		// Read any remaining data
-		remaining, _ := io.ReadAll(stdout)
-		if len(remaining) > 0 {
-			c.WriteJSON(map[string]interface{}{
-				"type":   "output",
-				"output": string(remaining),
-			})
-		}
-
-		err = cmd.Wait()
+		// Send error info if command failed
 		exitCode := 0
-		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
+		if cmdErr != nil {
+			if exitErr, ok := cmdErr.(*exec.ExitError); ok {
 				exitCode = exitErr.ExitCode()
+			} else {
+				// Command could not run at all
+				c.WriteJSON(map[string]interface{}{
+					"type":   "error",
+					"output": fmt.Sprintf("Error: %v\n", cmdErr),
+				})
 			}
 		}
-		cancel()
 
 		// Send completion message
 		c.WriteJSON(map[string]interface{}{

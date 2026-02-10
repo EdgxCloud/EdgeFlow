@@ -50,9 +50,13 @@ export function TerminalPanel() {
       try {
         const msg = JSON.parse(event.data)
         if (msg.type === 'output' && msg.output) {
-          addLine('output', msg.output.replace(/\n$/, ''))
+          // Split multiline output into individual lines
+          const lines = msg.output.replace(/\n$/, '').split('\n')
+          lines.forEach((line: string) => addLine('output', line))
         } else if (msg.type === 'error' && msg.output) {
           addLine('error', msg.output.replace(/\n$/, ''))
+        } else if (msg.type === 'system' && msg.output) {
+          addLine('system', msg.output.replace(/\n$/, ''))
         } else if (msg.type === 'done') {
           if (msg.cwd) setCwd(msg.cwd)
           setIsRunning(false)

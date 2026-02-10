@@ -22,6 +22,9 @@ type ResourceStats struct {
 	CPUCores        int     `json:"cpu_cores"`
 	GoroutineCount  int     `json:"goroutine_count"`
 	Timestamp       time.Time `json:"timestamp"`
+
+	// اطلاعات سخت‌افزاری سیستم
+	SysInfo SystemInfo `json:"sys_info"`
 }
 
 // ResourceLimits محدودیت‌های منابع
@@ -91,29 +94,41 @@ func (m *Monitor) GetStats() ResourceStats {
 
 // getSystemStats دریافت آمار سیستم
 func (m *Monitor) getSystemStats() ResourceStats {
+	// دریافت اطلاعات سخت‌افزاری سیستم (پلتفرم-اختصاصی)
+	sysInfo := GetSystemInfo()
+
 	stats := ResourceStats{
 		Timestamp:      time.Now(),
 		CPUCores:       runtime.NumCPU(),
 		GoroutineCount: runtime.NumGoroutine(),
+		SysInfo:        sysInfo,
 	}
 
-	// Memory stats
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-
-	// Fallback to Go memory stats (cross-platform)
-	stats.MemoryUsed = memStats.Alloc
-	stats.MemoryTotal = memStats.Sys
-	if stats.MemoryTotal > 0 {
-		stats.MemoryPercent = float64(stats.MemoryUsed) / float64(stats.MemoryTotal) * 100
+	// حافظه سیستم‌عامل (واقعی)
+	if sysInfo.OSMemTotal > 0 {
+		stats.MemoryTotal = sysInfo.OSMemTotal
+		stats.MemoryUsed = sysInfo.OSMemUsed
+		stats.MemoryAvailable = sysInfo.OSMemAvailable
+		stats.MemoryPercent = sysInfo.OSMemPercent
+	} else {
+		// فال‌بک به حافظه Go
+		var memStats runtime.MemStats
+		runtime.ReadMemStats(&memStats)
+		stats.MemoryUsed = memStats.Alloc
+		stats.MemoryTotal = memStats.Sys
+		if stats.MemoryTotal > 0 {
+			stats.MemoryPercent = float64(stats.MemoryUsed) / float64(stats.MemoryTotal) * 100
+		}
 	}
 
-	// Disk stats
-	diskStats := m.getDiskStats()
-	stats.DiskTotal = diskStats.Total
-	stats.DiskUsed = diskStats.Used
-	stats.DiskAvailable = diskStats.Available
-	stats.DiskPercent = diskStats.Percent
+	// دیسک واقعی
+	diskStats := GetDiskUsage("/")
+	if diskStats.Total > 0 {
+		stats.DiskTotal = diskStats.Total
+		stats.DiskUsed = diskStats.Used
+		stats.DiskAvailable = diskStats.Available
+		stats.DiskPercent = diskStats.Percent
+	}
 
 	return stats
 }
@@ -126,21 +141,6 @@ type DiskStats struct {
 	Percent   float64
 }
 
-// getDiskStats دریافت آمار دیسک
-func (m *Monitor) getDiskStats() DiskStats {
-	// Simplified cross-platform implementation
-	// For production, use platform-specific code with build tags
-	total := uint64(1024 * 1024 * 1024 * 100) // 100GB placeholder
-	used := uint64(1024 * 1024 * 1024 * 50)   // 50GB used placeholder
-	available := total - used
-
-	return DiskStats{
-		Total:     total,
-		Used:      used,
-		Available: available,
-		Percent:   float64(used) / float64(total) * 100,
-	}
-}
 
 // checkLimits بررسی محدودیت‌ها و اقدام خودکار
 func (m *Monitor) checkLimits() {
