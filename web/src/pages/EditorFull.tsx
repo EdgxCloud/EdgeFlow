@@ -4,6 +4,10 @@ import { useFlowStore } from '../stores/flowStore'
 import FlowCanvas, { FlowCanvasRef } from '../components/editor/FlowCanvas'
 import NodePalette from '../components/editor/NodePalette'
 import ExecutionDataPanel from '../components/panels/ExecutionDataPanel'
+import DebugPanel from '../components/panels/DebugPanel'
+import { TerminalPanel } from '../components/panels/TerminalPanel'
+import { MonitoringPanel } from '../components/panels/MonitoringPanel'
+import { LogsPanel } from '../components/panels/LogsPanel'
 import {
   Play,
   Square,
@@ -647,53 +651,20 @@ export default function EditorFull() {
             {/* Panel Content */}
             {!isBottomPanelMinimized && (
             <Tabs value={activeBottomTab} className="flex-1 overflow-hidden">
-              <TabsContent value="debug" className="h-full p-4 overflow-auto m-0">
-                <div className="font-mono text-xs space-y-1">
-                  <div className="text-gray-500 dark:text-gray-400">[12:34:56] Flow started</div>
-                  <div className="text-blue-600 dark:text-blue-400">[12:34:57] inject-1: Injected message</div>
-                  <div className="text-green-600 dark:text-green-400">[12:34:58] function-1: Processing temperature data</div>
-                  <div className="text-yellow-600 dark:text-yellow-400">[12:34:59] debug-1: {"{"}"temperature": 25.4{"}"}</div>
-                </div>
+              <TabsContent value="debug" className="h-full overflow-hidden m-0">
+                <DebugPanel className="h-full" />
               </TabsContent>
 
-              <TabsContent value="monitoring" className="h-full p-4 overflow-auto m-0">
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900">
-                    <div className="text-xs text-blue-600 dark:text-blue-400 mb-1">Messages/sec</div>
-                    <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">0</div>
-                  </div>
-                  <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
-                    <div className="text-xs text-green-600 dark:text-green-400 mb-1">Active Nodes</div>
-                    <div className="text-2xl font-bold text-green-700 dark:text-green-300">0</div>
-                  </div>
-                  <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-900">
-                    <div className="text-xs text-purple-600 dark:text-purple-400 mb-1">CPU Usage</div>
-                    <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">0%</div>
-                  </div>
-                  <div className="p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-900">
-                    <div className="text-xs text-orange-600 dark:text-orange-400 mb-1">Memory</div>
-                    <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">0 MB</div>
-                  </div>
-                </div>
+              <TabsContent value="monitoring" className="h-full overflow-hidden m-0">
+                <MonitoringPanel />
               </TabsContent>
 
-              <TabsContent value="terminal" className="h-full p-0 overflow-auto m-0 bg-black text-green-400">
-                <div className="font-mono text-sm p-4">
-                  <div>EdgeFlow Terminal v1.0.0</div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-blue-400">$</span>
-                    <span className="animate-pulse">_</span>
-                  </div>
-                </div>
+              <TabsContent value="terminal" className="h-full overflow-hidden m-0">
+                <TerminalPanel />
               </TabsContent>
 
-              <TabsContent value="logs" className="h-full p-4 overflow-auto m-0">
-                <div className="font-mono text-xs space-y-1">
-                  <div className="text-gray-500 dark:text-gray-400">[INFO] 2026-01-20 10:15:29 - Server started on port 8080</div>
-                  <div className="text-gray-500 dark:text-gray-400">[INFO] 2026-01-20 10:15:30 - Database connection established</div>
-                  <div className="text-blue-600 dark:text-blue-400">[DEBUG] 2026-01-20 10:15:31 - Loading workflow: sample-rpi5-demo</div>
-                  <div className="text-green-600 dark:text-green-400">[SUCCESS] 2026-01-20 10:15:32 - Workflow loaded successfully</div>
-                </div>
+              <TabsContent value="logs" className="h-full overflow-hidden m-0">
+                <LogsPanel />
               </TabsContent>
             </Tabs>
             )}

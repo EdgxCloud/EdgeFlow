@@ -1,14 +1,18 @@
 package api
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -127,6 +131,16 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 	app.Get("/ws", websocket.New(func(c *websocket.Conn) {
 		h.service.wsHub.HandleWebSocket(c)
 	}))
+
+	// Terminal WebSocket for shell access
+	app.Use("/ws/terminal", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			c.Locals("allowed", true)
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+	app.Get("/ws/terminal", websocket.New(h.handleTerminalWebSocket))
 
 	// Subflow routes
 	h.SetupSubflowRoutes(app)
@@ -1390,4 +1404,145 @@ func (h *Handler) searchGitHub(c *fiber.Ctx) error {
 		"total":   result.TotalCount,
 		"query":   query,
 	})
+}
+
+// ============================================
+// Terminal WebSocket Handler
+// ============================================
+
+// handleTerminalWebSocket provides a WebSocket-based shell terminal
+func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
+	defer c.Close()
+
+	// Determine shell
+	shell := "/bin/bash"
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		shell = "cmd.exe"
+	}
+	if _, err := exec.LookPath(shell); err != nil {
+		shell = "/bin/sh"
+	}
+
+	// Working directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = "/"
+	}
+
+	for {
+		// Read command from WebSocket
+		_, msgBytes, err := c.ReadMessage()
+		if err != nil {
+			break
+		}
+
+		var msg struct {
+			Type    string `json:"type"`
+			Command string `json:"command"`
+		}
+		if err := json.Unmarshal(msgBytes, &msg); err != nil {
+			c.WriteJSON(map[string]interface{}{
+				"type":   "error",
+				"output": "Invalid message format",
+			})
+			continue
+		}
+
+		if msg.Type != "command" || strings.TrimSpace(msg.Command) == "" {
+			continue
+		}
+
+		command := strings.TrimSpace(msg.Command)
+
+		// Handle cd command specially
+		if strings.HasPrefix(command, "cd ") {
+			dir := strings.TrimSpace(command[3:])
+			if dir == "" || dir == "~" {
+				dir = homeDir
+			}
+			if !filepath.IsAbs(dir) {
+				dir = filepath.Join(homeDir, dir)
+			}
+			if _, err := os.Stat(dir); err == nil {
+				homeDir = dir
+				c.WriteJSON(map[string]interface{}{
+					"type":   "output",
+					"output": "",
+					"cwd":    homeDir,
+				})
+			} else {
+				c.WriteJSON(map[string]interface{}{
+					"type":   "error",
+					"output": fmt.Sprintf("cd: %s: No such file or directory\n", dir),
+					"cwd":    homeDir,
+				})
+			}
+			continue
+		}
+
+		// Execute command
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		cmd := exec.CommandContext(ctx, shell, "-c", command)
+		cmd.Dir = homeDir
+
+		// Capture stdout and stderr together
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			cancel()
+			c.WriteJSON(map[string]interface{}{
+				"type":   "error",
+				"output": fmt.Sprintf("Failed to create pipe: %v\n", err),
+				"cwd":    homeDir,
+			})
+			continue
+		}
+
+		cmd.Stderr = cmd.Stdout // Merge stderr into stdout
+
+		if err := cmd.Start(); err != nil {
+			cancel()
+			c.WriteJSON(map[string]interface{}{
+				"type":   "error",
+				"output": fmt.Sprintf("Failed to start command: %v\n", err),
+				"cwd":    homeDir,
+			})
+			continue
+		}
+
+		// Stream output line by line
+		scanner := bufio.NewScanner(stdout)
+		scanner.Buffer(make([]byte, 64*1024), 64*1024)
+		for scanner.Scan() {
+			line := scanner.Text()
+			c.WriteJSON(map[string]interface{}{
+				"type":   "output",
+				"output": line + "\n",
+			})
+		}
+
+		// Read any remaining data
+		remaining, _ := io.ReadAll(stdout)
+		if len(remaining) > 0 {
+			c.WriteJSON(map[string]interface{}{
+				"type":   "output",
+				"output": string(remaining),
+			})
+		}
+
+		err = cmd.Wait()
+		exitCode := 0
+		if err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				exitCode = exitErr.ExitCode()
+			}
+		}
+		cancel()
+
+		// Send completion message
+		c.WriteJSON(map[string]interface{}{
+			"type":     "done",
+			"exitCode": exitCode,
+			"cwd":      homeDir,
+		})
+	}
 }

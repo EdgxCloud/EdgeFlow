@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,8 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Trash2,
   Filter,
@@ -21,6 +19,8 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import wsClient from '@/services/websocket'
+import type { WSMessage } from '@/services/websocket'
 
 interface DebugMessage {
   id: string
@@ -32,46 +32,60 @@ interface DebugMessage {
   level: 'info' | 'warn' | 'error' | 'debug'
 }
 
-// Mock messages for demonstration
-const mockMessages: DebugMessage[] = [
-  {
-    id: '1',
-    timestamp: Date.now() - 5000,
-    nodeId: 'inject-1',
-    nodeName: 'Inject',
-    topic: 'test',
-    payload: { temperature: 25.5, humidity: 60 },
-    level: 'info',
-  },
-  {
-    id: '2',
-    timestamp: Date.now() - 3000,
-    nodeId: 'function-1',
-    nodeName: 'Process Data',
-    topic: 'processed',
-    payload: { value: 42, status: 'ok' },
-    level: 'debug',
-  },
-  {
-    id: '3',
-    timestamp: Date.now() - 1000,
-    nodeId: 'http-request-1',
-    nodeName: 'API Call',
-    topic: 'error',
-    payload: { error: 'Connection timeout' },
-    level: 'error',
-  },
-]
+let debugCounter = 0
 
 interface DebugPanelProps {
   className?: string
 }
 
 export default function DebugPanel({ className }: DebugPanelProps) {
-  const [messages, setMessages] = useState<DebugMessage[]>(mockMessages)
+  const [messages, setMessages] = useState<DebugMessage[]>([])
   const [filterLevel, setFilterLevel] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set())
+
+  // Subscribe to WebSocket execution and node_status messages
+  useEffect(() => {
+    if (!wsClient.isConnected()) {
+      wsClient.connect()
+    }
+
+    const handleExecution = (msg: WSMessage) => {
+      const data = msg.data as Record<string, unknown>
+      const entry: DebugMessage = {
+        id: `debug-${debugCounter++}`,
+        timestamp: Date.now(),
+        nodeId: (data.node_id as string) || 'unknown',
+        nodeName: (data.node_name as string) || (data.node_id as string) || 'Node',
+        topic: (data.topic as string) || '',
+        payload: data.msg || data.payload || data,
+        level: 'info',
+      }
+      setMessages(prev => [...prev.slice(-200), entry])
+    }
+
+    const handleNodeStatus = (msg: WSMessage) => {
+      const data = msg.data as Record<string, unknown>
+      const level = data.status === 'error' ? 'error'
+        : data.status === 'warning' ? 'warn'
+        : 'debug'
+      const entry: DebugMessage = {
+        id: `debug-${debugCounter++}`,
+        timestamp: Date.now(),
+        nodeId: (data.node_id as string) || 'unknown',
+        nodeName: (data.node_id as string) || 'Node',
+        topic: '',
+        payload: { status: data.status, message: data.message, text: data.text },
+        level: level as DebugMessage['level'],
+      }
+      setMessages(prev => [...prev.slice(-200), entry])
+    }
+
+    const unsub1 = wsClient.on('execution', handleExecution)
+    const unsub2 = wsClient.on('node_status', handleNodeStatus)
+
+    return () => { unsub1(); unsub2() }
+  }, [])
 
   const handleClear = () => {
     setMessages([])
