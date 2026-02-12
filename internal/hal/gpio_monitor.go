@@ -234,30 +234,33 @@ func (m *GPIOMonitor) poll() {
 
 	m.pollCount++
 
-	// Always broadcast when there are active pins (every poll)
-	// This ensures the frontend stays in sync even if it missed earlier messages
-	pins := make(map[int]*PinState, len(m.pins))
-	for pin, s := range m.pins {
-		pinCopy := *s
-		pins[pin] = &pinCopy
-	}
-	state := GPIOMonitorState{
-		Pins:      pins,
-		BoardName: m.boardName,
-		GPIOChip:  m.gpioChip,
-		Available: true,
-		Timestamp: now,
+	// Broadcast on state change OR every 5 polls (~1s) as a heartbeat
+	shouldBroadcast := changed || m.pollCount%5 == 0
+
+	var state GPIOMonitorState
+	if shouldBroadcast {
+		pins := make(map[int]*PinState, len(m.pins))
+		for pin, s := range m.pins {
+			pinCopy := *s
+			pins[pin] = &pinCopy
+		}
+		state = GPIOMonitorState{
+			Pins:      pins,
+			BoardName: m.boardName,
+			GPIOChip:  m.gpioChip,
+			Available: true,
+			Timestamp: now,
+		}
 	}
 
 	m.mu.Unlock()
 
-	// Broadcast outside the lock — always broadcast when we have active pins
-	if m.broadcaster != nil {
+	if shouldBroadcast && m.broadcaster != nil {
 		m.broadcaster(state)
 	}
 
 	if changed {
-		log.Printf("GPIO monitor: state changed - %d active pins", len(pins))
+		log.Printf("GPIO monitor: state changed - %d active pins", len(m.pins))
 	}
 }
 

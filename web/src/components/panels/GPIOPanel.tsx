@@ -32,21 +32,41 @@ export function GPIOPanel() {
   const [isLoading, setIsLoading] = useState(true)
   const [hoveredPin, setHoveredPin] = useState<number | null>(null)
   const mountedRef = useRef(true)
+  const pendingStateRef = useRef<GPIOMonitorState | null>(null)
+  const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Throttled state update — max once per 500ms to prevent excessive re-renders
+  const updateState = useCallback((newState: GPIOMonitorState) => {
+    pendingStateRef.current = newState
+    if (!throttleTimerRef.current) {
+      // Apply immediately on first update
+      if (mountedRef.current) {
+        setGpioState(newState)
+        setIsLoading(false)
+      }
+      throttleTimerRef.current = setTimeout(() => {
+        throttleTimerRef.current = null
+        // Apply any pending update that arrived during throttle window
+        if (pendingStateRef.current && mountedRef.current) {
+          setGpioState(pendingStateRef.current)
+        }
+      }, 500)
+    }
+  }, [])
 
   // Fetch initial state from REST
   const fetchState = useCallback(async () => {
     try {
       const data = await api.get<GPIOMonitorState>('/gpio/state')
       if (mountedRef.current) {
-        setGpioState(data)
-        setIsLoading(false)
+        updateState(data)
       }
     } catch {
       if (mountedRef.current) {
         setIsLoading(false)
       }
     }
-  }, [])
+  }, [updateState])
 
   useEffect(() => {
     mountedRef.current = true
@@ -55,10 +75,10 @@ export function GPIOPanel() {
     // Ensure WebSocket is connected for real-time updates
     wsClient.connect()
 
-    // Subscribe to WebSocket gpio_state updates
+    // Subscribe to WebSocket gpio_state updates (throttled)
     const unsub = wsClient.on('gpio_state', (msg: WSMessage) => {
       if (mountedRef.current) {
-        setGpioState(msg.data as GPIOMonitorState)
+        updateState(msg.data as GPIOMonitorState)
       }
     })
 
@@ -67,20 +87,16 @@ export function GPIOPanel() {
       fetchState()
     })
 
-    // Poll REST endpoint as fallback (every 2s) in case WebSocket misses updates
-    const pollInterval = setInterval(() => {
-      if (mountedRef.current) {
-        fetchState()
-      }
-    }, 2000)
-
     return () => {
       mountedRef.current = false
       unsub()
       unsubOpen()
-      clearInterval(pollInterval)
+      if (throttleTimerRef.current) {
+        clearTimeout(throttleTimerRef.current)
+        throttleTimerRef.current = null
+      }
     }
-  }, [fetchState])
+  }, [fetchState, updateState])
 
   // Get active pin state by BCM number
   const getPinState = (bcm: number | undefined): PinState | null => {
