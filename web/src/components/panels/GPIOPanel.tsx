@@ -52,6 +52,9 @@ export function GPIOPanel() {
     mountedRef.current = true
     fetchState()
 
+    // Ensure WebSocket is connected for real-time updates
+    wsClient.connect()
+
     // Subscribe to WebSocket gpio_state updates
     const unsub = wsClient.on('gpio_state', (msg: WSMessage) => {
       if (mountedRef.current) {
@@ -64,10 +67,18 @@ export function GPIOPanel() {
       fetchState()
     })
 
+    // Poll REST endpoint as fallback (every 2s) in case WebSocket misses updates
+    const pollInterval = setInterval(() => {
+      if (mountedRef.current) {
+        fetchState()
+      }
+    }, 2000)
+
     return () => {
       mountedRef.current = false
       unsub()
       unsubOpen()
+      clearInterval(pollInterval)
     }
   }, [fetchState])
 

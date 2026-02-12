@@ -34,6 +34,7 @@ type GPIOMonitor struct {
 	pollMs      int
 	boardName   string
 	gpioChip    string
+	pollCount   int // tracks polls for periodic forced broadcast
 }
 
 // NewGPIOMonitor creates a new GPIO monitor
@@ -92,18 +93,41 @@ func (m *GPIOMonitor) GetState() GPIOMonitorState {
 		}
 	}
 
-	// Read current active pins
+	// Read current active pins directly from HAL
 	gpio := h.GPIO()
 	activePins := gpio.ActivePins()
+	now := time.Now()
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	pins := make(map[int]*PinState, len(activePins))
-	for pin := range activePins {
+	for pin, mode := range activePins {
 		if state, ok := m.pins[pin]; ok {
+			// Use cached state (has edge count, last change, etc.)
 			pinCopy := *state
+			// But read the current value live
+			if val, readErr := gpio.DigitalRead(pin); readErr == nil {
+				pinCopy.Value = val
+			}
 			pins[pin] = &pinCopy
+		} else {
+			// Pin exists in HAL but not yet in monitor cache — read live
+			modeStr := "input"
+			switch mode {
+			case Output:
+				modeStr = "output"
+			case PWM:
+				modeStr = "pwm"
+			}
+			val, _ := gpio.DigitalRead(pin)
+			pins[pin] = &PinState{
+				BCMPin:     pin,
+				Value:      val,
+				Mode:       modeStr,
+				EdgeCount:  0,
+				LastChange: now,
+			}
 		}
 	}
 
@@ -112,11 +136,11 @@ func (m *GPIOMonitor) GetState() GPIOMonitorState {
 		BoardName: m.boardName,
 		GPIOChip:  m.gpioChip,
 		Available: true,
-		Timestamp: time.Now(),
+		Timestamp: now,
 	}
 }
 
-// poll reads all active GPIO pins and broadcasts if any changed
+// poll reads all active GPIO pins and broadcasts state
 func (m *GPIOMonitor) poll() {
 	h, err := GetGlobalHAL()
 	if err != nil {
@@ -132,11 +156,16 @@ func (m *GPIOMonitor) poll() {
 	if len(activePins) == 0 {
 		// Clean up old pins if no active pins
 		m.mu.Lock()
-		if len(m.pins) > 0 {
+		hadPins := len(m.pins) > 0
+		if hadPins {
 			m.pins = make(map[int]*PinState)
 			m.prevValues = make(map[int]bool)
-			m.mu.Unlock()
-			// Broadcast empty state
+		}
+		m.pollCount++
+		m.mu.Unlock()
+
+		if hadPins {
+			// Broadcast empty state when pins go away
 			m.broadcaster(GPIOMonitorState{
 				Pins:      make(map[int]*PinState),
 				BoardName: m.boardName,
@@ -144,9 +173,7 @@ func (m *GPIOMonitor) poll() {
 				Available: true,
 				Timestamp: time.Now(),
 			})
-			return
 		}
-		m.mu.Unlock()
 		return
 	}
 
@@ -193,10 +220,10 @@ func (m *GPIOMonitor) poll() {
 			m.prevValues[pin] = value
 			changed = true
 		} else {
-			// Update existing pin
+			// Update existing pin — always update current value
 			state.Mode = modeStr
+			state.Value = value
 			if value != m.prevValues[pin] {
-				state.Value = value
 				state.EdgeCount++
 				state.LastChange = now
 				m.prevValues[pin] = value
@@ -205,28 +232,32 @@ func (m *GPIOMonitor) poll() {
 		}
 	}
 
-	// Build state snapshot while still holding the lock
-	var state GPIOMonitorState
-	if changed {
-		pins := make(map[int]*PinState, len(m.pins))
-		for pin, s := range m.pins {
-			pinCopy := *s
-			pins[pin] = &pinCopy
-		}
-		state = GPIOMonitorState{
-			Pins:      pins,
-			BoardName: m.boardName,
-			GPIOChip:  m.gpioChip,
-			Available: true,
-			Timestamp: now,
-		}
+	m.pollCount++
+
+	// Always broadcast when there are active pins (every poll)
+	// This ensures the frontend stays in sync even if it missed earlier messages
+	pins := make(map[int]*PinState, len(m.pins))
+	for pin, s := range m.pins {
+		pinCopy := *s
+		pins[pin] = &pinCopy
+	}
+	state := GPIOMonitorState{
+		Pins:      pins,
+		BoardName: m.boardName,
+		GPIOChip:  m.gpioChip,
+		Available: true,
+		Timestamp: now,
 	}
 
 	m.mu.Unlock()
 
-	// Broadcast outside the lock
-	if changed && m.broadcaster != nil {
+	// Broadcast outside the lock — always broadcast when we have active pins
+	if m.broadcaster != nil {
 		m.broadcaster(state)
+	}
+
+	if changed {
+		log.Printf("GPIO monitor: state changed - %d active pins", len(pins))
 	}
 }
 
