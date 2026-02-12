@@ -84,19 +84,18 @@ function validateFlow(flow: any): Flow {
     throw new Error('Invalid flow: nodes must be an array');
   }
 
-  if (!Array.isArray(flow.edges)) {
-    flow.edges = [];
-  }
+  // Accept both "edges" and "connections" field names
+  const rawEdges = Array.isArray(flow.edges) ? flow.edges : Array.isArray(flow.connections) ? flow.connections : [];
 
   const validatedNodes = flow.nodes.map((node: any) => validateNode(node));
-  const validatedEdges = flow.edges.map((edge: any) => validateEdge(edge));
+  const validatedConnections = rawEdges.map((edge: any) => validateEdge(edge));
 
   return {
     id: flow.id,
     name: flow.name,
     description: flow.description || '',
     nodes: validatedNodes,
-    edges: validatedEdges,
+    connections: validatedConnections,
     enabled: flow.enabled !== false,
     created: flow.created || new Date().toISOString(),
     modified: flow.modified || new Date().toISOString(),
