@@ -314,16 +314,22 @@ export default function EditorFull() {
   }, [createFlow, updateFlow, navigate])
 
   const handlePasteWorkflowJSON = useCallback(() => {
-    setIsPasteDialogOpen(true)
-    setPasteJSON('')
-    // Auto-read from clipboard if available
-    navigator.clipboard.readText().then((text) => {
-      if (text.trim().startsWith('{')) {
-        setPasteJSON(text)
-      }
-    }).catch(() => {
-      // Clipboard read may fail due to permissions - user can paste manually
-    })
+    // Defer dialog open to next tick to avoid Radix DropdownMenu + Dialog
+    // focus/pointer-event conflict. When DropdownMenu closes, it restores
+    // focus and manages pointer events, which can dismiss the Dialog
+    // immediately if it opens in the same event loop tick.
+    setTimeout(() => {
+      setIsPasteDialogOpen(true)
+      setPasteJSON('')
+      // Auto-read from clipboard if available
+      navigator.clipboard.readText().then((text) => {
+        if (text.trim().startsWith('{')) {
+          setPasteJSON(text)
+        }
+      }).catch(() => {
+        // Clipboard read may fail due to permissions - user can paste manually
+      })
+    }, 0)
   }, [])
 
   const handlePasteDialogConfirm = useCallback(() => {
