@@ -52,17 +52,22 @@ export function importFlow(jsonString: string): Flow[] {
   try {
     const data = JSON.parse(jsonString);
 
-    if (!data.version) {
-      throw new Error('Invalid flow format: missing version');
+    // Format 1: ExportedFlow wrapper { version, flows: [...] }
+    if (data.version && Array.isArray(data.flows)) {
+      return data.flows.map((flow: any) => validateFlow(flow));
     }
 
-    if (!Array.isArray(data.flows)) {
-      throw new Error('Invalid flow format: flows must be an array');
+    // Format 2: Single flow object { id, name, nodes, ... }
+    if (data.nodes && Array.isArray(data.nodes)) {
+      return [validateFlow(data)];
     }
 
-    const flows = data.flows.map((flow: any) => validateFlow(flow));
+    // Format 3: Array of flows [{ id, name, nodes, ... }, ...]
+    if (Array.isArray(data)) {
+      return data.map((flow: any) => validateFlow(flow));
+    }
 
-    return flows;
+    throw new Error('Invalid flow format: expected { version, flows } wrapper, a single flow object, or an array of flows');
   } catch (error) {
     if (error instanceof SyntaxError) {
       throw new Error('Invalid JSON format');
@@ -72,12 +77,12 @@ export function importFlow(jsonString: string): Flow[] {
 }
 
 function validateFlow(flow: any): Flow {
-  if (!flow.id || typeof flow.id !== 'string') {
-    throw new Error('Invalid flow: missing or invalid id');
+  if (!flow.id) {
+    flow.id = `flow-${Date.now()}`;
   }
 
-  if (!flow.name || typeof flow.name !== 'string') {
-    throw new Error('Invalid flow: missing or invalid name');
+  if (!flow.name) {
+    flow.name = 'Imported Flow';
   }
 
   if (!Array.isArray(flow.nodes)) {

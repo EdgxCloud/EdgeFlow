@@ -329,12 +329,14 @@ export default function EditorFull() {
   const handlePasteDialogConfirm = useCallback(() => {
     try {
       const json = pasteJSON.trim()
+      console.log('[Paste] JSON length:', json.length, 'first 100 chars:', json.substring(0, 100))
       if (!json) {
         toast.error('Please paste workflow JSON')
         return
       }
 
       const flows = importFlow(json)
+      console.log('[Paste] Parsed flows:', flows.length, flows.map(f => ({ id: f.id, name: f.name, nodes: f.nodes?.length, connections: f.connections?.length })))
       if (flows.length === 0) {
         toast.error('No valid flows found in JSON')
         return
@@ -344,8 +346,16 @@ export default function EditorFull() {
       const nodeCount = imported.nodes?.length || 0
       const connectionCount = imported.connections?.length || 0
 
+      console.log('[Paste] canvasRef.current:', !!canvasRef.current, 'loadFlowData:', typeof canvasRef.current?.loadFlowData)
+
       // Load directly onto current canvas
-      canvasRef.current?.loadFlowData(imported.nodes || [], imported.connections || [])
+      if (canvasRef.current?.loadFlowData) {
+        canvasRef.current.loadFlowData(imported.nodes || [], imported.connections || [])
+      } else {
+        console.error('[Paste] canvasRef.current or loadFlowData is not available!')
+        toast.error('Canvas not ready - please try again')
+        return
+      }
 
       // Update flow name if it came from the pasted data
       if (imported.name && imported.name !== flowName) {
@@ -357,6 +367,7 @@ export default function EditorFull() {
       toast.success(`Workflow loaded: ${nodeCount} nodes, ${connectionCount} connections`)
       pushLog('success', `Workflow pasted from JSON: ${imported.name} (${nodeCount} nodes)`, 'editor')
     } catch (error: any) {
+      console.error('[Paste] Error:', error)
       toast.error(`Invalid JSON: ${error.message}`)
       pushLog('error', `Failed to paste workflow JSON: ${error.message}`, 'editor')
     }
