@@ -1486,7 +1486,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 		Outputs: []node.PortSchema{
 			{Name: "output", Label: "Output", Type: "object", Description: "Interrupt event (pin, state, count, edge_type, timestamp)"},
 		},
-		Factory: func() node.Executor { return NewInterruptNode() },
+		Factory: func() node.Executor { return NewInterruptExecutor() },
 	}); err != nil {
 		return err
 	}
@@ -1510,7 +1510,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 		Outputs: []node.PortSchema{
 			{Name: "output", Label: "Output", Type: "object", Description: "1-Wire device data"},
 		},
-		Factory: func() node.Executor { return NewOneWireNode() },
+		Factory: func() node.Executor { return NewOneWireExecutor() },
 	}); err != nil {
 		return err
 	}

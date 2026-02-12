@@ -72,7 +72,7 @@ func (n *InterruptNode) Init(config map[string]interface{}) error {
 	case "down":
 		gpio.SetPull(n.pin, hal.PullDown)
 	default:
-		gpio.SetPull(n.pin, hal.PullOff)
+		gpio.SetPull(n.pin, hal.PullNone)
 	}
 
 	return nil
@@ -107,7 +107,7 @@ func (n *InterruptNode) Execute(ctx context.Context, msg node.Message) (node.Mes
 	n.mu.Lock()
 	if !n.running {
 		n.running = true
-		n.lastState = n.halInstance.GPIO().DigitalRead(n.pin)
+		n.lastState, _ = n.halInstance.GPIO().DigitalRead(n.pin)
 		go n.monitorInterrupts()
 	}
 	n.mu.Unlock()
@@ -131,7 +131,7 @@ func (n *InterruptNode) monitorInterrupts() {
 		case <-n.stopChan:
 			return
 		case <-ticker.C:
-			currentState := n.halInstance.GPIO().DigitalRead(n.pin)
+			currentState, _ := n.halInstance.GPIO().DigitalRead(n.pin)
 
 			n.mu.RLock()
 			lastState := n.lastState
