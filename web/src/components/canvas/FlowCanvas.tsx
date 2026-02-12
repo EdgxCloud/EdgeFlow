@@ -226,17 +226,40 @@ export default function FlowCanvas({ flowId, flowName = 'Untitled Flow', classNa
   }, [])
 
   const handleNodeSettingsSave = useCallback((nodeId: string, config: any) => {
-    setNodes((nds) =>
-      nds.map((node) => {
+    setNodes((nds) => {
+      const updated = nds.map((node) => {
         if (node.id === nodeId) {
           return { ...node, data: { ...node.data, config } }
         }
         return node
       })
-    )
+
+      // Auto-save flow to backend so config persists
+      if (currentFlowId) {
+        const flowNodes = updated.map((node) => ({
+          id: node.id,
+          type: node.data.nodeType || 'unknown',
+          name: node.data.label || node.data.nodeType,
+          config: node.data.config || {},
+          position: toArrayPosition(node.position),
+        }))
+        const connections = getEdges().map((edge) => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceOutput: edge.sourceHandle ? parseInt(edge.sourceHandle) : 0,
+        }))
+        flowsApi.update(currentFlowId, {
+          nodes: flowNodes as any,
+          edges: connections as any,
+        })
+      }
+
+      return updated
+    })
     // Take snapshot for undo/redo
     undoRedoActions.push({ nodes: getNodes(), edges: getEdges() })
-  }, [setNodes, undoRedoActions, getNodes, getEdges])
+  }, [setNodes, undoRedoActions, getNodes, getEdges, currentFlowId])
 
   // Copy selected nodes and edges
   const handleCopy = useCallback(() => {
