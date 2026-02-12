@@ -81,14 +81,18 @@ export function LogsPanel() {
   const [autoScroll, setAutoScroll] = useState(true)
   const scrollRef = useRef<HTMLDivElement>(null)
   const pausedLogsRef = useRef<LogEntry[]>([])
+  const isPausedRef = useRef(false)
+
+  // Keep ref in sync with state
+  useEffect(() => { isPausedRef.current = isPaused }, [isPaused])
 
   const addEntry = useCallback((entry: LogEntry) => {
-    if (isPaused) {
+    if (isPausedRef.current) {
       pausedLogsRef.current.push(entry)
     } else {
       setLogs(prev => [...prev.slice(-500), entry])
     }
-  }, [isPaused])
+  }, [])
 
   // Auto-scroll
   useEffect(() => {

@@ -186,6 +186,11 @@ func (f *Flow) Stop() error {
 		f.cancel()
 	}
 
+	// Clear execution callbacks before stopping to prevent stale broadcasts
+	for _, node := range f.Nodes {
+		node.SetExecutionCallback(nil)
+	}
+
 	// Stop all nodes
 	var stopErrors []error
 	for _, node := range f.Nodes {

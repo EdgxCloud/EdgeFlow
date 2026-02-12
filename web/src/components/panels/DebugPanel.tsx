@@ -56,15 +56,19 @@ export default function DebugPanel({ className }: DebugPanelProps) {
   const [isPaused, setIsPaused] = useState(false)
   const [autoScroll, setAutoScroll] = useState(true)
   const pausedRef = useRef<DebugMessage[]>([])
+  const isPausedRef = useRef(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // Keep ref in sync with state
+  useEffect(() => { isPausedRef.current = isPaused }, [isPaused])
+
   const addMessage = useCallback((entry: DebugMessage) => {
-    if (isPaused) {
+    if (isPausedRef.current) {
       pausedRef.current.push(entry)
     } else {
       setMessages(prev => [...prev.slice(-300), entry])
     }
-  }, [isPaused])
+  }, [])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -120,10 +124,20 @@ export default function DebugPanel({ className }: DebugPanelProps) {
       addMessage(entry)
     }
 
+    // Stop receiving debug messages when flow is stopped
+    const handleFlowStatus = (msg: WSMessage) => {
+      const data = msg.data as Record<string, unknown>
+      if (data.action === 'stopped') {
+        setMessages([])
+        pausedRef.current = []
+      }
+    }
+
     const unsub1 = wsClient.on('execution', handleExecution)
     const unsub2 = wsClient.on('node_status', handleNodeStatus)
+    const unsub3 = wsClient.on('flow_status', handleFlowStatus)
 
-    return () => { unsub1(); unsub2() }
+    return () => { unsub1(); unsub2(); unsub3() }
   }, [addMessage])
 
   const handleResume = useCallback(() => {
