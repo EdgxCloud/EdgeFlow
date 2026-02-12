@@ -20,6 +20,7 @@ import CustomNode from './CustomNode'
 import { NodeConfigDialog } from '../NodeConfig/NodeConfigDialog'
 import { useFlowStore } from '../../stores/flowStore'
 import { toObjectPosition, toArrayPosition } from '@/utils/position'
+import { importFlow } from '@/utils/flowImportExport'
 import { useCopyPaste, useKeyboardShortcuts } from '@/hooks/useCopyPaste'
 import { useUndoRedo } from '@/hooks/useUndoRedo'
 import { toast } from 'sonner'
@@ -179,7 +180,8 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
     }
   }, [nodes, edges, copy])
 
-  const handlePaste = useCallback((position?: XYPosition) => {
+  const handlePaste = useCallback(async (position?: XYPosition) => {
+    // First try internal clipboard (copied nodes within the editor)
     const pasted = paste(position)
     if (pasted) {
       setNodes(nds => nds.map(n => ({ ...n, selected: false })))
@@ -188,8 +190,48 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
       setEdges(eds => [...eds, ...pasted.edges])
       undoRedoActions.push({ nodes: getNodes(), edges: getEdges() })
       toast.success(`Pasted ${pasted.nodes.length} node${pasted.nodes.length > 1 ? 's' : ''}`)
+      return
     }
-  }, [paste, setNodes, setEdges, undoRedoActions, getNodes, getEdges])
+
+    // If internal clipboard empty, try system clipboard for workflow JSON
+    try {
+      const clipText = await navigator.clipboard.readText()
+      if (!clipText || !clipText.trim().startsWith('{') && !clipText.trim().startsWith('[')) {
+        return
+      }
+      const flows = importFlow(clipText)
+      if (flows.length === 0) return
+
+      const imported = flows[0]
+      const flowNodes: Node[] = imported.nodes.map((node: any, index) => ({
+        id: node.id,
+        type: 'custom',
+        position: node.position
+          ? toObjectPosition(node.position)
+          : { x: 100 + (index % 3) * 300, y: 100 + Math.floor(index / 3) * 150 },
+        data: {
+          label: node.name || node.type,
+          nodeType: node.type,
+          config: node.config || {},
+        },
+      }))
+      const flowEdges: Edge[] = (imported.connections || []).map((conn: any, index) => ({
+        id: conn.id || `edge-${conn.source}-${conn.target}-${index}`,
+        source: conn.source,
+        target: conn.target,
+        type: 'default',
+        animated: false,
+        style: { stroke: '#3b82f6', strokeWidth: 2 },
+      }))
+
+      setNodes(flowNodes)
+      setEdges(flowEdges)
+      setTimeout(() => fitView({ padding: 0.2 }), 100)
+      toast.success(`Pasted workflow: ${flowNodes.length} nodes, ${flowEdges.length} connections`)
+    } catch {
+      // Clipboard read failed (permissions) or invalid JSON - silently ignore
+    }
+  }, [paste, setNodes, setEdges, undoRedoActions, getNodes, getEdges, fitView])
 
   const handleCut = useCallback(() => {
     const selectedNodes = nodes.filter(node => node.selected)
