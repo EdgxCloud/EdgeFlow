@@ -480,11 +480,11 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
     setSelectedNode(null)
   }, [])
 
-  const handleNodeSettingsSave = useCallback((nodeId: string, data: any) => {
+  const handleNodeSettingsSave = useCallback((nodeId: string, config: any) => {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, ...data } }
+          return { ...node, data: { ...node.data, config } }
         }
         return node
       })

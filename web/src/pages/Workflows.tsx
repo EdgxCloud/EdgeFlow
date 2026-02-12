@@ -4,6 +4,7 @@ import { useFlowStore } from '@/stores/flowStore'
 import { toast } from 'sonner'
 import { downloadFlow } from '@/utils/flowImportExport'
 import { Flow as ExportFlow } from '@/types/flow'
+import { wsClient, WSMessage } from '@/services/websocket'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -34,6 +35,24 @@ export default function Workflows() {
 
   useEffect(() => {
     fetchFlows()
+
+    // Subscribe to real-time flow status updates
+    wsClient.connect()
+    const unsub = wsClient.on('flow_status', (msg: WSMessage) => {
+      const data = msg.data as { flow_id: string; action: string; status: string }
+      if (data.flow_id) {
+        const newStatus = data.action === 'started' ? 'running' : 'stopped'
+        useFlowStore.setState((state) => ({
+          flows: state.flows.map((f) =>
+            f.id === data.flow_id ? { ...f, status: newStatus } : f
+          ),
+        }))
+      }
+    })
+
+    return () => {
+      unsub()
+    }
   }, [fetchFlows])
 
   const filteredFlows = flows.filter(
