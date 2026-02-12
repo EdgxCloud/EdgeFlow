@@ -108,13 +108,17 @@ func (e *GPIOOutExecutor) Execute(ctx context.Context, msg node.Message) (node.M
 		}
 		e.hal = h
 
-		// Setup GPIO
-		logger.Info("GPIO-out setting up pin as output", zap.Int("pin", e.config.Pin))
+		// Setup GPIO - log board info for diagnostics
+		boardInfo := h.Info()
+		logger.Info("GPIO-out initializing",
+			zap.Int("pin", e.config.Pin),
+			zap.String("board", boardInfo.Name),
+			zap.String("gpio_chip", boardInfo.GPIOChip))
 		if err := e.setup(); err != nil {
 			logger.Error("GPIO-out setup failed", zap.Int("pin", e.config.Pin), zap.Error(err))
 			return node.Message{}, fmt.Errorf("failed to setup GPIO: %w", err)
 		}
-		logger.Info("GPIO-out pin setup complete", zap.Int("pin", e.config.Pin))
+		logger.Info("GPIO-out pin ready", zap.Int("pin", e.config.Pin))
 	}
 
 	// Get value from message
@@ -146,6 +150,7 @@ func (e *GPIOOutExecutor) Execute(ctx context.Context, msg node.Message) (node.M
 
 	// Write to GPIO
 	gpio := e.hal.GPIO()
+	logger.Debug("GPIO-out writing pin", zap.Int("pin", e.config.Pin), zap.Bool("value", value))
 	if err := gpio.DigitalWrite(e.config.Pin, value); err != nil {
 		// Failsafe mode: set to failsafe value on error
 		if e.config.FailsafeMode {
