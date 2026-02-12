@@ -278,6 +278,86 @@ func RegisterNodes(registry *node.Registry) error {
 		return err
 	}
 
+	// BACnet Node
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "bacnet",
+		Name:        "BACnet",
+		Category:    node.NodeTypeInput,
+		Description: "BACnet/IP client for building automation systems",
+		Icon:        "building",
+		Color:       "#2E7D32",
+		Properties: []node.PropertySchema{
+			{Name: "host", Label: "Host", Type: "string", Default: "127.0.0.1", Required: true, Description: "BACnet device IP address"},
+			{Name: "port", Label: "Port", Type: "number", Default: 47808, Description: "BACnet/IP port (default 47808/0xBAC0)"},
+			{Name: "deviceId", Label: "Device ID", Type: "number", Default: 0, Description: "Target BACnet device instance"},
+			{Name: "operation", Label: "Operation", Type: "select", Default: "read_property", Required: true, Description: "BACnet operation", Options: []string{"read_property", "write_property", "who_is"}},
+			{Name: "objectType", Label: "Object Type", Type: "select", Default: "analog_input", Description: "BACnet object type", Options: []string{"analog_input", "analog_output", "binary_input", "binary_output", "multi_state_input", "multi_state_output"}},
+			{Name: "objectInstance", Label: "Object Instance", Type: "number", Default: 0, Description: "Object instance number"},
+			{Name: "timeout", Label: "Timeout (ms)", Type: "number", Default: 5000, Description: "Operation timeout"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Trigger or data input"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "BACnet response data"},
+		},
+		Factory: NewBACnetExecutor,
+	}); err != nil {
+		return err
+	}
+
+	// PROFINET Node
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "profinet",
+		Name:        "PROFINET",
+		Category:    node.NodeTypeInput,
+		Description: "PROFINET DCP discovery and I/O communication",
+		Icon:        "network",
+		Color:       "#1565C0",
+		Properties: []node.PropertySchema{
+			{Name: "interface", Label: "Network Interface", Type: "string", Default: "eth0", Required: true, Description: "Network interface for PROFINET"},
+			{Name: "deviceName", Label: "Device Name", Type: "string", Default: "", Description: "Target PROFINET device name"},
+			{Name: "operation", Label: "Operation", Type: "select", Default: "discover", Required: true, Description: "PROFINET operation", Options: []string{"discover", "identify", "read_io", "write_io", "get_diagnosis"}},
+			{Name: "timeout", Label: "Timeout (ms)", Type: "number", Default: 5000, Description: "Operation timeout"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Trigger or data input"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "PROFINET response data"},
+		},
+		Factory: NewProfinetExecutor,
+	}); err != nil {
+		return err
+	}
+
+	// CAN Bus Node
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "can-bus",
+		Name:        "CAN Bus",
+		Category:    node.NodeTypeInput,
+		Description: "CAN bus communication via SocketCAN",
+		Icon:        "cpu",
+		Color:       "#E65100",
+		Properties: []node.PropertySchema{
+			{Name: "interface", Label: "CAN Interface", Type: "string", Default: "can0", Required: true, Description: "CAN interface name (e.g., can0, vcan0)"},
+			{Name: "bitrate", Label: "Bitrate", Type: "select", Default: "500000", Description: "CAN bus bitrate", Options: []string{"125000", "250000", "500000", "1000000"}},
+			{Name: "operation", Label: "Operation", Type: "select", Default: "receive", Required: true, Description: "CAN operation", Options: []string{"send", "receive", "listen", "status"}},
+			{Name: "canId", Label: "CAN ID", Type: "number", Default: 0, Description: "CAN message ID for send"},
+			{Name: "extended", Label: "Extended Frame", Type: "boolean", Default: false, Description: "Use 29-bit extended CAN ID"},
+			{Name: "filterIds", Label: "Filter IDs", Type: "string", Default: "", Description: "Comma-separated CAN IDs to filter"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Trigger or data input"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "CAN frame data"},
+		},
+		Factory: NewCANBusExecutor,
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 

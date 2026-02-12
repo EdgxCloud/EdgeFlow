@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useFlowStore } from '@/stores/flowStore'
+import { toast } from 'sonner'
+import { downloadFlow } from '@/utils/flowImportExport'
+import { Flow as ExportFlow } from '@/types/flow'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -26,7 +29,7 @@ import {
 } from 'lucide-react'
 
 export default function Workflows() {
-  const { flows, fetchFlows, startFlow, stopFlow, deleteFlow, loading } = useFlowStore()
+  const { flows, fetchFlows, startFlow, stopFlow, deleteFlow, createFlow, updateFlow, loading } = useFlowStore()
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
@@ -53,6 +56,50 @@ export default function Workflows() {
   const handleDelete = async (id: string, name: string) => {
     if (confirm(`Are you sure you want to delete workflow "${name}"?`)) {
       await deleteFlow(id)
+    }
+  }
+
+  const handleExport = (flow: any) => {
+    // Convert nodes from map (API format) to array (export format)
+    const nodesArray = flow.nodes
+      ? Array.isArray(flow.nodes)
+        ? flow.nodes
+        : Object.values(flow.nodes).map((n: any) => ({
+            id: n.id,
+            type: n.type,
+            name: n.name,
+            config: n.config || {},
+            position: n.config?.position || n.position,
+          }))
+      : []
+
+    const exportFlow: ExportFlow = {
+      id: flow.id,
+      name: flow.name,
+      description: flow.description || '',
+      nodes: nodesArray,
+      connections: flow.connections || [],
+      status: flow.status,
+    }
+    downloadFlow(exportFlow)
+    toast.success(`Workflow "${flow.name}" exported`)
+  }
+
+  const handleDuplicate = async (flow: any) => {
+    try {
+      const newFlow = await createFlow(`${flow.name} (copy)`, flow.description || '')
+      if (!newFlow) {
+        toast.error('Failed to duplicate workflow')
+        return
+      }
+      await updateFlow(newFlow.id, {
+        nodes: flow.nodes,
+        connections: flow.connections || [],
+      })
+      await fetchFlows()
+      toast.success(`Workflow duplicated as "${flow.name} (copy)"`)
+    } catch (error) {
+      toast.error('Failed to duplicate workflow')
     }
   }
 
@@ -132,11 +179,11 @@ export default function Workflows() {
                           Edit
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDuplicate(flow)}>
                         <Copy className="h-4 w-4 mr-2" />
                         Duplicate
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExport(flow)}>
                         <Download className="h-4 w-4 mr-2" />
                         Export
                       </DropdownMenuItem>

@@ -13,6 +13,7 @@ export type WSMessageType =
   | 'execution'
   | 'log'
   | 'notification'
+  | 'gpio_state'
 
 export interface WSMessage {
   type: WSMessageType

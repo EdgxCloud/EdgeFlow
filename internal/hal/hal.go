@@ -49,6 +49,8 @@ type GPIOProvider interface {
 	SetPWMFrequency(pin int, freq int) error
 	// WatchEdge watch for edge changes
 	WatchEdge(pin int, edge EdgeMode, callback func(pin int, value bool)) error
+	// ActivePins returns a map of currently configured pins and their modes
+	ActivePins() map[int]PinMode
 	// Close close GPIO
 	Close() error
 }

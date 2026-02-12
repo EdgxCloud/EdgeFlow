@@ -334,6 +334,36 @@ func RegisterAll(registry *node.Registry) error {
 		return err
 	}
 
+	// Register Color Picker Widget
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "dashboard-color-picker",
+		Name:        "Dashboard Color Picker",
+		Category:    node.NodeTypeInput,
+		Description: "Color picker input widget for dashboard",
+		Icon:        "palette",
+		Color:       "#E91E63",
+		Properties: []node.PropertySchema{
+			{Name: "id", Label: "Widget ID", Type: "string", Required: true},
+			{Name: "label", Label: "Label", Type: "string", Required: true},
+			{Name: "group", Label: "Group", Type: "string"},
+			{Name: "tab", Label: "Tab", Type: "string"},
+			{Name: "format", Label: "Format", Type: "select", Default: "hex",
+				Options: []string{"hex", "rgb", "hsl"}},
+			{Name: "defaultColor", Label: "Default Color", Type: "string", Default: "#3b82f6"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Set color programmatically"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "Color value in all formats"},
+		},
+		Factory: func() node.Executor {
+			return NewColorPickerExecutor()
+		},
+	}); err != nil {
+		return err
+	}
+
 	// Register Table Widget
 	if err := registry.Register(&node.NodeInfo{
 		Type:        "dashboard-table",

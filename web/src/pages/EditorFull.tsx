@@ -7,6 +7,7 @@ import ExecutionDataPanel from '../components/panels/ExecutionDataPanel'
 import DebugPanel from '../components/panels/DebugPanel'
 import { TerminalPanel } from '../components/panels/TerminalPanel'
 import { MonitoringPanel } from '../components/panels/MonitoringPanel'
+import { GPIOPanel } from '../components/panels/GPIOPanel'
 import { LogsPanel, pushLog } from '../components/panels/LogsPanel'
 import {
   Play,
@@ -38,6 +39,9 @@ import {
   CopyPlus,
   Trash2,
   GripHorizontal,
+  FileJson,
+  ClipboardCopy,
+  CircuitBoard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -52,6 +56,17 @@ import {
 import { cn } from '@/lib/utils'
 import { ReactFlowProvider } from '@xyflow/react'
 import { toast } from 'sonner'
+import { downloadFlow, importFlow, copyFlowToClipboard } from '@/utils/flowImportExport'
+import { Flow as ExportFlow } from '@/types/flow'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 
 export default function EditorFull() {
   const { id } = useParams()
@@ -71,6 +86,8 @@ export default function EditorFull() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>()
   const [selectedNodeName, setSelectedNodeName] = useState<string | undefined>()
   const [isDataPanelOpen, setIsDataPanelOpen] = useState(false)
+  const [isPasteDialogOpen, setIsPasteDialogOpen] = useState(false)
+  const [pasteJSON, setPasteJSON] = useState('')
 
   useEffect(() => {
     if (id) {
@@ -213,6 +230,137 @@ export default function EditorFull() {
       }
     }
   }
+
+  const buildCurrentFlow = useCallback((): ExportFlow => {
+    const flowData = canvasRef.current?.getFlowData()
+    return {
+      id: id || currentFlow?.id || 'unsaved',
+      name: flowName,
+      description: currentFlow?.description || '',
+      nodes: flowData?.nodes || [],
+      connections: flowData?.connections || [],
+      status: isRunning ? 'running' : 'stopped',
+    }
+  }, [id, currentFlow, flowName, isRunning])
+
+  const handleCopyWorkflowJSON = useCallback(async () => {
+    try {
+      const flow = buildCurrentFlow()
+      await copyFlowToClipboard(flow)
+      toast.success('Workflow JSON copied to clipboard')
+      pushLog('info', `Workflow JSON copied to clipboard: ${flowName}`, 'editor')
+    } catch (error) {
+      toast.error('Failed to copy workflow JSON')
+      pushLog('error', `Failed to copy workflow JSON: ${error}`, 'editor')
+    }
+  }, [buildCurrentFlow, flowName])
+
+  const handleDownloadWorkflowJSON = useCallback(() => {
+    try {
+      const flow = buildCurrentFlow()
+      downloadFlow(flow)
+      toast.success('Workflow downloaded as JSON')
+      pushLog('info', `Workflow downloaded: ${flowName}.json`, 'editor')
+    } catch (error) {
+      toast.error('Failed to download workflow')
+      pushLog('error', `Failed to download workflow: ${error}`, 'editor')
+    }
+  }, [buildCurrentFlow, flowName])
+
+  const handleImportWorkflowJSON = useCallback(() => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        try {
+          const json = event.target?.result as string
+          const flows = importFlow(json)
+          if (flows.length === 0) {
+            toast.error('No valid flows found in file')
+            return
+          }
+
+          const imported = flows[0]
+          // Create a new flow from imported data
+          const newFlow = await createFlow(imported.name, imported.description || '')
+          if (!newFlow) {
+            toast.error('Failed to create imported flow')
+            return
+          }
+
+          // Update with imported nodes and connections
+          await updateFlow(newFlow.id, {
+            name: imported.name,
+            nodes: imported.nodes,
+            connections: imported.connections || [],
+          })
+
+          toast.success(`Flow "${imported.name}" imported successfully`)
+          pushLog('success', `Flow imported: ${imported.name} (${imported.nodes.length} nodes)`, 'editor')
+          navigate(`/editor/${newFlow.id}`)
+        } catch (error: any) {
+          toast.error(`Import failed: ${error.message}`)
+          pushLog('error', `Flow import failed: ${error.message}`, 'editor')
+        }
+      }
+      reader.readAsText(file)
+    }
+    input.click()
+  }, [createFlow, updateFlow, navigate])
+
+  const handlePasteWorkflowJSON = useCallback(() => {
+    setIsPasteDialogOpen(true)
+    setPasteJSON('')
+    // Auto-read from clipboard if available
+    navigator.clipboard.readText().then((text) => {
+      if (text.trim().startsWith('{')) {
+        setPasteJSON(text)
+      }
+    }).catch(() => {
+      // Clipboard read may fail due to permissions - user can paste manually
+    })
+  }, [])
+
+  const handlePasteDialogConfirm = useCallback(() => {
+    try {
+      const json = pasteJSON.trim()
+      if (!json) {
+        toast.error('Please paste workflow JSON')
+        return
+      }
+
+      const flows = importFlow(json)
+      if (flows.length === 0) {
+        toast.error('No valid flows found in JSON')
+        return
+      }
+
+      const imported = flows[0]
+      const nodeCount = imported.nodes?.length || 0
+      const connectionCount = imported.connections?.length || 0
+
+      // Load directly onto current canvas
+      canvasRef.current?.loadFlowData(imported.nodes || [], imported.connections || [])
+
+      // Update flow name if it came from the pasted data
+      if (imported.name && imported.name !== flowName) {
+        setFlowName(imported.name)
+      }
+
+      setIsPasteDialogOpen(false)
+      setPasteJSON('')
+      toast.success(`Workflow loaded: ${nodeCount} nodes, ${connectionCount} connections`)
+      pushLog('success', `Workflow pasted from JSON: ${imported.name} (${nodeCount} nodes)`, 'editor')
+    } catch (error: any) {
+      toast.error(`Invalid JSON: ${error.message}`)
+      pushLog('error', `Failed to paste workflow JSON: ${error.message}`, 'editor')
+    }
+  }, [pasteJSON, flowName])
 
   const toggleMinimizeBottomPanel = () => {
     if (isBottomPanelMinimized) {
@@ -504,18 +652,22 @@ export default function EditorFull() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleImportWorkflowJSON}>
                 <Upload className="w-4 h-4 mr-2" />
                 Import Flow
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadWorkflowJSON}>
                 <Download className="w-4 h-4 mr-2" />
                 Export Flow
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Download className="w-4 h-4 mr-2" />
-                Export as JSON
+              <DropdownMenuItem onClick={handleCopyWorkflowJSON}>
+                <ClipboardCopy className="w-4 h-4 mr-2" />
+                Copy as JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePasteWorkflowJSON}>
+                <ClipboardPaste className="w-4 h-4 mr-2" />
+                Paste from JSON
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -649,6 +801,7 @@ export default function EditorFull() {
                 {[
                   { value: 'debug', icon: Bug, label: 'Debug' },
                   { value: 'monitoring', icon: Activity, label: 'Monitoring' },
+                  { value: 'gpio', icon: CircuitBoard, label: 'GPIO' },
                   { value: 'terminal', icon: Terminal, label: 'Terminal' },
                   { value: 'logs', icon: FileText, label: 'Logs' },
                 ].map((tab) => (
@@ -702,6 +855,9 @@ export default function EditorFull() {
                 <div className={cn('absolute inset-0', activeBottomTab === 'monitoring' ? 'block' : 'hidden')}>
                   <MonitoringPanel />
                 </div>
+                <div className={cn('absolute inset-0', activeBottomTab === 'gpio' ? 'block' : 'hidden')}>
+                  <GPIOPanel />
+                </div>
                 <div className={cn('absolute inset-0', activeBottomTab === 'terminal' ? 'block' : 'hidden')}>
                   <TerminalPanel />
                 </div>
@@ -727,6 +883,34 @@ export default function EditorFull() {
           </div>
         )}
       </div>
+
+      {/* Paste from JSON Dialog */}
+      <Dialog open={isPasteDialogOpen} onOpenChange={setIsPasteDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Paste Workflow JSON</DialogTitle>
+            <DialogDescription>
+              Paste a workflow JSON exported from EdgeFlow or n8n to load it onto the canvas.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={pasteJSON}
+            onChange={(e) => setPasteJSON(e.target.value)}
+            placeholder='{"version": "1.0", "flows": [...]}'
+            className="min-h-[300px] font-mono text-sm"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPasteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePasteDialogConfirm} disabled={!pasteJSON.trim()}>
+              <ClipboardPaste className="w-4 h-4 mr-2" />
+              Load Workflow
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

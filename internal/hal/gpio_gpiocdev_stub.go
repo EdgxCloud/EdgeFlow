@@ -42,6 +42,10 @@ func (g *GpiocdevGPIO) WatchEdge(pin int, edge EdgeMode, callback func(pin int, 
 	return fmt.Errorf("GPIO not supported on this platform")
 }
 
+func (g *GpiocdevGPIO) ActivePins() map[int]PinMode {
+	return nil
+}
+
 func (g *GpiocdevGPIO) Close() error {
 	return nil
 }

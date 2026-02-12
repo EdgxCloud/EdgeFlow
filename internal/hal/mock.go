@@ -125,6 +125,16 @@ func (g *MockGPIO) WatchEdge(pin int, edge EdgeMode, callback func(pin int, valu
 	return nil
 }
 
+func (g *MockGPIO) ActivePins() map[int]PinMode {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	result := make(map[int]PinMode, len(g.pins))
+	for pin, p := range g.pins {
+		result[pin] = p.mode
+	}
+	return result
+}
+
 func (g *MockGPIO) Close() error {
 	g.mu.Lock()
 	defer g.mu.Unlock()

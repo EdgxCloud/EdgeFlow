@@ -1157,6 +1157,60 @@ func RegisterAllNodes(registry *node.Registry) error {
 		return err
 	}
 
+	// Register Filter Node
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "filter",
+		Name:        "Filter",
+		Category:    node.NodeTypeFunction,
+		Description: "Filter messages based on conditions with match/no-match outputs",
+		Icon:        "filter",
+		Color:       "#f97316",
+		Properties: []node.PropertySchema{
+			{Name: "property", Label: "Property", Type: "string", Default: "payload", Description: "Message property to evaluate (dot notation supported)"},
+			{Name: "operator", Label: "Operator", Type: "select", Default: "equals", Required: true, Description: "Comparison operator", Options: []string{"equals", "not_equals", "gt", "lt", "gte", "lte", "contains", "not_contains", "regex", "is_true", "is_false", "is_null", "is_not_null", "between"}},
+			{Name: "value", Label: "Value", Type: "string", Default: "", Description: "Value to compare against"},
+			{Name: "valueType", Label: "Value Type", Type: "select", Default: "string", Description: "Type of comparison value", Options: []string{"string", "number", "boolean", "json"}},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Message to filter"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "match", Label: "Match", Type: "any", Description: "Messages that match the condition"},
+			{Name: "no_match", Label: "No Match", Type: "any", Description: "Messages that do not match"},
+		},
+		Factory: func() node.Executor {
+			return NewFilterNode()
+		},
+	}); err != nil {
+		return err
+	}
+
+	// Register Function Node (Advanced)
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "function-node",
+		Name:        "Function Node",
+		Category:    node.NodeTypeFunction,
+		Description: "Process messages with custom code transformations",
+		Icon:        "code",
+		Color:       "#7c3aed",
+		Properties: []node.PropertySchema{
+			{Name: "code", Label: "Code", Type: "code", Default: "// Transform msg.payload\nreturn msg", Required: true, Description: "Transformation code"},
+			{Name: "outputs", Label: "Outputs", Type: "number", Default: 1, Description: "Number of outputs"},
+			{Name: "initCode", Label: "Init Code", Type: "code", Default: "", Description: "Initialization code (runs once)"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Message input"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "any", Description: "Processed message"},
+		},
+		Factory: func() node.Executor {
+			return NewFunctionNodeExecutor()
+		},
+	}); err != nil {
+		return err
+	}
+
 	// Register Comment Node
 	if err := registry.Register(&node.NodeInfo{
 		Type:        "comment",

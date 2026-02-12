@@ -19,6 +19,7 @@ const (
 	MessageTypeExecution    MessageType = "execution"
 	MessageTypeLog          MessageType = "log"
 	MessageTypeNotification MessageType = "notification"
+	MessageTypeGPIOState    MessageType = "gpio_state"
 )
 
 // Message represents a WebSocket message

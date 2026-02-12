@@ -1465,5 +1465,55 @@ func RegisterAllNodes(registry *node.Registry) error {
 		return err
 	}
 
+	// ============================================
+	// INTERRUPT & 1-WIRE NODES (2 nodes)
+	// ============================================
+
+	// GPIO Interrupt
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "interrupt",
+		Name:        "GPIO Interrupt",
+		Category:    node.NodeTypeInput,
+		Description: "Monitor GPIO pin edge events with interrupt counting",
+		Icon:        "zap",
+		Color:       "#dc2626",
+		Properties: []node.PropertySchema{
+			{Name: "pin", Label: "GPIO Pin", Type: "number", Default: 0, Required: true, Description: "BCM GPIO pin number"},
+			{Name: "edge", Label: "Edge", Type: "select", Default: "both", Options: []string{"rising", "falling", "both"}, Description: "Edge detection mode"},
+			{Name: "debounceMs", Label: "Debounce (ms)", Type: "number", Default: 50, Description: "Debounce time in milliseconds"},
+			{Name: "pullMode", Label: "Pull Mode", Type: "select", Default: "none", Options: []string{"none", "up", "down"}, Description: "Internal pull resistor"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "Interrupt event (pin, state, count, edge_type, timestamp)"},
+		},
+		Factory: func() node.Executor { return NewInterruptNode() },
+	}); err != nil {
+		return err
+	}
+
+	// 1-Wire
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "one-wire",
+		Name:        "1-Wire",
+		Category:    node.NodeTypeInput,
+		Description: "1-Wire bus for DS18B20 temperature sensors and other devices",
+		Icon:        "thermometer",
+		Color:       "#0891b2",
+		Properties: []node.PropertySchema{
+			{Name: "busPath", Label: "Bus Path", Type: "string", Default: "/sys/bus/w1/devices/", Description: "1-Wire sysfs bus path"},
+			{Name: "deviceId", Label: "Device ID", Type: "string", Default: "", Description: "1-Wire device ID (auto-detect if empty)"},
+			{Name: "operation", Label: "Operation", Type: "select", Default: "read_temperature", Options: []string{"scan", "read", "read_temperature"}, Description: "1-Wire operation"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Trigger", Type: "any", Description: "Trigger reading"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "1-Wire device data"},
+		},
+		Factory: func() node.Executor { return NewOneWireNode() },
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }

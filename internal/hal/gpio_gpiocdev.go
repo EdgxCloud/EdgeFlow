@@ -299,6 +299,17 @@ func (g *GpiocdevGPIO) WatchEdge(pin int, edge EdgeMode, callback func(pin int, 
 	return nil
 }
 
+// ActivePins returns a map of currently configured pins and their modes
+func (g *GpiocdevGPIO) ActivePins() map[int]PinMode {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	result := make(map[int]PinMode, len(g.pinModes))
+	for pin, mode := range g.pinModes {
+		result[pin] = mode
+	}
+	return result
+}
+
 func (g *GpiocdevGPIO) Close() error {
 	g.mu.Lock()
 	defer g.mu.Unlock()

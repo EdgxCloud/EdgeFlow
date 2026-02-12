@@ -170,6 +170,11 @@ export function mergeFlows(existingFlows: Flow[], importedFlows: Flow[]): Flow[]
   return merged;
 }
 
+export async function copyFlowToClipboard(flow: Flow): Promise<void> {
+  const json = exportFlow(flow);
+  await navigator.clipboard.writeText(json);
+}
+
 export function downloadFlow(flow: Flow) {
   const json = exportFlow(flow);
   const blob = new Blob([json], { type: 'application/json' });

@@ -266,6 +266,158 @@ func RegisterNodes(registry *node.Registry) error {
 		return err
 	}
 
+	// LoRa Node
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "lora",
+		Name:        "LoRa",
+		Category:    node.NodeTypeInput,
+		Description: "LoRa SX1276/SX1278 long-range wireless communication",
+		Icon:        "radio",
+		Color:       "#7B1FA2",
+		Properties: []node.PropertySchema{
+			{Name: "frequency", Label: "Frequency (MHz)", Type: "number", Default: 433.0, Required: true, Description: "Operating frequency in MHz"},
+			{Name: "spreadingFactor", Label: "Spreading Factor", Type: "select", Default: "7", Description: "LoRa spreading factor", Options: []string{"6", "7", "8", "9", "10", "11", "12"}},
+			{Name: "bandwidth", Label: "Bandwidth (kHz)", Type: "select", Default: "125", Description: "Signal bandwidth", Options: []string{"7.8", "10.4", "15.6", "20.8", "31.25", "41.7", "62.5", "125", "250", "500"}},
+			{Name: "txPower", Label: "TX Power (dBm)", Type: "number", Default: 17, Description: "Transmit power 2-20 dBm"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Data to send"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "LoRa data"},
+		},
+		Factory: NewLoRaExecutor,
+	}); err != nil {
+		return err
+	}
+
+	// RF 433MHz Node
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "rf433",
+		Name:        "RF 433MHz",
+		Category:    node.NodeTypeInput,
+		Description: "433MHz RF wireless transceiver for simple devices",
+		Icon:        "radio",
+		Color:       "#F57C00",
+		Properties: []node.PropertySchema{
+			{Name: "dataPin", Label: "Data Pin", Type: "number", Default: 0, Required: true, Description: "GPIO pin for RF data"},
+			{Name: "protocol", Label: "Protocol", Type: "number", Default: 1, Description: "RF protocol number (1-6)"},
+			{Name: "pulseLength", Label: "Pulse Length (us)", Type: "number", Default: 350, Description: "Pulse length in microseconds"},
+			{Name: "repeatCount", Label: "Repeat Count", Type: "number", Default: 10, Description: "Transmission repeat count"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Data to send"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "RF data"},
+		},
+		Factory: NewRF433Executor,
+	}); err != nil {
+		return err
+	}
+
+	// NRF24L01 Node
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "nrf24",
+		Name:        "NRF24L01",
+		Category:    node.NodeTypeInput,
+		Description: "NRF24L01 2.4GHz wireless transceiver",
+		Icon:        "radio",
+		Color:       "#00897B",
+		Properties: []node.PropertySchema{
+			{Name: "cePin", Label: "CE Pin", Type: "number", Default: 0, Description: "GPIO CE pin"},
+			{Name: "csnPin", Label: "CSN Pin", Type: "number", Default: 0, Description: "GPIO CSN pin"},
+			{Name: "channel", Label: "Channel", Type: "number", Default: 76, Description: "Radio channel (0-125)"},
+			{Name: "dataRate", Label: "Data Rate", Type: "select", Default: "1Mbps", Description: "Data rate", Options: []string{"250kbps", "1Mbps", "2Mbps"}},
+			{Name: "payloadSize", Label: "Payload Size", Type: "number", Default: 32, Description: "Payload size in bytes (1-32)"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Data to send"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "NRF24 data"},
+		},
+		Factory: NewNRF24Executor,
+	}); err != nil {
+		return err
+	}
+
+	// RFID RC522 Node
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "rfid",
+		Name:        "RFID RC522",
+		Category:    node.NodeTypeInput,
+		Description: "RFID RC522 reader for MIFARE cards (13.56MHz)",
+		Icon:        "credit-card",
+		Color:       "#AD1457",
+		Properties: []node.PropertySchema{
+			{Name: "spiBus", Label: "SPI Bus", Type: "number", Default: 0, Description: "SPI bus number"},
+			{Name: "spiDevice", Label: "SPI Device", Type: "number", Default: 0, Description: "SPI device number"},
+			{Name: "resetPin", Label: "Reset Pin", Type: "number", Default: 0, Description: "GPIO reset pin"},
+			{Name: "antennaGain", Label: "Antenna Gain", Type: "number", Default: 4, Description: "Antenna gain (0-7)"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Trigger or data input"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "RFID card data"},
+		},
+		Factory: NewRFIDExecutor,
+	}); err != nil {
+		return err
+	}
+
+	// NFC PN532 Node
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "nfc",
+		Name:        "NFC PN532",
+		Category:    node.NodeTypeInput,
+		Description: "NFC PN532 reader/writer (13.56MHz)",
+		Icon:        "smartphone",
+		Color:       "#0277BD",
+		Properties: []node.PropertySchema{
+			{Name: "interfaceType", Label: "Interface", Type: "select", Default: "i2c", Description: "Communication interface", Options: []string{"i2c", "spi", "uart"}},
+			{Name: "i2cBus", Label: "I2C Bus", Type: "number", Default: 1, Description: "I2C bus number"},
+			{Name: "i2cAddress", Label: "I2C Address", Type: "number", Default: 0x24, Description: "I2C device address"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "Trigger or data input"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "NFC tag data"},
+		},
+		Factory: NewNFCExecutor,
+	}); err != nil {
+		return err
+	}
+
+	// IR (Infrared) Node
+	if err := registry.Register(&node.NodeInfo{
+		Type:        "ir",
+		Name:        "IR Transceiver",
+		Category:    node.NodeTypeInput,
+		Description: "Infrared transmit/receive with NEC, RC5, RC6, raw protocols",
+		Icon:        "radio",
+		Color:       "#B71C1C",
+		Properties: []node.PropertySchema{
+			{Name: "txPin", Label: "TX Pin", Type: "number", Default: 0, Description: "GPIO pin for IR transmitter"},
+			{Name: "rxPin", Label: "RX Pin", Type: "number", Default: 0, Description: "GPIO pin for IR receiver"},
+			{Name: "protocol", Label: "Protocol", Type: "select", Default: "NEC", Description: "IR protocol", Options: []string{"NEC", "RC5", "RC6", "Sony", "Samsung", "raw"}},
+			{Name: "operation", Label: "Operation", Type: "select", Default: "send", Description: "IR operation", Options: []string{"send", "receive", "learn"}},
+			{Name: "frequency", Label: "Carrier Frequency (Hz)", Type: "number", Default: 38000, Description: "Carrier frequency in Hz"},
+			{Name: "repeatCount", Label: "Repeat Count", Type: "number", Default: 1, Description: "Number of transmission repeats"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Input", Type: "any", Description: "IR command data"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Output", Type: "object", Description: "IR signal data"},
+		},
+		Factory: NewIRExecutor,
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 

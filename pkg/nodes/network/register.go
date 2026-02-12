@@ -401,6 +401,62 @@ func RegisterAllNodes(registry *node.Registry) {
 		Factory: NewSerialInExecutor,
 	})
 
+	// HTTP In
+	registry.Register(&node.NodeInfo{
+		Type:        "http-in",
+		Name:        "HTTP In",
+		Category:    node.NodeTypeInput,
+		Description: "Create an HTTP endpoint to receive requests",
+		Icon:        "globe",
+		Color:       "#2563eb",
+		Properties: []node.PropertySchema{
+			{Name: "path", Label: "Path", Type: "string", Default: "/api/custom", Required: true, Description: "HTTP endpoint path (supports :param for path parameters)"},
+			{Name: "method", Label: "Method", Type: "select", Default: "ALL", Description: "Accepted HTTP method", Options: []string{"GET", "POST", "PUT", "DELETE", "PATCH", "ALL"}},
+			{Name: "authType", Label: "Authentication", Type: "select", Default: "none", Description: "Authentication type", Options: []string{"none", "basic", "bearer", "apikey"}},
+			{Name: "authValue", Label: "Auth Value", Type: "string", Default: "", Description: "Token/key value for authentication"},
+			{Name: "rawBody", Label: "Raw Body", Type: "boolean", Default: false, Description: "Return raw body instead of parsed JSON"},
+			{Name: "cors", Label: "Enable CORS", Type: "boolean", Default: false, Description: "Enable CORS headers"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Request", Type: "object", Description: "Incoming HTTP request (method, path, params, query, headers, body)"},
+		},
+		Factory: NewHTTPInExecutor,
+	})
+
+	// WebSocket In (Server)
+	registry.Register(&node.NodeInfo{
+		Type:        "websocket-in",
+		Name:        "WebSocket In",
+		Category:    node.NodeTypeInput,
+		Description: "Accept WebSocket connections and receive messages (server mode)",
+		Icon:        "radio",
+		Color:       "#7c3aed",
+		Properties: []node.PropertySchema{
+			{Name: "path", Label: "Path", Type: "string", Default: "/ws/nodes", Required: true, Description: "WebSocket endpoint path"},
+		},
+		Outputs: []node.PortSchema{
+			{Name: "output", Label: "Message", Type: "any", Description: "Messages received from connected clients"},
+		},
+		Factory: NewWebSocketInExecutor,
+	})
+
+	// WebSocket Out (Server)
+	registry.Register(&node.NodeInfo{
+		Type:        "websocket-out",
+		Name:        "WebSocket Out",
+		Category:    node.NodeTypeOutput,
+		Description: "Send messages to connected WebSocket clients (server mode)",
+		Icon:        "send",
+		Color:       "#6d28d9",
+		Properties: []node.PropertySchema{
+			{Name: "path", Label: "Path", Type: "string", Default: "/ws/nodes", Required: true, Description: "WebSocket endpoint path (must match websocket-in)"},
+		},
+		Inputs: []node.PortSchema{
+			{Name: "input", Label: "Message", Type: "any", Description: "Message to broadcast to connected clients"},
+		},
+		Factory: NewWebSocketOutExecutor,
+	})
+
 	// Serial Output
 	registry.Register(&node.NodeInfo{
 		Type:        "serial-out",

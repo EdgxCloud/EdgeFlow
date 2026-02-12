@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/edgeflow/edgeflow/internal/engine"
+	"github.com/edgeflow/edgeflow/internal/hal"
 	"github.com/edgeflow/edgeflow/internal/node"
 	// "github.com/edgeflow/edgeflow/internal/plugin"
 	"github.com/edgeflow/edgeflow/internal/resources"
@@ -49,6 +50,7 @@ type Service struct {
 	registry        *node.Registry
 	// pluginManager   *plugin.Manager
 	resourceMonitor *resources.Monitor
+	gpioMonitor     *hal.GPIOMonitor
 	flows           map[string]*engine.Flow // Active flows in memory
 	wsHub           *websocket.Hub
 	executions      []*ExecutionRecord // In-memory execution history
@@ -73,11 +75,25 @@ func NewService(storage storage.Storage, registry *node.Registry, wsHub *websock
 	// Initialize plugin manager
 	// pluginManager := plugin.NewManager(registry, resourceMonitor)
 
+	// Initialize GPIO monitor for real-time pin state broadcasting
+	gpioMonitor := hal.NewGPIOMonitor(200, func(state hal.GPIOMonitorState) {
+		wsHub.Broadcast(websocket.MessageTypeGPIOState, map[string]interface{}{
+			"pins":       state.Pins,
+			"board_name": state.BoardName,
+			"gpio_chip":  state.GPIOChip,
+			"available":  state.Available,
+			"timestamp":  state.Timestamp,
+		})
+	})
+	go gpioMonitor.Start()
+	hal.SetGlobalGPIOMonitor(gpioMonitor)
+
 	return &Service{
 		storage:         storage,
 		registry:        registry,
 		// pluginManager:   pluginManager,
 		resourceMonitor: resourceMonitor,
+		gpioMonitor:     gpioMonitor,
 		flows:           make(map[string]*engine.Flow),
 		wsHub:           wsHub,
 		executions:      make([]*ExecutionRecord, 0),
@@ -91,6 +107,18 @@ func (s *Service) logActivity(level, message, source string) {
 		"message": message,
 		"source":  source,
 	})
+}
+
+// GetGPIOState returns the current GPIO pin states
+func (s *Service) GetGPIOState() hal.GPIOMonitorState {
+	if s.gpioMonitor != nil {
+		return s.gpioMonitor.GetState()
+	}
+	return hal.GPIOMonitorState{
+		Pins:      make(map[int]*hal.PinState),
+		Available: false,
+		Timestamp: time.Now(),
+	}
 }
 
 // CreateFlow creates a new flow

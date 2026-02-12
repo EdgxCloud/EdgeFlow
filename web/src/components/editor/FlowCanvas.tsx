@@ -39,6 +39,7 @@ export interface FlowCanvasRef {
   handleRedo: () => void
   handleSelectAll: () => void
   getFlowData: () => { nodes: any[]; connections: any[] }
+  loadFlowData: (nodes: any[], connections: any[]) => void
   canUndo: boolean
   canRedo: boolean
   canPaste: boolean
@@ -295,6 +296,35 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
     return { nodes: flowNodes, connections }
   }, [nodes, edges])
 
+  // Load flow data onto canvas (for paste/import)
+  const loadFlowData = useCallback((importedNodes: any[], importedConnections: any[]) => {
+    const flowNodes: Node[] = importedNodes.map((node: any, index) => ({
+      id: node.id,
+      type: 'custom',
+      position: node.position
+        ? toObjectPosition(node.position)
+        : { x: 100 + (index % 3) * 300, y: 100 + Math.floor(index / 3) * 150 },
+      data: {
+        label: node.name || node.type,
+        nodeType: node.type,
+        config: node.config || {},
+      },
+    }))
+    setNodes(flowNodes)
+
+    const flowEdges: Edge[] = (importedConnections || []).map((conn: any, index) => ({
+      id: conn.id || `edge-${conn.source}-${conn.target}-${index}`,
+      source: conn.source,
+      target: conn.target,
+      type: 'default',
+      animated: false,
+      style: { stroke: '#3b82f6', strokeWidth: 2 },
+    }))
+    setEdges(flowEdges)
+
+    setTimeout(() => fitView({ padding: 0.2 }), 100)
+  }, [setNodes, setEdges, fitView])
+
   // Expose handlers to parent via ref
   useImperativeHandle(ref, () => ({
     handleCopy,
@@ -306,11 +336,12 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
     handleRedo,
     handleSelectAll,
     getFlowData,
+    loadFlowData,
     canUndo: undoRedoActions.canUndo,
     canRedo: undoRedoActions.canRedo,
     canPaste,
     hasSelection,
-  }), [handleCopy, handlePaste, handleCut, handleDelete, handleDuplicate, handleUndo, handleRedo, handleSelectAll, getFlowData, undoRedoActions.canUndo, undoRedoActions.canRedo, canPaste, hasSelection])
+  }), [handleCopy, handlePaste, handleCut, handleDelete, handleDuplicate, handleUndo, handleRedo, handleSelectAll, getFlowData, loadFlowData, undoRedoActions.canUndo, undoRedoActions.canRedo, canPaste, hasSelection])
 
   // Keyboard shortcuts
   const handleKeyDown = useKeyboardShortcuts(

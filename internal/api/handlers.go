@@ -118,6 +118,9 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 	api.Get("/resources/stats", h.getResourceStats)
 	api.Get("/resources/report", h.getResourceReport)
 
+	// GPIO monitoring routes
+	api.Get("/gpio/state", h.getGPIOState)
+
 	// System info routes
 	api.Get("/system/network", h.getNetworkInfo)
 	api.Get("/system/wifi/scan", h.scanWifiNetworks)
@@ -943,6 +946,12 @@ func (h *Handler) getResourceReport(c *fiber.Ctx) error {
 			"goroutines": stats.GoroutineCount,
 		},
 	})
+}
+
+// getGPIOState returns the current GPIO pin states for live monitoring
+func (h *Handler) getGPIOState(c *fiber.Ctx) error {
+	state := h.service.GetGPIOState()
+	return c.JSON(state)
 }
 
 // ============================================
