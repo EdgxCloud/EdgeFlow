@@ -87,6 +87,13 @@ type Executor interface {
 	Cleanup() error
 }
 
+// SelfTriggering is an optional interface for executors that generate their own messages
+// (e.g., inject/timer nodes). The Run method is called in a goroutine after Init.
+// It should send messages by calling the provided send function.
+type SelfTriggering interface {
+	Run(ctx context.Context, send func(Message))
+}
+
 // NewNode creates a new node instance
 func NewNode(nodeType, name string, category NodeType, executor Executor) *Node {
 	return &Node{
@@ -124,6 +131,13 @@ func (n *Node) Start(ctx context.Context) error {
 
 	// Start message processing goroutine
 	go n.process()
+
+	// If executor is self-triggering (e.g., inject/timer), start its Run loop
+	if st, ok := n.executor.(SelfTriggering); ok {
+		go st.Run(n.ctx, func(msg Message) {
+			n.handleMessage(msg)
+		})
+	}
 
 	return nil
 }

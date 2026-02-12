@@ -9,11 +9,13 @@ import (
 
 // InjectNode sends messages at regular intervals
 type InjectNode struct {
-	interval time.Duration
-	payload  map[string]interface{}
-	topic    string
-	ticker   *time.Ticker
-	stopChan chan struct{}
+	interval    time.Duration
+	payload     map[string]interface{}
+	topic       string
+	toggleMode  bool // if true, alternates payload["value"] between true/false
+	toggleState bool
+	ticker      *time.Ticker
+	stopChan    chan struct{}
 }
 
 // NewInjectNode creates a new inject node
@@ -75,18 +77,37 @@ func (n *InjectNode) Init(config map[string]interface{}) error {
 		n.topic = topic
 	}
 
+	// Toggle mode: alternates value between true and false each tick
+	if toggle, ok := config["toggle"].(bool); ok {
+		n.toggleMode = toggle
+	}
+
 	return nil
 }
 
 // Execute processes incoming messages and sends periodic injections
 func (n *InjectNode) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
-	// Inject node can be triggered manually or run on timer
-	if msg.Type == node.MessageTypeEvent && msg.Payload["trigger"] == true {
-		return n.createMessage(), nil
-	}
-
-	// For timer-based injection, this will be called periodically
 	return n.createMessage(), nil
+}
+
+// Run implements SelfTriggering — sends messages at the configured interval
+func (n *InjectNode) Run(ctx context.Context, send func(node.Message)) {
+	n.ticker = time.NewTicker(n.interval)
+	defer n.ticker.Stop()
+
+	// Send an initial message immediately
+	send(n.createMessage())
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-n.stopChan:
+			return
+		case <-n.ticker.C:
+			send(n.createMessage())
+		}
+	}
 }
 
 // Cleanup stops the inject node
@@ -94,15 +115,36 @@ func (n *InjectNode) Cleanup() error {
 	if n.ticker != nil {
 		n.ticker.Stop()
 	}
-	close(n.stopChan)
+	select {
+	case <-n.stopChan:
+		// Already closed
+	default:
+		close(n.stopChan)
+	}
 	return nil
 }
 
 // createMessage creates a new message with the configured payload
 func (n *InjectNode) createMessage() node.Message {
+	payload := n.payload
+
+	// In toggle mode, alternate value between true and false
+	if n.toggleMode {
+		payload = map[string]interface{}{
+			"value": n.toggleState,
+		}
+		// Copy any extra fields from configured payload
+		for k, v := range n.payload {
+			if k != "value" {
+				payload[k] = v
+			}
+		}
+		n.toggleState = !n.toggleState
+	}
+
 	return node.Message{
 		Type:    node.MessageTypeData,
-		Payload: n.payload,
+		Payload: payload,
 		Topic:   n.topic,
 	}
 }

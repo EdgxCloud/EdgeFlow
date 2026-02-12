@@ -1,9 +1,11 @@
 package api
 
 import (
+	"log"
 	"time"
 
 	"github.com/edgeflow/edgeflow/internal/engine"
+	"github.com/edgeflow/edgeflow/internal/node"
 	"github.com/edgeflow/edgeflow/internal/storage"
 )
 
@@ -52,10 +54,13 @@ func engineFlowToStorage(f *engine.Flow) *storage.Flow {
 }
 
 // storageFlowToEngine converts storage.Flow to engine.Flow
+// Reconstructs nodes from the registry and wires up connections
 func storageFlowToEngine(f *storage.Flow) *engine.Flow {
 	if f == nil {
 		return nil
 	}
+
+	registry := node.GetGlobalRegistry()
 
 	flow := engine.NewFlow(f.Name, f.Description)
 	// Preserve the ID from storage
@@ -63,8 +68,50 @@ func storageFlowToEngine(f *storage.Flow) *engine.Flow {
 	// Preserve the status
 	flow.Status = engine.FlowStatus(f.Status)
 
-	// TODO: Reconstruct nodes and connections from storage format
-	// For now, we keep empty nodes/connections but preserve metadata
+	// Reconstruct nodes from storage
+	for _, nodeData := range f.Nodes {
+		nodeID, _ := nodeData["id"].(string)
+		nodeType, _ := nodeData["type"].(string)
+		nodeName, _ := nodeData["name"].(string)
+		if nodeID == "" || nodeType == "" {
+			continue
+		}
+		if nodeName == "" {
+			nodeName = nodeType
+		}
+
+		// Create node from registry (gets the correct executor)
+		n, err := registry.CreateNode(nodeType, nodeName)
+		if err != nil {
+			log.Printf("Warning: failed to create node %s (%s): %v", nodeID, nodeType, err)
+			continue
+		}
+
+		// Override auto-generated ID with the stored ID
+		n.ID = nodeID
+
+		// Apply config if present
+		if config, ok := nodeData["config"].(map[string]interface{}); ok {
+			n.UpdateConfig(config)
+		}
+
+		// Add to flow
+		if err := flow.AddNode(n); err != nil {
+			log.Printf("Warning: failed to add node %s to flow: %v", nodeID, err)
+		}
+	}
+
+	// Reconstruct connections
+	for _, connData := range f.Connections {
+		sourceID, _ := connData["source"].(string)
+		targetID, _ := connData["target"].(string)
+		if sourceID == "" || targetID == "" {
+			continue
+		}
+		if err := flow.Connect(sourceID, targetID); err != nil {
+			log.Printf("Warning: failed to connect %s -> %s: %v", sourceID, targetID, err)
+		}
+	}
 
 	return flow
 }
