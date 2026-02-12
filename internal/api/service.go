@@ -518,6 +518,26 @@ func (s *Service) ListStorageFlows() ([]*storage.Flow, error) {
 	return s.storage.ListFlows()
 }
 
+// InvalidateFlowCache removes a flow from the in-memory cache
+// so that the next GetFlow call reloads fresh data from storage
+func (s *Service) InvalidateFlowCache(id string) {
+	// Only remove if the flow is NOT currently running
+	if flow, ok := s.flows[id]; ok {
+		if flow.GetStatus() != engine.FlowStatusRunning {
+			delete(s.flows, id)
+		}
+	}
+}
+
+// BroadcastFlowUpdate sends a flow update notification via WebSocket
+func (s *Service) BroadcastFlowUpdate(id, name string) {
+	s.wsHub.Broadcast(websocket.MessageTypeFlowStatus, map[string]interface{}{
+		"flow_id": id,
+		"action":  "updated",
+		"name":    name,
+	})
+}
+
 // IsFlowRunning checks if a flow is actively running in memory
 func (s *Service) IsFlowRunning(id string) bool {
 	flow, ok := s.flows[id]

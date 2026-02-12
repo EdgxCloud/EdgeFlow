@@ -64,6 +64,9 @@ func NewMonitor(limits ResourceLimits) *Monitor {
 
 // Start starts periodic monitoring
 func (m *Monitor) Start(ctx context.Context, interval time.Duration) {
+	// Initial update immediately so stats are available right away
+	m.Update()
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 

@@ -49,10 +49,11 @@ export interface FlowCanvasRef {
 
 interface FlowCanvasProps {
   flowId?: string
+  isRunning?: boolean
   onNodeSelect?: (nodeId: string | null, nodeName?: string) => void
 }
 
-const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeSelect }, ref) => {
+const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunning = false, onNodeSelect }, ref) => {
   const { currentFlow, updateFlow } = useFlowStore()
   const { getNodes, getEdges, screenToFlowPosition, fitView } = useReactFlow()
   const [nodes, setNodes, onNodesChange] = useNodesState([])
@@ -124,13 +125,24 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
   }, [currentFlow?.id, currentFlow?.nodes, currentFlow?.connections, flowId])
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
+    (params: Connection) => {
+      if (isRunning) {
+        toast.warning('Stop the workflow before making changes')
+        return
+      }
+      setEdges((eds) => addEdge(params, eds))
+    },
+    [setEdges, isRunning]
   )
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault()
+
+      if (isRunning) {
+        toast.warning('Stop the workflow before adding nodes')
+        return
+      }
 
       const instance = reactFlowInstance
       if (!instance) return
@@ -157,7 +169,7 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
       setNodes((nds) => nds.concat(newNode))
       undoRedoActions.push({ nodes: [...getNodes(), newNode], edges: getEdges() })
     },
-    [reactFlowInstance, setNodes, undoRedoActions, getNodes, getEdges]
+    [reactFlowInstance, setNodes, undoRedoActions, getNodes, getEdges, isRunning]
   )
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -473,6 +485,7 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
   }, [onNodeSelect])
 
   const onNodeDoubleClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    // Allow opening node settings even while running (user can edit config, stop, and restart)
     setSelectedNode(node)
   }, [])
 
@@ -590,7 +603,7 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
+        onEdgesChange={isRunning ? undefined : onEdgesChange}
         onConnect={onConnect}
         onInit={setReactFlowInstance}
         onDrop={onDrop}
@@ -602,16 +615,19 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, onNodeS
         onPaneClick={closeContextMenu}
         nodeTypes={nodeTypes}
         defaultEdgeOptions={defaultEdgeOptions}
+        nodesDraggable={!isRunning}
+        nodesConnectable={!isRunning}
+        elementsSelectable={!isRunning}
         fitView
         snapToGrid
         snapGrid={[15, 15]}
         className="bg-gray-50 dark:bg-gray-900"
-        selectionOnDrag
+        selectionOnDrag={!isRunning}
         selectionMode={SelectionMode.Partial}
         panOnDrag={[1, 2]}
         multiSelectionKeyCode="Control"
         selectionKeyCode={null}
-        deleteKeyCode={null}
+        deleteKeyCode={isRunning ? null : 'Delete'}
         minZoom={0.1}
         maxZoom={4}
       >

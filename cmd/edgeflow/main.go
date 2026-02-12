@@ -116,6 +116,22 @@ func main() {
 	// Setup API routes
 	handler.SetupRoutes(app)
 
+	// Serve frontend static files from ./web/dist (production build)
+	webDist := getEnv("EDGEFLOW_WEB_DIR", "./web/dist")
+	if _, err := os.Stat(webDist); err == nil {
+		app.Static("/", webDist, fiber.Static{
+			Index:    "index.html",
+			Compress: true,
+		})
+		// SPA fallback: serve index.html for all non-API, non-WS routes
+		app.Get("/*", func(c *fiber.Ctx) error {
+			return c.SendFile(webDist + "/index.html")
+		})
+		logger.Info("Serving frontend", zap.String("dir", webDist))
+	} else {
+		logger.Warn("Frontend directory not found, serving API only", zap.String("dir", webDist))
+	}
+
 	port := getEnv("EDGEFLOW_SERVER_PORT", "8080")
 	host := getEnv("EDGEFLOW_SERVER_HOST", "0.0.0.0")
 	addr := fmt.Sprintf("%s:%s", host, port)

@@ -740,6 +740,7 @@ export default function EditorFull() {
               <FlowCanvas
                 ref={canvasRef}
                 flowId={id}
+                isRunning={isRunning}
                 onNodeSelect={(nodeId, nodeName) => {
                   setSelectedNodeId(nodeId || undefined)
                   setSelectedNodeName(nodeName)

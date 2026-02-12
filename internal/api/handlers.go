@@ -308,8 +308,8 @@ func (h *Handler) updateFlow(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get existing flow
-	flow, err := h.service.GetFlow(id)
+	// Get existing flow from storage (raw format preserves config/position)
+	storageFlow, err := h.service.GetStorageFlow(id)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Flow not found",
@@ -318,75 +318,83 @@ func (h *Handler) updateFlow(c *fiber.Ctx) error {
 
 	// Update basic fields
 	if name, ok := updateData["name"].(string); ok {
-		flow.Name = name
+		storageFlow.Name = name
 	}
 	if desc, ok := updateData["description"].(string); ok {
-		flow.Description = desc
-	}
-	if config, ok := updateData["config"].(map[string]interface{}); ok {
-		flow.Config = config
+		storageFlow.Description = desc
 	}
 
-	// Update flow
-	if err := h.service.UpdateFlow(flow); err != nil {
+	// Handle nodes as array format: [{ id, type, name, config, position }, ...]
+	nodesUpdated := false
+	if nodesArr, ok := updateData["nodes"].([]interface{}); ok {
+		nodeSlice := make([]map[string]interface{}, 0)
+		for _, nodeData := range nodesArr {
+			if nodeMap, ok := nodeData.(map[string]interface{}); ok {
+				nodeSlice = append(nodeSlice, nodeMap)
+			}
+		}
+		storageFlow.Nodes = nodeSlice
+		nodesUpdated = true
+	}
+
+	// Handle nodes as map format: { "node-id": { type, name, config }, ... }
+	if nodesMap, ok := updateData["nodes"].(map[string]interface{}); ok && !nodesUpdated {
+		nodeSlice := make([]map[string]interface{}, 0)
+		for nodeId, nodeData := range nodesMap {
+			if nodeMap, ok := nodeData.(map[string]interface{}); ok {
+				nodeMap["id"] = nodeId
+				nodeSlice = append(nodeSlice, nodeMap)
+			}
+		}
+		storageFlow.Nodes = nodeSlice
+		nodesUpdated = true
+	}
+
+	// Update connections
+	if connections, ok := updateData["connections"].([]interface{}); ok {
+		connSlice := make([]map[string]interface{}, 0)
+		for _, conn := range connections {
+			if connMap, ok := conn.(map[string]interface{}); ok {
+				connSlice = append(connSlice, connMap)
+			}
+		}
+		storageFlow.Connections = connSlice
+	}
+
+	// Save directly to storage (single write, no stale engine conversion)
+	if err := h.service.UpdateStorageFlow(storageFlow); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
 
-	// Also update the storage directly with raw node data to preserve positions/config
-	storageFlow, storageErr := h.service.GetStorageFlow(id)
-	if storageErr == nil {
-		nodesUpdated := false
+	// Invalidate in-memory engine flow cache so next GetFlow/StartFlow reloads from storage
+	h.service.InvalidateFlowCache(id)
 
-		// Handle nodes as array format: [{ id, type, name, config, position }, ...]
-		if nodesArr, ok := updateData["nodes"].([]interface{}); ok {
-			nodeSlice := make([]map[string]interface{}, 0)
-			for _, nodeData := range nodesArr {
-				if nodeMap, ok := nodeData.(map[string]interface{}); ok {
-					nodeSlice = append(nodeSlice, nodeMap)
-				}
-			}
-			storageFlow.Nodes = nodeSlice
-			nodesUpdated = true
+	// Notify via WebSocket
+	h.service.BroadcastFlowUpdate(id, storageFlow.Name)
+
+	// Log save details
+	nodeCount := len(storageFlow.Nodes)
+	connCount := len(storageFlow.Connections)
+	h.service.logActivity("info", fmt.Sprintf("Flow saved: %s (%d nodes, %d connections)", storageFlow.Name, nodeCount, connCount), "editor")
+
+	// Return the updated storage flow in frontend-compatible format
+	respNodes := make(map[string]interface{})
+	for _, nodeMap := range storageFlow.Nodes {
+		if nid, ok := nodeMap["id"].(string); ok {
+			respNodes[nid] = nodeMap
 		}
-
-		// Handle nodes as map format: { "node-id": { type, name, config }, ... }
-		if nodesMap, ok := updateData["nodes"].(map[string]interface{}); ok && !nodesUpdated {
-			nodeSlice := make([]map[string]interface{}, 0)
-			for nodeId, nodeData := range nodesMap {
-				if nodeMap, ok := nodeData.(map[string]interface{}); ok {
-					nodeMap["id"] = nodeId
-					nodeSlice = append(nodeSlice, nodeMap)
-				}
-			}
-			storageFlow.Nodes = nodeSlice
-			nodesUpdated = true
-		}
-
-		// Update connections
-		if connections, ok := updateData["connections"].([]interface{}); ok {
-			connSlice := make([]map[string]interface{}, 0)
-			for _, conn := range connections {
-				if connMap, ok := conn.(map[string]interface{}); ok {
-					connSlice = append(connSlice, connMap)
-				}
-			}
-			storageFlow.Connections = connSlice
-		}
-
-		// Save to storage
-		if nodesUpdated {
-			h.service.UpdateStorageFlow(storageFlow)
-		}
-
-		// Log save details
-		nodeCount := len(storageFlow.Nodes)
-		connCount := len(storageFlow.Connections)
-		h.service.logActivity("success", fmt.Sprintf("Flow saved: %s (%d nodes, %d connections)", flow.Name, nodeCount, connCount), "editor")
 	}
 
-	return c.JSON(flow)
+	return c.JSON(fiber.Map{
+		"id":          storageFlow.ID,
+		"name":        storageFlow.Name,
+		"description": storageFlow.Description,
+		"status":      storageFlow.Status,
+		"nodes":       respNodes,
+		"connections": storageFlow.Connections,
+	})
 }
 
 func (h *Handler) deleteFlow(c *fiber.Ctx) error {
