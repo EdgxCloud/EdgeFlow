@@ -85,9 +85,10 @@ func (n *InjectNode) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute processes incoming messages and sends periodic injections
+// Execute passes through the message from Run() — must NOT call createMessage()
+// again, as that would double-consume the toggle state.
 func (n *InjectNode) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
-	return n.createMessage(), nil
+	return msg, nil
 }
 
 // Run implements SelfTriggering — sends messages at the configured interval

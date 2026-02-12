@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/edgeflow/edgeflow/internal/hal"
+	"github.com/edgeflow/edgeflow/internal/logger"
 	"github.com/edgeflow/edgeflow/internal/node"
+	"go.uber.org/zap"
 )
 
 // gpioStateStore stores GPIO state for persistence
@@ -96,24 +97,24 @@ func (e *GPIOOutExecutor) Init(config map[string]interface{}) error {
 
 // Execute execute node
 func (e *GPIOOutExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
-	log.Printf("[gpio-out] Execute called: pin=%d, payload=%v", e.config.Pin, msg.Payload)
+	logger.Debug("GPIO-out execute", zap.Int("pin", e.config.Pin), zap.Any("payload", msg.Payload))
 
 	// Get HAL if not initialized
 	if e.hal == nil {
 		h, err := hal.GetGlobalHAL()
 		if err != nil {
-			log.Printf("[gpio-out] HAL not initialized: %v", err)
+			logger.Error("GPIO-out HAL not initialized", zap.Error(err))
 			return node.Message{}, fmt.Errorf("HAL not initialized: %w", err)
 		}
 		e.hal = h
 
 		// Setup GPIO
-		log.Printf("[gpio-out] Setting up GPIO pin %d as output", e.config.Pin)
+		logger.Info("GPIO-out setting up pin as output", zap.Int("pin", e.config.Pin))
 		if err := e.setup(); err != nil {
-			log.Printf("[gpio-out] Setup failed: %v", err)
+			logger.Error("GPIO-out setup failed", zap.Int("pin", e.config.Pin), zap.Error(err))
 			return node.Message{}, fmt.Errorf("failed to setup GPIO: %w", err)
 		}
-		log.Printf("[gpio-out] GPIO pin %d setup complete", e.config.Pin)
+		logger.Info("GPIO-out pin setup complete", zap.Int("pin", e.config.Pin))
 	}
 
 	// Get value from message
