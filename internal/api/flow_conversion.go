@@ -68,8 +68,9 @@ func storageFlowToEngine(f *storage.Flow) *engine.Flow {
 	flow := engine.NewFlow(f.Name, f.Description)
 	// Preserve the ID from storage
 	flow.ID = f.ID
-	// Preserve the status
-	flow.Status = engine.FlowStatus(f.Status)
+	// Always start as idle — actual status is determined by runtime, not storage
+	// Storage status is only used for display purposes (corrected in handlers)
+	flow.Status = engine.FlowStatusIdle
 
 	// Reconstruct nodes from storage
 	for _, nodeData := range f.Nodes {

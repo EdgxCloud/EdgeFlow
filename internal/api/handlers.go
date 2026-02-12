@@ -196,11 +196,21 @@ func (h *Handler) listFlows(c *fiber.Ctx) error {
 			connections = make([]map[string]interface{}, 0)
 		}
 
+		// Determine actual status: prefer in-memory runtime status over stale storage
+		status := sf.Status
+		if h.service.IsFlowRunning(sf.ID) {
+			status = "running"
+		} else if status == "running" {
+			// Storage says "running" but flow is not actually running in memory
+			// (e.g. after server restart) — correct to "stopped"
+			status = "stopped"
+		}
+
 		flowsList = append(flowsList, fiber.Map{
 			"id":          sf.ID,
 			"name":        sf.Name,
 			"description": sf.Description,
-			"status":      sf.Status,
+			"status":      status,
 			"nodes":       nodesMap,
 			"connections": connections,
 			"config":      make(map[string]interface{}),
@@ -266,12 +276,20 @@ func (h *Handler) getFlow(c *fiber.Ctx) error {
 		connections = make([]map[string]interface{}, 0)
 	}
 
+	// Determine actual status: prefer in-memory runtime status
+	status := storageFlow.Status
+	if h.service.IsFlowRunning(storageFlow.ID) {
+		status = "running"
+	} else if status == "running" {
+		status = "stopped"
+	}
+
 	// Return flow data in frontend-compatible format
 	return c.JSON(fiber.Map{
 		"id":          storageFlow.ID,
 		"name":        storageFlow.Name,
 		"description": storageFlow.Description,
-		"status":      storageFlow.Status,
+		"status":      status,
 		"nodes":       nodesMap,
 		"connections": connections,
 		"config":      make(map[string]interface{}),

@@ -310,6 +310,9 @@ func (s *Service) StartFlow(id string) error {
 	// Store in active flows
 	s.flows[id] = flow
 
+	// Persist "running" status to storage
+	s.persistFlowStatus(id, "running")
+
 	// Notify via WebSocket
 	s.wsHub.Broadcast(websocket.MessageTypeFlowStatus, map[string]interface{}{
 		"flow_id": flow.ID,
@@ -325,15 +328,23 @@ func (s *Service) StartFlow(id string) error {
 func (s *Service) StopFlow(id string) error {
 	flow, ok := s.flows[id]
 	if !ok {
-		return fmt.Errorf("flow not found or not running")
+		// Flow not in memory — just update storage status
+		s.persistFlowStatus(id, "stopped")
+		return nil
 	}
 
 	if err := flow.Stop(); err != nil {
 		return fmt.Errorf("failed to stop flow: %w", err)
 	}
 
+	// Remove from active flows
+	delete(s.flows, id)
+
 	// Finalize execution record
 	s.finalizeExecution(id, "completed", "")
+
+	// Persist "stopped" status to storage
+	s.persistFlowStatus(id, "stopped")
 
 	// Notify via WebSocket
 	s.wsHub.Broadcast(websocket.MessageTypeFlowStatus, map[string]interface{}{
@@ -344,6 +355,20 @@ func (s *Service) StopFlow(id string) error {
 	s.logActivity("info", fmt.Sprintf("Flow stopped: %s", flow.Name), "runtime")
 
 	return nil
+}
+
+// persistFlowStatus updates the flow's status in storage
+func (s *Service) persistFlowStatus(id string, status string) {
+	storageFlow, err := s.storage.GetFlow(id)
+	if err != nil {
+		log.Printf("[persistFlowStatus] Failed to get flow %s from storage: %v", id, err)
+		return
+	}
+	storageFlow.Status = status
+	storageFlow.UpdatedAt = time.Now()
+	if err := s.storage.SaveFlow(storageFlow); err != nil {
+		log.Printf("[persistFlowStatus] Failed to save flow %s status: %v", id, err)
+	}
 }
 
 // AddNodeToFlow adds a node to a flow
@@ -484,6 +509,15 @@ func (s *Service) UpdateStorageFlow(flow *storage.Flow) error {
 // ListStorageFlows retrieves all flows from storage in raw format
 func (s *Service) ListStorageFlows() ([]*storage.Flow, error) {
 	return s.storage.ListFlows()
+}
+
+// IsFlowRunning checks if a flow is actively running in memory
+func (s *Service) IsFlowRunning(id string) bool {
+	flow, ok := s.flows[id]
+	if !ok {
+		return false
+	}
+	return flow.GetStatus() == engine.FlowStatusRunning
 }
 
 // finalizeExecution marks an execution record as completed/failed
