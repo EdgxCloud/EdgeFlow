@@ -291,30 +291,7 @@ func RegisterNodes(registry *node.Registry) error {
 		return err
 	}
 
-	// RF 433MHz Node
-	if err := registry.Register(&node.NodeInfo{
-		Type:        "rf433",
-		Name:        "RF 433MHz",
-		Category:    node.NodeTypeInput,
-		Description: "433MHz RF wireless transceiver for simple devices",
-		Icon:        "radio",
-		Color:       "#F57C00",
-		Properties: []node.PropertySchema{
-			{Name: "dataPin", Label: "Data Pin", Type: "number", Default: 0, Required: true, Description: "GPIO pin for RF data"},
-			{Name: "protocol", Label: "Protocol", Type: "number", Default: 1, Description: "RF protocol number (1-6)"},
-			{Name: "pulseLength", Label: "Pulse Length (us)", Type: "number", Default: 350, Description: "Pulse length in microseconds"},
-			{Name: "repeatCount", Label: "Repeat Count", Type: "number", Default: 10, Description: "Transmission repeat count"},
-		},
-		Inputs: []node.PortSchema{
-			{Name: "input", Label: "Input", Type: "any", Description: "Data to send"},
-		},
-		Outputs: []node.PortSchema{
-			{Name: "output", Label: "Output", Type: "object", Description: "RF data"},
-		},
-		Factory: NewRF433Executor,
-	}); err != nil {
-		return err
-	}
+	// RF 433MHz — registered by gpio package (has full HAL implementation)
 
 	// NRF24L01 Node
 	if err := registry.Register(&node.NodeInfo{
