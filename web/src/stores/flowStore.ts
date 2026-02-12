@@ -177,19 +177,19 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
   },
 
   updateFlow: async (id: string, data: Partial<Flow>) => {
-    set({ loading: true, error: null })
     try {
-      await flowsApi.update(id, data)
+      const response = await flowsApi.update(id, data)
+      // Use server response to update local state (ensures round-trip consistency)
+      const serverData = response.data
       set((state) => ({
-        flows: state.flows.map((f) => (f.id === id ? { ...f, ...data } : f)),
+        flows: state.flows.map((f) => (f.id === id ? { ...f, ...serverData } : f)),
         currentFlow:
           state.currentFlow?.id === id
-            ? { ...state.currentFlow, ...data }
+            ? { ...state.currentFlow, ...serverData }
             : state.currentFlow,
-        loading: false,
       }))
     } catch (error: any) {
-      set({ error: error.message, loading: false })
+      set({ error: error.message })
     }
   },
 

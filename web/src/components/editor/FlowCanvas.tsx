@@ -494,36 +494,35 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
   }, [])
 
   const handleNodeSettingsSave = useCallback((nodeId: string, config: any) => {
-    setNodes((nds) => {
-      const updated = nds.map((node) => {
-        if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, config } }
-        }
-        return node
-      })
-
-      // Auto-save flow to backend so config persists
-      if (flowId) {
-        const flowNodes = updated.map((node) => ({
-          id: node.id,
-          type: node.data.nodeType || 'unknown',
-          name: node.data.label || node.data.nodeType,
-          config: node.data.config || {},
-          position: toArrayPosition(node.position),
-        }))
-        const connections = getEdges().map((edge) => ({
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          sourceOutput: edge.sourceHandle ? parseInt(edge.sourceHandle) : 0,
-        }))
-        updateFlow(flowId, { nodes: flowNodes, connections })
+    // Update React Flow node state with new config
+    const currentNodes = getNodes()
+    const updatedNodes = currentNodes.map((node) => {
+      if (node.id === nodeId) {
+        return { ...node, data: { ...node.data, config } }
       }
-
-      return updated
+      return node
     })
+    setNodes(updatedNodes)
     setSelectedNode(null)
-    undoRedoActions.push({ nodes: getNodes(), edges: getEdges() })
+    undoRedoActions.push({ nodes: currentNodes, edges: getEdges() })
+
+    // Persist to backend immediately (outside setNodes to avoid stale closure)
+    if (flowId) {
+      const flowNodes = updatedNodes.map((node) => ({
+        id: node.id,
+        type: node.data.nodeType || 'unknown',
+        name: node.data.label || node.data.nodeType,
+        config: node.data.config || {},
+        position: toArrayPosition(node.position),
+      }))
+      const connections = getEdges().map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        sourceOutput: edge.sourceHandle ? parseInt(edge.sourceHandle) : 0,
+      }))
+      updateFlow(flowId, { nodes: flowNodes, connections })
+    }
   }, [setNodes, undoRedoActions, getNodes, getEdges, flowId, updateFlow])
 
   // ========== Context menu ==========

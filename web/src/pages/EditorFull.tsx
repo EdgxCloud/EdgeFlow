@@ -160,19 +160,12 @@ export default function EditorFull() {
   }
 
   const handleDeploy = async () => {
-    pushLog('info', `Deploying workflow: ${flowName}...`, 'editor')
+    pushLog('info', `Deploying workflow: ${flowName}...`, 'deploy')
     try {
-      // Save first (this also creates the flow if needed)
+      // Deploy = save only (persist current canvas state to server)
       await handleSave()
-      const flowId = id || useFlowStore.getState().currentFlow?.id
-      if (!flowId) {
-        toast.error('No flow to deploy')
-        return
-      }
-      await startFlow(flowId)
-      setIsRunning(true)
-      toast.success('Flow deployed and running')
-      pushLog('success', `Workflow deployed and running: ${flowName}`, 'deploy')
+      toast.success('Workflow deployed successfully')
+      pushLog('success', `Workflow deployed: ${flowName}`, 'deploy')
     } catch (error) {
       console.error('Failed to deploy flow:', error)
       toast.error('Failed to deploy flow')
@@ -182,19 +175,21 @@ export default function EditorFull() {
 
   const handleRun = async () => {
     const flowId = id || currentFlow?.id
-    if (flowId) {
-      try {
-        await startFlow(flowId)
-        setIsRunning(true)
-        toast.success('Flow started')
-        pushLog('success', `Flow started: ${flowName}`, 'runtime')
-      } catch (error) {
-        toast.error('Failed to start flow')
-        pushLog('error', `Failed to start flow: ${error}`, 'runtime')
-      }
-    } else {
+    if (!flowId) {
       toast.error('Save the flow first before running')
       pushLog('warn', 'Cannot run: flow not saved yet', 'runtime')
+      return
+    }
+    try {
+      // Save before running to ensure latest config is persisted
+      await handleSave()
+      await startFlow(flowId)
+      setIsRunning(true)
+      toast.success('Flow started')
+      pushLog('success', `Flow started: ${flowName}`, 'runtime')
+    } catch (error) {
+      toast.error('Failed to start flow')
+      pushLog('error', `Failed to start flow: ${error}`, 'runtime')
     }
   }
 
