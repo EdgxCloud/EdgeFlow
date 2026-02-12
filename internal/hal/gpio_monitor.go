@@ -1,9 +1,11 @@
 package hal
 
 import (
-	"log"
 	"sync"
 	"time"
+
+	"github.com/edgeflow/edgeflow/internal/logger"
+	"go.uber.org/zap"
 )
 
 // PinState represents the live state of a single GPIO pin
@@ -195,7 +197,7 @@ func (m *GPIOMonitor) poll() {
 	for pin, mode := range activePins {
 		value, err := gpio.DigitalRead(pin)
 		if err != nil {
-			log.Printf("GPIO monitor: failed to read pin %d: %v", pin, err)
+			logger.Warn("GPIO monitor: failed to read pin", zap.Int("pin", pin), zap.Error(err))
 			continue
 		}
 
@@ -260,7 +262,7 @@ func (m *GPIOMonitor) poll() {
 	}
 
 	if changed {
-		log.Printf("GPIO monitor: state changed - %d active pins", len(m.pins))
+		logger.Debug("GPIO monitor: state changed", zap.Int("active_pins", len(m.pins)))
 	}
 }
 

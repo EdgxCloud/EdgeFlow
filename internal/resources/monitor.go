@@ -3,10 +3,12 @@ package resources
 import (
 	"context"
 	"fmt"
-	"log"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/edgeflow/edgeflow/internal/logger"
+	"go.uber.org/zap"
 )
 
 // ResourceStats represents the system resource status
@@ -148,9 +150,9 @@ func (m *Monitor) checkLimits() {
 
 	// Check for low memory
 	if m.limits.AutoDisableOnLowMemory && stats.MemoryAvailable < m.limits.LowMemoryThreshold {
-		log.Printf("[WARN] Low memory detected: %dMB available (threshold: %dMB)",
-			stats.MemoryAvailable/1024/1024,
-			m.limits.LowMemoryThreshold/1024/1024)
+		logger.Warn("Low memory detected",
+			zap.Uint64("available_mb", stats.MemoryAvailable/1024/1024),
+			zap.Uint64("threshold_mb", m.limits.LowMemoryThreshold/1024/1024))
 
 		if m.onLowMemory != nil {
 			m.onLowMemory()
@@ -168,7 +170,7 @@ func (m *Monitor) checkLimits() {
 
 	// Check for disk full
 	if stats.DiskPercent > 95 {
-		log.Printf("[WARN] Disk nearly full: %.1f%% used", stats.DiskPercent)
+		logger.Warn("Disk nearly full", zap.Float64("disk_percent", stats.DiskPercent))
 		if m.onDiskFull != nil {
 			m.onDiskFull()
 		}
@@ -176,9 +178,9 @@ func (m *Monitor) checkLimits() {
 
 	// Check hard memory limit
 	if m.limits.MemoryHardLimit > 0 && stats.MemoryUsed > m.limits.MemoryHardLimit {
-		log.Printf("[CRITICAL] Hard memory limit exceeded: %dMB used (limit: %dMB)",
-			stats.MemoryUsed/1024/1024,
-			m.limits.MemoryHardLimit/1024/1024)
+		logger.Error("Hard memory limit exceeded",
+			zap.Uint64("used_mb", stats.MemoryUsed/1024/1024),
+			zap.Uint64("limit_mb", m.limits.MemoryHardLimit/1024/1024))
 
 		// Force garbage collection
 		runtime.GC()
@@ -190,7 +192,7 @@ func (m *Monitor) autoDisableNonEssentialModules() {
 	stats := m.GetStats()
 	availableMB := stats.MemoryAvailable / 1024 / 1024
 
-	log.Printf("[ACTION] Auto-disabling non-essential modules (available: %dMB)", availableMB)
+	logger.Warn("Auto-disabling non-essential modules", zap.Uint64("available_mb", availableMB))
 
 	// Disable priority (from largest to smallest)
 	priorityOrder := []string{
@@ -206,7 +208,7 @@ func (m *Monitor) autoDisableNonEssentialModules() {
 	for _, module := range priorityOrder {
 		if m.IsModuleEnabled(module) {
 			m.DisableModule(module)
-			log.Printf("[ACTION] Disabled module: %s", module)
+			logger.Info("Disabled module", zap.String("module", module))
 
 			// Force GC after disabling
 			runtime.GC()
@@ -214,7 +216,7 @@ func (m *Monitor) autoDisableNonEssentialModules() {
 			// Re-check
 			newStats := m.getSystemStats()
 			if newStats.MemoryAvailable >= m.limits.LowMemoryThreshold {
-				log.Printf("[ACTION] Memory recovered: %dMB available", newStats.MemoryAvailable/1024/1024)
+				logger.Info("Memory recovered", zap.Uint64("available_mb", newStats.MemoryAvailable/1024/1024))
 				return
 			}
 		}
@@ -254,7 +256,7 @@ func (m *Monitor) EnableModule(moduleName string) {
 	m.modulesMu.Lock()
 	defer m.modulesMu.Unlock()
 	m.enabledModules[moduleName] = true
-	log.Printf("[RESOURCE] Module enabled: %s", moduleName)
+	logger.Info("Module enabled", zap.String("module", moduleName))
 }
 
 // DisableModule disables a module
@@ -262,7 +264,7 @@ func (m *Monitor) DisableModule(moduleName string) {
 	m.modulesMu.Lock()
 	defer m.modulesMu.Unlock()
 	m.enabledModules[moduleName] = false
-	log.Printf("[RESOURCE] Module disabled: %s", moduleName)
+	logger.Info("Module disabled", zap.String("module", moduleName))
 }
 
 // IsModuleEnabled checks whether a module is enabled
@@ -312,7 +314,7 @@ func (m *Monitor) ForceGC() {
 	after := m.getSystemStats()
 
 	freed := int64(before.MemoryUsed) - int64(after.MemoryUsed)
-	log.Printf("[GC] Garbage collection: freed %dMB", freed/1024/1024)
+	logger.Info("Garbage collection complete", zap.Int64("freed_mb", freed/1024/1024))
 }
 
 // GetMemoryProfile returns the memory profile

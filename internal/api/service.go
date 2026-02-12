@@ -3,18 +3,17 @@ package api
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
 	"github.com/edgeflow/edgeflow/internal/engine"
 	"github.com/edgeflow/edgeflow/internal/hal"
+	"github.com/edgeflow/edgeflow/internal/logger"
 	"github.com/edgeflow/edgeflow/internal/node"
-	// "github.com/edgeflow/edgeflow/internal/plugin"
 	"github.com/edgeflow/edgeflow/internal/resources"
 	"github.com/edgeflow/edgeflow/internal/storage"
 	"github.com/edgeflow/edgeflow/internal/websocket"
-	// "github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // ExecutionRecord represents a tracked flow execution
@@ -101,13 +100,19 @@ func NewService(storage storage.Storage, registry *node.Registry, wsHub *websock
 	}
 }
 
-// logActivity broadcasts an activity log entry to all WebSocket clients
+// logActivity logs an activity using the structured logger (which also broadcasts to WebSocket)
 func (s *Service) logActivity(level, message, source string) {
-	s.wsHub.Broadcast(websocket.MessageTypeLog, map[string]interface{}{
-		"level":   level,
-		"message": message,
-		"source":  source,
-	})
+	l := logger.Get().With(zap.String("source", source))
+	switch level {
+	case "error":
+		l.Error(message)
+	case "warn":
+		l.Warn(message)
+	case "debug":
+		l.Debug(message)
+	default:
+		l.Info(message)
+	}
 }
 
 // GetGPIOState returns the current GPIO pin states
@@ -224,19 +229,21 @@ func (s *Service) DeleteFlow(id string) error {
 
 // StartFlow starts a flow execution
 func (s *Service) StartFlow(id string) error {
-	log.Printf("[StartFlow] Starting flow %s", id)
+	flowLogger := logger.WithFlow(id, "")
+	flowLogger.Info("Starting flow")
 	flow, err := s.GetFlow(id)
 	if err != nil {
-		log.Printf("[StartFlow] Failed to get flow %s: %v", id, err)
+		flowLogger.Error("Failed to get flow", zap.Error(err))
 		return err
 	}
 
-	log.Printf("[StartFlow] Flow %s loaded: %d nodes, %d connections", flow.ID, len(flow.Nodes), len(flow.Connections))
+	flowLogger = logger.WithFlow(id, flow.Name)
+	flowLogger.Info("Flow loaded", zap.Int("nodes", len(flow.Nodes)), zap.Int("connections", len(flow.Connections)))
 	for nid, n := range flow.Nodes {
-		log.Printf("[StartFlow]   Node: %s (type=%s, name=%s)", nid, n.Type, n.Name)
+		flowLogger.Debug("Node", zap.String("node_id", nid), zap.String("type", n.Type), zap.String("name", n.Name))
 	}
 	for _, conn := range flow.Connections {
-		log.Printf("[StartFlow]   Connection: %s -> %s", conn.SourceID, conn.TargetID)
+		flowLogger.Debug("Connection", zap.String("source", conn.SourceID), zap.String("target", conn.TargetID))
 	}
 
 	// Create execution record
@@ -361,13 +368,13 @@ func (s *Service) StopFlow(id string) error {
 func (s *Service) persistFlowStatus(id string, status string) {
 	storageFlow, err := s.storage.GetFlow(id)
 	if err != nil {
-		log.Printf("[persistFlowStatus] Failed to get flow %s from storage: %v", id, err)
+		logger.Warn("Failed to get flow from storage for status update", zap.String("flow_id", id), zap.Error(err))
 		return
 	}
 	storageFlow.Status = status
 	storageFlow.UpdatedAt = time.Now()
 	if err := s.storage.SaveFlow(storageFlow); err != nil {
-		log.Printf("[persistFlowStatus] Failed to save flow %s status: %v", id, err)
+		logger.Warn("Failed to persist flow status", zap.String("flow_id", id), zap.String("status", status), zap.Error(err))
 	}
 }
 

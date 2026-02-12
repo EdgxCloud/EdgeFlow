@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"log"
+	stdlog "log"
 	"os"
 
 	"github.com/edgeflow/edgeflow/internal/api"
+	"github.com/edgeflow/edgeflow/internal/logger"
 	"github.com/edgeflow/edgeflow/internal/node"
 	"github.com/edgeflow/edgeflow/internal/storage"
 	"github.com/edgeflow/edgeflow/internal/websocket"
@@ -22,8 +23,9 @@ import (
 	wirelessNodes "github.com/edgeflow/edgeflow/pkg/nodes/wireless"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
+	fiberLogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"go.uber.org/zap"
 )
 
 var Version = "0.1.0"
@@ -34,13 +36,26 @@ func main() {
 	fmt.Println("║ Lightweight Edge & IoT Automation Platform ║")
 	fmt.Println("╚═══════════════════════════════════════╝")
 
+	// Initialize structured logger (Zap + Lumberjack file rotation)
+	logCfg := logger.DefaultConfig()
+	logCfg.LogDir = getEnv("EDGEFLOW_LOG_DIR", "./logs")
+	logCfg.Level = getEnv("EDGEFLOW_LOG_LEVEL", "info")
+	if err := logger.Init(logCfg); err != nil {
+		stdlog.Fatalf("Failed to initialize logger: %v", err)
+	}
+	defer logger.Sync()
+
+	// Redirect stdlib log to structured logger
+	stdlog.SetOutput(logger.Writer())
+	stdlog.SetFlags(0)
+
 	// Initialize Hardware Abstraction Layer (GPIO, I2C, SPI)
 	initHAL()
 
 	// Initialize storage
 	storageBackend, err := storage.NewFileStorage("./data")
 	if err != nil {
-		log.Fatalf("Failed to initialize storage: %v", err)
+		logger.Fatal("Failed to initialize storage", zap.Error(err))
 	}
 	defer storageBackend.Close()
 
@@ -53,6 +68,16 @@ func main() {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
+	// Wire logger's WebSocket broadcaster to send logs to frontend LogPanel
+	logger.SetBroadcaster(func(level, message, source string, fields map[string]interface{}) {
+		wsHub.Broadcast(websocket.MessageTypeLog, map[string]interface{}{
+			"level":   level,
+			"message": message,
+			"source":  source,
+			"fields":  fields,
+		})
+	})
+
 	// Initialize API service
 	service := api.NewService(storageBackend, registry, wsHub)
 	handler := api.NewHandler(service)
@@ -64,7 +89,7 @@ func main() {
 
 	// Middleware
 	app.Use(recover.New())
-	app.Use(logger.New())
+	app.Use(fiberLogger.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
@@ -95,13 +120,15 @@ func main() {
 	host := getEnv("EDGEFLOW_SERVER_HOST", "0.0.0.0")
 	addr := fmt.Sprintf("%s:%s", host, port)
 
-	log.Printf("Server starting on http://%s\n", addr)
-	log.Printf("Health check: http://%s/api/health\n", addr)
-	log.Printf("API v1: http://%s/api/v1\n", addr)
-	log.Printf("WebSocket: ws://%s/ws\n", addr)
+	logger.Info("Server starting", zap.String("addr", fmt.Sprintf("http://%s", addr)))
+	logger.Info("Endpoints ready",
+		zap.String("health", fmt.Sprintf("http://%s/api/health", addr)),
+		zap.String("api", fmt.Sprintf("http://%s/api/v1", addr)),
+		zap.String("ws", fmt.Sprintf("ws://%s/ws", addr)),
+	)
 
 	if err := app.Listen(addr); err != nil {
-		log.Fatalf("Failed to start server: %v\n", err)
+		logger.Fatal("Failed to start server", zap.Error(err))
 	}
 }
 
@@ -113,71 +140,69 @@ func getEnv(key, defaultValue string) string {
 }
 
 func registerModules(registry *node.Registry) {
-	log.Println("Registering node modules...")
+	logger.Info("Registering node modules...")
 
 	// Register core nodes
 	if err := coreNodes.RegisterAllNodes(registry); err != nil {
-		log.Printf("Warning: Failed to register core nodes: %v", err)
+		logger.Warn("Failed to register core nodes", zap.Error(err))
 	} else {
-		log.Println("✅ Core nodes registered successfully")
+		logger.Info("Core nodes registered")
 	}
 
 	// Register dashboard widgets
 	if err := dashboardNodes.RegisterAll(registry); err != nil {
-		log.Printf("Warning: Failed to register dashboard widgets: %v", err)
+		logger.Warn("Failed to register dashboard widgets", zap.Error(err))
 	} else {
-		log.Println("✅ Dashboard widgets (14) registered successfully")
+		logger.Info("Dashboard widgets registered")
 	}
 
-	// Register GPIO nodes (52 hardware nodes - stubs on non-Linux)
+	// Register GPIO nodes (stubs on non-Linux)
 	if err := gpioNodes.RegisterAllNodes(registry); err != nil {
-		log.Printf("Warning: Failed to register GPIO nodes: %v", err)
+		logger.Warn("Failed to register GPIO nodes", zap.Error(err))
 	} else {
-		log.Println("✅ GPIO nodes (52) registered successfully")
+		logger.Info("GPIO nodes registered")
 	}
 
 	// Register network nodes
 	networkNodes.RegisterAllNodes(registry)
-	log.Println("✅ Network nodes registered successfully")
+	logger.Info("Network nodes registered")
 
 	// Register database nodes
 	databaseNodes.RegisterAllNodes(registry)
-	log.Println("✅ Database nodes registered successfully")
+	logger.Info("Database nodes registered")
 
 	// Register storage nodes
 	storageNodes.RegisterAllNodes(registry)
-	log.Println("✅ Storage nodes registered successfully")
+	logger.Info("Storage nodes registered")
 
 	// Register messaging nodes
 	if err := messagingNodes.RegisterAllNodes(registry); err != nil {
-		log.Printf("Warning: Failed to register messaging nodes: %v", err)
+		logger.Warn("Failed to register messaging nodes", zap.Error(err))
 	} else {
-		log.Println("✅ Messaging nodes registered successfully")
+		logger.Info("Messaging nodes registered")
 	}
 
 	// Register AI nodes
 	if err := aiNodes.RegisterAllNodes(registry); err != nil {
-		log.Printf("Warning: Failed to register AI nodes: %v", err)
+		logger.Warn("Failed to register AI nodes", zap.Error(err))
 	} else {
-		log.Println("✅ AI nodes registered successfully")
+		logger.Info("AI nodes registered")
 	}
 
 	// Register parser nodes (HTML parser)
 	if err := parserNodes.RegisterNodes(registry); err != nil {
-		log.Printf("Warning: Failed to register parser nodes: %v", err)
+		logger.Warn("Failed to register parser nodes", zap.Error(err))
 	} else {
-		log.Println("✅ Parser nodes registered successfully")
+		logger.Info("Parser nodes registered")
 	}
 
 	// Industrial protocol nodes (Modbus TCP/RTU, OPC-UA) are auto-registered via init()
-	// Just importing the package triggers registration
-	_ = industrialNodes.RegisterNodes // Ensure import is used
-	log.Println("✅ Industrial nodes registered (Modbus TCP/RTU, OPC-UA)")
+	_ = industrialNodes.RegisterNodes
+	logger.Info("Industrial nodes registered (Modbus TCP/RTU, OPC-UA)")
 
 	// Wireless protocol nodes (BLE, Zigbee, Z-Wave) are auto-registered via init()
-	// Just importing the package triggers registration
-	_ = wirelessNodes.RegisterNodes // Ensure import is used
-	log.Println("✅ Wireless nodes registered (BLE, Zigbee, Z-Wave)")
+	_ = wirelessNodes.RegisterNodes
+	logger.Info("Wireless nodes registered (BLE, Zigbee, Z-Wave)")
 
-	log.Println("✅ Node registration complete")
+	logger.Info("Node registration complete")
 }

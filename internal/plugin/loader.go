@@ -2,9 +2,11 @@ package plugin
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"sync"
+
+	"github.com/edgeflow/edgeflow/internal/logger"
+	"go.uber.org/zap"
 )
 
 // Loader plugin loader with dependency resolution
@@ -153,7 +155,7 @@ func (l *Loader) ResolveLoadOrder(plugins []Plugin) ([]string, error) {
 		return nil, fmt.Errorf("failed to resolve load order: %w", err)
 	}
 
-	log.Printf("[LOADER] Load order resolved: %v", order)
+	logger.Debug("Plugin load order resolved", zap.Strings("order", order))
 	return order, nil
 }
 

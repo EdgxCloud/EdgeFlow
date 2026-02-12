@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -17,8 +16,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/edgeflow/edgeflow/internal/logger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
+	"go.uber.org/zap"
 )
 
 // HTTP client for marketplace search with custom transport
@@ -1876,7 +1877,7 @@ func (h *Handler) searchGitHub(c *fiber.Ctx) error {
 
 // handleTerminalWebSocket provides a WebSocket-based shell terminal
 func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
-	log.Printf("[TERMINAL] New terminal WebSocket connection")
+	logger.Debug("New terminal WebSocket connection")
 	defer c.Close()
 
 	// Determine shell
@@ -1938,12 +1939,12 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 		}
 
 		if msg.Type != "command" || strings.TrimSpace(msg.Command) == "" {
-			log.Printf("[TERMINAL] Ignoring message: type=%q command=%q", msg.Type, msg.Command)
+			logger.Debug("Ignoring terminal message", zap.String("type", msg.Type), zap.String("command", msg.Command))
 			continue
 		}
 
 		command := strings.TrimSpace(msg.Command)
-		log.Printf("[TERMINAL] Executing: %s (cwd: %s)", command, cwd)
+		logger.Debug("Terminal executing", zap.String("command", command), zap.String("cwd", cwd))
 		h.service.logActivity("debug", fmt.Sprintf("Terminal: %s", command), "terminal")
 
 		// Handle cd command specially
@@ -1986,7 +1987,7 @@ func (h *Handler) handleTerminalWebSocket(c *websocket.Conn) {
 		// Capture stdout and stderr via combined output for simplicity
 		output, cmdErr := cmd.CombinedOutput()
 		cancel()
-		log.Printf("[TERMINAL] Command done: len(output)=%d err=%v", len(output), cmdErr)
+		logger.Debug("Terminal command done", zap.Int("output_len", len(output)), zap.Error(cmdErr))
 
 		// Send output if any
 		if len(output) > 0 {
@@ -2043,7 +2044,7 @@ func (h *Handler) handleTabCompletion(c *websocket.Conn, commandLine string, cwd
 		suggestions = h.fileComplete(partial, cwd)
 	}
 
-	log.Printf("[TERMINAL] Tab complete: partial=%q suggestions=%d", partial, len(suggestions))
+	logger.Debug("Tab completion", zap.String("partial", partial), zap.Int("suggestions", len(suggestions)))
 
 	c.WriteJSON(map[string]interface{}{
 		"type":        "completion",

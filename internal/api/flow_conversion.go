@@ -1,12 +1,13 @@
 package api
 
 import (
-	"log"
 	"time"
 
 	"github.com/edgeflow/edgeflow/internal/engine"
+	"github.com/edgeflow/edgeflow/internal/logger"
 	"github.com/edgeflow/edgeflow/internal/node"
 	"github.com/edgeflow/edgeflow/internal/storage"
+	"go.uber.org/zap"
 )
 
 // engineFlowToStorage converts engine.Flow to storage.Flow
@@ -60,8 +61,9 @@ func storageFlowToEngine(f *storage.Flow) *engine.Flow {
 		return nil
 	}
 
-	log.Printf("[storageFlowToEngine] Converting flow %s (%s): %d nodes, %d connections",
-		f.ID, f.Name, len(f.Nodes), len(f.Connections))
+	flowLog := logger.WithFlow(f.ID, f.Name)
+	flowLog.Debug("Converting storage flow to engine",
+		zap.Int("nodes", len(f.Nodes)), zap.Int("connections", len(f.Connections)))
 
 	registry := node.GetGlobalRegistry()
 
@@ -78,19 +80,19 @@ func storageFlowToEngine(f *storage.Flow) *engine.Flow {
 		nodeType, _ := nodeData["type"].(string)
 		nodeName, _ := nodeData["name"].(string)
 		if nodeID == "" || nodeType == "" {
-			log.Printf("[storageFlowToEngine] Skipping node with empty id=%q or type=%q", nodeID, nodeType)
+			flowLog.Debug("Skipping node with empty id or type", zap.String("id", nodeID), zap.String("type", nodeType))
 			continue
 		}
 		if nodeName == "" {
 			nodeName = nodeType
 		}
 
-		log.Printf("[storageFlowToEngine] Creating node: id=%s type=%s name=%s", nodeID, nodeType, nodeName)
+		flowLog.Debug("Creating node", zap.String("node_id", nodeID), zap.String("type", nodeType), zap.String("name", nodeName))
 
 		// Create node from registry (gets the correct executor)
 		n, err := registry.CreateNode(nodeType, nodeName)
 		if err != nil {
-			log.Printf("[storageFlowToEngine] ERROR: failed to create node %s (%s): %v", nodeID, nodeType, err)
+			flowLog.Error("Failed to create node", zap.String("node_id", nodeID), zap.String("type", nodeType), zap.Error(err))
 			continue
 		}
 
@@ -99,15 +101,15 @@ func storageFlowToEngine(f *storage.Flow) *engine.Flow {
 
 		// Apply config if present
 		if config, ok := nodeData["config"].(map[string]interface{}); ok {
-			log.Printf("[storageFlowToEngine] Applying config to %s: %v", nodeID, config)
+			flowLog.Debug("Applying config", zap.String("node_id", nodeID), zap.Any("config", config))
 			n.UpdateConfig(config)
 		} else {
-			log.Printf("[storageFlowToEngine] No config found for node %s", nodeID)
+			flowLog.Debug("No config found for node", zap.String("node_id", nodeID))
 		}
 
 		// Add to flow
 		if err := flow.AddNode(n); err != nil {
-			log.Printf("[storageFlowToEngine] ERROR: failed to add node %s to flow: %v", nodeID, err)
+			flowLog.Error("Failed to add node to flow", zap.String("node_id", nodeID), zap.Error(err))
 		}
 	}
 
@@ -115,19 +117,17 @@ func storageFlowToEngine(f *storage.Flow) *engine.Flow {
 	for _, connData := range f.Connections {
 		sourceID, _ := connData["source"].(string)
 		targetID, _ := connData["target"].(string)
-		log.Printf("[storageFlowToEngine] Connecting: source=%q target=%q (raw data: %v)", sourceID, targetID, connData)
+		flowLog.Debug("Connecting nodes", zap.String("source", sourceID), zap.String("target", targetID))
 		if sourceID == "" || targetID == "" {
-			log.Printf("[storageFlowToEngine] Skipping connection with empty source/target")
+			flowLog.Debug("Skipping connection with empty source/target")
 			continue
 		}
 		if err := flow.Connect(sourceID, targetID); err != nil {
-			log.Printf("[storageFlowToEngine] ERROR: failed to connect %s -> %s: %v", sourceID, targetID, err)
-		} else {
-			log.Printf("[storageFlowToEngine] Connected: %s -> %s", sourceID, targetID)
+			flowLog.Error("Failed to connect nodes", zap.String("source", sourceID), zap.String("target", targetID), zap.Error(err))
 		}
 	}
 
-	log.Printf("[storageFlowToEngine] Result: %d nodes, %d connections in engine flow", len(flow.Nodes), len(flow.Connections))
+	flowLog.Debug("Flow conversion complete", zap.Int("nodes", len(flow.Nodes)), zap.Int("connections", len(flow.Connections)))
 	return flow
 }
 

@@ -1,9 +1,9 @@
 package api
 
 import (
-	"log"
-
+	"github.com/edgeflow/edgeflow/internal/logger"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
 // SetupRoutes configures all API routes
@@ -17,7 +17,7 @@ func SetupRoutes(app *fiber.App) {
 	// Module routes
 	moduleAPI, err := NewModuleAPI("./modules")
 	if err != nil {
-		log.Printf("Warning: Failed to initialize module API: %v", err)
+		logger.Warn("Failed to initialize module API", zap.Error(err))
 	} else {
 		SetupModuleRoutes(app, moduleAPI)
 	}

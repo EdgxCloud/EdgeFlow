@@ -3,11 +3,12 @@ package plugin
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
+	"github.com/edgeflow/edgeflow/internal/logger"
 	"github.com/edgeflow/edgeflow/internal/node"
 	"github.com/edgeflow/edgeflow/internal/resources"
+	"go.uber.org/zap"
 )
 
 // Manager plugin manager
@@ -73,7 +74,7 @@ func (m *Manager) LoadPlugin(name string) error {
 		}
 
 		if !depPlugin.IsLoaded() {
-			log.Printf("[PLUGIN] Loading dependency: %s", dep)
+			logger.Info("Loading plugin dependency", zap.String("dependency", dep))
 			if err := m.loadPluginInternal(depPlugin); err != nil {
 				return fmt.Errorf("failed to load dependency '%s': %w", dep, err)
 			}
@@ -94,7 +95,7 @@ func (m *Manager) LoadPlugin(name string) error {
 		m.resourceMonitor.EnableModule(name)
 	}
 
-	log.Printf("[PLUGIN] Loaded: %s v%s (%d nodes)", name, plugin.Version(), len(plugin.Nodes()))
+	logger.Info("Plugin loaded", zap.String("name", name), zap.String("version", plugin.Version()), zap.Int("nodes", len(plugin.Nodes())))
 	return nil
 }
 
@@ -125,7 +126,7 @@ func (m *Manager) loadPluginInternal(plugin Plugin) error {
 			Factory:     nodeDef.Factory,
 		}
 		if err := m.nodeRegistry.Register(nodeInfo); err != nil {
-			log.Printf("[WARN] Failed to register node '%s': %v", nodeDef.Type, err)
+			logger.Warn("Failed to register plugin node", zap.String("type", nodeDef.Type), zap.Error(err))
 		}
 	}
 
@@ -187,7 +188,7 @@ func (m *Manager) UnloadPlugin(name string) error {
 		m.resourceMonitor.DisableModule(name)
 	}
 
-	log.Printf("[PLUGIN] Unloaded: %s", name)
+	logger.Info("Plugin unloaded", zap.String("name", name))
 	return nil
 }
 
@@ -259,7 +260,7 @@ func (m *Manager) LoadAll() error {
 	// Load in order
 	for _, name := range enabled {
 		if err := m.LoadPlugin(name); err != nil {
-			log.Printf("[ERROR] Failed to load plugin '%s': %v", name, err)
+			logger.Error("Failed to load plugin", zap.String("name", name), zap.Error(err))
 			// Continue with other plugins
 		}
 	}
@@ -278,7 +279,7 @@ func (m *Manager) UnloadAll() error {
 	for i := len(loadOrder) - 1; i >= 0; i-- {
 		name := loadOrder[i]
 		if err := m.UnloadPlugin(name); err != nil {
-			log.Printf("[ERROR] Failed to unload plugin '%s': %v", name, err)
+			logger.Error("Failed to unload plugin", zap.String("name", name), zap.Error(err))
 		}
 	}
 

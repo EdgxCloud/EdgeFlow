@@ -4,12 +4,11 @@
 package main
 
 import (
-	"log"
-
 	"github.com/edgeflow/edgeflow/internal/hal"
+	"github.com/edgeflow/edgeflow/internal/logger"
 )
 
 func initHAL() {
-	log.Println("Non-Linux platform detected, using Mock HAL for GPIO")
+	logger.Info("Non-Linux platform detected, using Mock HAL for GPIO")
 	hal.SetGlobalHAL(hal.NewMockHAL())
 }
