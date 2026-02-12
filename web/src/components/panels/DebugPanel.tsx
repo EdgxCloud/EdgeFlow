@@ -57,12 +57,14 @@ export default function DebugPanel({ className }: DebugPanelProps) {
   const [autoScroll, setAutoScroll] = useState(true)
   const pausedRef = useRef<DebugMessage[]>([])
   const isPausedRef = useRef(false)
+  const isLiveRef = useRef(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Keep ref in sync with state
   useEffect(() => { isPausedRef.current = isPaused }, [isPaused])
 
   const addMessage = useCallback((entry: DebugMessage) => {
+    // Only accept messages while a flow is running
+    if (!isLiveRef.current) return
     if (isPausedRef.current) {
       pausedRef.current.push(entry)
     } else {
@@ -77,17 +79,16 @@ export default function DebugPanel({ className }: DebugPanelProps) {
     }
   }, [messages, autoScroll, isPaused])
 
-  // Subscribe to WebSocket execution and node_status messages
+  // Subscribe to WebSocket messages — single stable effect
   useEffect(() => {
     if (!wsClient.isConnected()) {
       wsClient.connect()
     }
 
-    // Real execution data from node processing
     const handleExecution = (msg: WSMessage) => {
       const data = msg.data as Record<string, unknown>
       const status = (data.status as string) || 'success'
-      const entry: DebugMessage = {
+      addMessage({
         id: `debug-${debugCounter++}`,
         timestamp: (data.timestamp as number) || Date.now(),
         nodeId: (data.node_id as string) || 'unknown',
@@ -100,17 +101,15 @@ export default function DebugPanel({ className }: DebugPanelProps) {
         executionTime: (data.execution_time as number) || 0,
         status: status as 'success' | 'error',
         errorMsg: (data.error as string) || undefined,
-      }
-      addMessage(entry)
+      })
     }
 
-    // Node status change events
     const handleNodeStatus = (msg: WSMessage) => {
       const data = msg.data as Record<string, unknown>
       const level = data.status === 'error' ? 'error'
         : data.status === 'warning' ? 'warn'
         : 'debug'
-      const entry: DebugMessage = {
+      addMessage({
         id: `debug-${debugCounter++}`,
         timestamp: Date.now(),
         nodeId: (data.node_id as string) || 'unknown',
@@ -120,16 +119,20 @@ export default function DebugPanel({ className }: DebugPanelProps) {
         input: null,
         output: { status: data.status, message: data.message, text: data.text },
         level: level as DebugMessage['level'],
-      }
-      addMessage(entry)
+      })
     }
 
-    // Stop receiving debug messages when flow is stopped
+    // Track flow lifecycle: gate message acceptance
     const handleFlowStatus = (msg: WSMessage) => {
       const data = msg.data as Record<string, unknown>
-      if (data.action === 'stopped') {
+      if (data.action === 'started') {
+        // Flow started — clear old data, accept new messages
         setMessages([])
         pausedRef.current = []
+        isLiveRef.current = true
+      } else if (data.action === 'stopped') {
+        // Flow stopped — stop accepting new messages, keep existing data frozen
+        isLiveRef.current = false
       }
     }
 

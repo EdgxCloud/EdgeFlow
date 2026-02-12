@@ -1,12 +1,19 @@
 /**
  * Logs Panel
  * Real-time activity & log streaming via WebSocket
- * Captures: backend logs, flow events, node events, frontend actions
+ * Sources: backend log messages (via WS), frontend actions (via pushLog)
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Trash2, Search, ArrowDown, Pause, Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import wsClient from '@/services/websocket'
@@ -54,18 +61,6 @@ const LEVEL_BADGES: Record<string, string> = {
   success: 'text-green-500 bg-green-500/10',
 }
 
-// Map flow_status actions to log levels
-function flowActionToLevel(action: string): LogEntry['level'] {
-  switch (action) {
-    case 'started': return 'success'
-    case 'stopped': return 'info'
-    case 'deleted': return 'warn'
-    case 'created': return 'info'
-    case 'updated': return 'info'
-    default: return 'info'
-  }
-}
-
 export function LogsPanel() {
   const [logs, setLogs] = useState<LogEntry[]>([
     {
@@ -77,6 +72,8 @@ export function LogsPanel() {
     },
   ])
   const [filter, setFilter] = useState('')
+  const [filterLevel, setFilterLevel] = useState<string>('all')
+  const [filterSource, setFilterSource] = useState<string>('all')
   const [isPaused, setIsPaused] = useState(false)
   const [autoScroll, setAutoScroll] = useState(true)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -108,13 +105,12 @@ export function LogsPanel() {
     return () => { listeners.delete(handler) }
   }, [addEntry])
 
-  // Subscribe to WebSocket messages (log + flow_status + node_status)
+  // Subscribe to backend log messages only (no flow_status/node_status — those come via pushLog)
   useEffect(() => {
     if (!wsClient.isConnected()) {
       wsClient.connect()
     }
 
-    // Backend log messages
     const unsubLog = wsClient.on('log', (msg: WSMessage) => {
       const data = msg.data as Record<string, unknown>
       addEntry({
@@ -126,40 +122,7 @@ export function LogsPanel() {
       })
     })
 
-    // Flow status events
-    const unsubFlow = wsClient.on('flow_status', (msg: WSMessage) => {
-      const data = msg.data as Record<string, unknown>
-      const action = (data.action as string) || 'unknown'
-      const name = (data.name as string) || (data.flow_id as string) || ''
-      addEntry({
-        id: logCounter++,
-        timestamp: msg.timestamp || new Date().toISOString(),
-        level: flowActionToLevel(action),
-        message: `Flow ${action}: ${name}`,
-        source: 'flow',
-      })
-    })
-
-    // Node status events
-    const unsubNode = wsClient.on('node_status', (msg: WSMessage) => {
-      const data = msg.data as Record<string, unknown>
-      const action = (data.action as string) || 'unknown'
-      const nodeId = (data.node_id as string) || ''
-      const nodeType = (data.type as string) || ''
-      addEntry({
-        id: logCounter++,
-        timestamp: msg.timestamp || new Date().toISOString(),
-        level: action === 'removed' ? 'warn' : 'info',
-        message: `Node ${action}: ${nodeId}${nodeType ? ` (${nodeType})` : ''}`,
-        source: 'node',
-      })
-    })
-
-    return () => {
-      unsubLog()
-      unsubFlow()
-      unsubNode()
-    }
+    return () => { unsubLog() }
   }, [addEntry])
 
   const handleResume = useCallback(() => {
@@ -175,13 +138,23 @@ export function LogsPanel() {
     pausedLogsRef.current = []
   }
 
-  const filteredLogs = filter
-    ? logs.filter(log =>
-        log.message.toLowerCase().includes(filter.toLowerCase()) ||
-        log.level.includes(filter.toLowerCase()) ||
-        log.source?.toLowerCase().includes(filter.toLowerCase())
-      )
-    : logs
+  // Get unique sources for filter
+  const sources = Array.from(new Set(logs.map(l => l.source).filter(Boolean))).sort() as string[]
+
+  // Filter logs
+  const filteredLogs = logs.filter((log) => {
+    if (filterLevel !== 'all' && log.level !== filterLevel) return false
+    if (filterSource !== 'all' && log.source !== filterSource) return false
+    if (filter) {
+      const q = filter.toLowerCase()
+      if (
+        !log.message.toLowerCase().includes(q) &&
+        !log.level.includes(q) &&
+        !(log.source?.toLowerCase().includes(q))
+      ) return false
+    }
+    return true
+  })
 
   const formatTime = (ts: string) => {
     try {
@@ -195,6 +168,7 @@ export function LogsPanel() {
     <div className="h-full flex flex-col">
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 dark:border-gray-800">
+        {/* Search */}
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
           <Input
@@ -205,6 +179,37 @@ export function LogsPanel() {
           />
         </div>
 
+        {/* Level filter */}
+        <Select value={filterLevel} onValueChange={setFilterLevel}>
+          <SelectTrigger className="w-24 h-7 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="success">Success</SelectItem>
+            <SelectItem value="error">Error</SelectItem>
+            <SelectItem value="warn">Warning</SelectItem>
+            <SelectItem value="info">Info</SelectItem>
+            <SelectItem value="debug">Debug</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Source filter */}
+        {sources.length > 1 && (
+          <Select value={filterSource} onValueChange={setFilterSource}>
+            <SelectTrigger className="w-24 h-7 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sources</SelectItem>
+              {sources.map(src => (
+                <SelectItem key={src} value={src}>{src}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {/* Pause/Resume */}
         <Button
           variant="ghost"
           size="sm"
@@ -214,59 +219,58 @@ export function LogsPanel() {
           {isPaused ? (
             <>
               <Play className="w-3 h-3" />
-              Resume
               {pausedLogsRef.current.length > 0 && (
-                <span className="ml-1 text-yellow-500">({pausedLogsRef.current.length})</span>
+                <span className="text-yellow-500">({pausedLogsRef.current.length})</span>
               )}
             </>
           ) : (
-            <>
-              <Pause className="w-3 h-3" />
-              Pause
-            </>
+            <Pause className="w-3 h-3" />
           )}
         </Button>
 
+        {/* Auto-scroll */}
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 text-xs gap-1"
+          className="h-7 w-7 p-0"
           onClick={() => setAutoScroll(!autoScroll)}
         >
           <ArrowDown className={cn('w-3 h-3', autoScroll && 'text-blue-500')} />
         </Button>
 
+        {/* Clear */}
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 text-xs gap-1"
+          className="h-7 w-7 p-0"
           onClick={clearLogs}
         >
           <Trash2 className="w-3 h-3" />
         </Button>
 
-        <span className="text-xs text-muted-foreground">{filteredLogs.length} entries</span>
+        <span className="text-xs text-muted-foreground">{filteredLogs.length}</span>
       </div>
 
       {/* Log entries */}
       <div ref={scrollRef} className="flex-1 overflow-auto font-mono text-xs">
         {filteredLogs.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            No logs yet. Actions you perform will appear here.
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+            <p className="text-sm">No log entries</p>
+            <p className="text-xs">Actions and events will appear here</p>
           </div>
         ) : (
           filteredLogs.map((log) => (
             <div
               key={log.id}
               className={cn(
-                'px-3 py-0.5 flex items-start gap-2 hover:bg-muted/30',
+                'px-3 py-0.5 flex items-start gap-2 hover:bg-muted/30 border-b border-border/20',
                 log.level === 'error' && 'bg-red-500/5'
               )}
             >
               <span className="text-muted-foreground shrink-0 w-16">
                 {formatTime(log.timestamp)}
               </span>
-              <span className={cn('shrink-0 w-14 uppercase text-[10px] font-medium px-1 rounded', LEVEL_BADGES[log.level])}>
+              <span className={cn('shrink-0 w-14 uppercase text-[10px] font-medium px-1 rounded text-center', LEVEL_BADGES[log.level])}>
                 {log.level}
               </span>
               {log.source && (

@@ -266,8 +266,14 @@ func (h *Handler) getFlow(c *fiber.Ctx) error {
 	// Convert storage nodes (array) to map format for frontend
 	nodesMap := make(map[string]interface{})
 	for _, nodeMap := range storageFlow.Nodes {
-		if id, ok := nodeMap["id"].(string); ok {
-			nodesMap[id] = nodeMap
+		if nid, ok := nodeMap["id"].(string); ok {
+			nodesMap[nid] = nodeMap
+			if cfg, ok := nodeMap["config"]; ok {
+				logger.Debug("Flow load: node config from storage",
+					zap.String("flow_id", id),
+					zap.String("node_id", nid),
+					zap.Any("config", cfg))
+			}
 		}
 	}
 
@@ -374,9 +380,19 @@ func (h *Handler) updateFlow(c *fiber.Ctx) error {
 	// Notify via WebSocket
 	h.service.BroadcastFlowUpdate(id, storageFlow.Name)
 
-	// Log save details
+	// Log save details with config data for debugging
 	nodeCount := len(storageFlow.Nodes)
 	connCount := len(storageFlow.Connections)
+	for _, nodeMap := range storageFlow.Nodes {
+		if nid, ok := nodeMap["id"].(string); ok {
+			if cfg, ok := nodeMap["config"]; ok {
+				logger.Debug("Flow save: node config persisted",
+					zap.String("flow_id", id),
+					zap.String("node_id", nid),
+					zap.Any("config", cfg))
+			}
+		}
+	}
 	h.service.logActivity("info", fmt.Sprintf("Flow saved: %s (%d nodes, %d connections)", storageFlow.Name, nodeCount, connCount), "editor")
 
 	// Return the updated storage flow in frontend-compatible format
