@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -68,24 +69,51 @@ func NewGPIOOutExecutor(config map[string]interface{}) (node.Executor, error) {
 
 // Init initializes the GPIO Out executor with config
 func (e *GPIOOutExecutor) Init(config map[string]interface{}) error {
-	// Config is already parsed in NewGPIOOutExecutor
+	if config == nil {
+		return nil
+	}
+
+	// Parse config via JSON round-trip
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+
+	var gpioConfig GPIOOutConfig
+	if err := json.Unmarshal(configJSON, &gpioConfig); err != nil {
+		return fmt.Errorf("invalid gpio config: %w", err)
+	}
+
+	e.config = gpioConfig
+
+	// Default state file
+	if e.config.PersistState && e.config.StateFile == "" {
+		e.config.StateFile = "/var/lib/edgeflow/gpio_states.json"
+	}
+
 	return nil
 }
 
 // Execute execute node
 func (e *GPIOOutExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
+	log.Printf("[gpio-out] Execute called: pin=%d, payload=%v", e.config.Pin, msg.Payload)
+
 	// Get HAL if not initialized
 	if e.hal == nil {
 		h, err := hal.GetGlobalHAL()
 		if err != nil {
+			log.Printf("[gpio-out] HAL not initialized: %v", err)
 			return node.Message{}, fmt.Errorf("HAL not initialized: %w", err)
 		}
 		e.hal = h
 
 		// Setup GPIO
+		log.Printf("[gpio-out] Setting up GPIO pin %d as output", e.config.Pin)
 		if err := e.setup(); err != nil {
+			log.Printf("[gpio-out] Setup failed: %v", err)
 			return node.Message{}, fmt.Errorf("failed to setup GPIO: %w", err)
 		}
+		log.Printf("[gpio-out] GPIO pin %d setup complete", e.config.Pin)
 	}
 
 	// Get value from message

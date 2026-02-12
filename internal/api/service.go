@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -223,9 +224,19 @@ func (s *Service) DeleteFlow(id string) error {
 
 // StartFlow starts a flow execution
 func (s *Service) StartFlow(id string) error {
+	log.Printf("[StartFlow] Starting flow %s", id)
 	flow, err := s.GetFlow(id)
 	if err != nil {
+		log.Printf("[StartFlow] Failed to get flow %s: %v", id, err)
 		return err
+	}
+
+	log.Printf("[StartFlow] Flow %s loaded: %d nodes, %d connections", flow.ID, len(flow.Nodes), len(flow.Connections))
+	for nid, n := range flow.Nodes {
+		log.Printf("[StartFlow]   Node: %s (type=%s, name=%s)", nid, n.Type, n.Name)
+	}
+	for _, conn := range flow.Connections {
+		log.Printf("[StartFlow]   Connection: %s -> %s", conn.SourceID, conn.TargetID)
 	}
 
 	// Create execution record

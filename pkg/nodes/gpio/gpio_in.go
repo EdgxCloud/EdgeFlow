@@ -76,7 +76,39 @@ func NewGPIOInExecutor(config map[string]interface{}) (node.Executor, error) {
 
 // Init initializes the GPIO In executor with config
 func (e *GPIOInExecutor) Init(config map[string]interface{}) error {
-	// Config is already parsed in NewGPIOInExecutor
+	if config == nil {
+		return nil
+	}
+
+	// Parse config via JSON round-trip
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+
+	var gpioConfig GPIOInConfig
+	if err := json.Unmarshal(configJSON, &gpioConfig); err != nil {
+		return fmt.Errorf("invalid gpio config: %w", err)
+	}
+
+	// Apply defaults
+	if gpioConfig.PullMode == "" {
+		gpioConfig.PullMode = "none"
+	}
+	if gpioConfig.EdgeMode == "" {
+		gpioConfig.EdgeMode = "none"
+	}
+	if gpioConfig.Debounce == 0 {
+		gpioConfig.Debounce = 50
+	}
+	if gpioConfig.PollInterval == 0 {
+		gpioConfig.PollInterval = 100
+	}
+	if gpioConfig.EdgeMode != "none" && !gpioConfig.InterruptMode {
+		gpioConfig.InterruptMode = true
+	}
+
+	e.config = gpioConfig
 	return nil
 }
 
