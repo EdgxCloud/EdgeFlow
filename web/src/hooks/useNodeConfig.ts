@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { getNodeType, updateNodeConfig, validateNodeConfig } from '@/api/nodes'
+import { getNodeType, validateNodeConfig } from '@/api/nodes'
 import type { NodeInfo, NodeConfig, ValidationError } from '@/types/node'
 import { toast } from 'sonner'
 
@@ -33,6 +33,11 @@ interface UseNodeConfigReturn {
 export function useNodeConfig(options: UseNodeConfigOptions): UseNodeConfigReturn {
   const { flowId, nodeId, nodeType, initialConfig = {} } = options
 
+  // Debug: log what config the dialog receives
+  if (nodeType === 'inject') {
+    console.log('[useNodeConfig] Init inject with config:', JSON.stringify(initialConfig))
+  }
+
   const [nodeInfo, setNodeInfo] = useState<NodeInfo | null>(null)
   const [config, setConfig] = useState<Record<string, any>>(initialConfig)
   const [initialState, setInitialState] = useState<Record<string, any>>(initialConfig)
@@ -51,7 +56,7 @@ export function useNodeConfig(options: UseNodeConfigOptions): UseNodeConfigRetur
         const info = await getNodeType(nodeType)
         setNodeInfo(info)
 
-        // Set default values from schema
+        // Set default values from schema for fields not already in config
         const defaultConfig: Record<string, any> = {}
         if (info.properties) {
           info.properties.forEach((prop) => {
@@ -62,6 +67,9 @@ export function useNodeConfig(options: UseNodeConfigOptions): UseNodeConfigRetur
         }
 
         if (Object.keys(defaultConfig).length > 0) {
+          if (nodeType === 'inject') {
+            console.log('[useNodeConfig] Applying defaults to inject:', JSON.stringify(defaultConfig))
+          }
           setConfig((prev) => ({ ...defaultConfig, ...prev }))
           setInitialState((prev) => ({ ...defaultConfig, ...prev }))
         }
@@ -224,17 +232,11 @@ export function useNodeConfig(options: UseNodeConfigOptions): UseNodeConfigRetur
 
     setIsSaving(true)
     try {
-      // Try to save to server if we have flowId and nodeId
-      if (flowId && nodeId) {
-        try {
-          await updateNodeConfig(flowId, nodeId, config)
-        } catch (error) {
-          // Server save failed, but continue - local save will still work
-          console.warn('Server save not available, saving locally:', error)
-        }
-      }
+      // Config is saved to storage via the parent's onSave callback
+      // which triggers handleNodeSettingsSave → updateFlow (PUT /flows/:id)
+      // No need for a separate updateNodeConfig call here
 
-      // Always update local state
+      // Update local state
       setInitialState(config)
       setIsDirty(false)
       toast.success('Configuration saved successfully')
@@ -246,7 +248,7 @@ export function useNodeConfig(options: UseNodeConfigOptions): UseNodeConfigRetur
     } finally {
       setIsSaving(false)
     }
-  }, [validate, flowId, nodeId, config])
+  }, [validate, config])
 
   // Reset to initial state
   const reset = useCallback(() => {

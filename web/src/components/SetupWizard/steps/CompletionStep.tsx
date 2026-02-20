@@ -97,7 +97,7 @@ export function CompletionStep({
     config.gpio.enablePWM && 'PWM',
   ].filter(Boolean)
 
-  const installCommand = `curl -sSL https://edgeflow.io/install.sh | sudo bash -s -- \\
+  const installCommand = `curl -sSL https://edgx.cloud/install.sh | sudo bash -s -- \\
   --board=${config.board} \\
   --hostname=${config.network.hostname} \\
   ${config.network.useWifi ? `--wifi-ssid="${config.network.ssid}" \\` : ''}

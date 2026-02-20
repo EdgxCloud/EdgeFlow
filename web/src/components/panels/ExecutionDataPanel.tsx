@@ -84,8 +84,18 @@ export default function ExecutionDataPanel({
       setAllExecutions(prev => [...prev.slice(-200), entry])
     }
 
+    const handleFlowStatus = (msg: WSMessage) => {
+      const data = msg.data as Record<string, unknown>
+      if (data.action === 'stopped') {
+        // Flow stopped — clear all execution data
+        setAllExecutions([])
+        setSelectedExecution(0)
+      }
+    }
+
     const unsub = wsClient.on('execution', handleExecution)
-    return () => { unsub() }
+    const unsub2 = wsClient.on('flow_status', handleFlowStatus)
+    return () => { unsub(); unsub2() }
   }, [])
 
   // Filter executions for the selected node

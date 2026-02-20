@@ -51,7 +51,17 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const response = await flowsApi.get(id)
-      set({ currentFlow: response.data, loading: false })
+      // Debug: log what the server returned
+      const flowData = response.data
+      if (flowData?.nodes) {
+        const nodesArr = Array.isArray(flowData.nodes) ? flowData.nodes : Object.values(flowData.nodes)
+        nodesArr.forEach((n: any) => {
+          if (n.type === 'inject') {
+            console.log('[fetchFlow] Server returned inject config:', n.id, JSON.stringify(n.config))
+          }
+        })
+      }
+      set({ currentFlow: flowData, loading: false })
     } catch (error: any) {
       set({ loading: false, error: error.message })
       // If API fails and it's the sample workflow, load sample data
@@ -178,9 +188,30 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
 
   updateFlow: async (id: string, data: Partial<Flow>) => {
     try {
+      // Debug: log what we're sending
+      if (data.nodes) {
+        const nodesArr = Array.isArray(data.nodes) ? data.nodes : Object.values(data.nodes)
+        nodesArr.forEach((n: any) => {
+          if (n.type === 'inject') {
+            console.log('[updateFlow] Sending inject config to server:', n.id, JSON.stringify(n.config))
+          }
+        })
+      }
+
       const response = await flowsApi.update(id, data)
       // Use server response to update local state (ensures round-trip consistency)
       const serverData = response.data
+
+      // Debug: log what server returned
+      if (serverData?.nodes) {
+        const respNodes = Array.isArray(serverData.nodes) ? serverData.nodes : Object.values(serverData.nodes)
+        respNodes.forEach((n: any) => {
+          if (n.type === 'inject') {
+            console.log('[updateFlow] Server responded with inject config:', n.id, JSON.stringify(n.config))
+          }
+        })
+      }
+
       set((state) => ({
         flows: state.flows.map((f) => (f.id === id ? { ...f, ...serverData } : f)),
         currentFlow:

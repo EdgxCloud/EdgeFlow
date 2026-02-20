@@ -134,6 +134,9 @@ export default function EditorFull() {
         flowId = newFlow.id
       }
 
+      // Signal canvas that we're saving (prevents store update from reloading canvas)
+      canvasRef.current?.markSaving()
+
       // Save nodes and connections to the flow
       await updateFlow(flowId, {
         name: flowName,

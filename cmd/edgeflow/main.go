@@ -8,6 +8,7 @@ import (
 	"github.com/edgeflow/edgeflow/internal/api"
 	"github.com/edgeflow/edgeflow/internal/logger"
 	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/edgeflow/edgeflow/internal/saas"
 	"github.com/edgeflow/edgeflow/internal/storage"
 	"github.com/edgeflow/edgeflow/internal/websocket"
 	aiNodes "github.com/edgeflow/edgeflow/pkg/nodes/ai"
@@ -82,6 +83,34 @@ func main() {
 	service := api.NewService(storageBackend, registry, wsHub)
 	handler := api.NewHandler(service)
 
+	// Initialize SaaS client (optional - configured via environment)
+	saasConfig := getSaaSConfig()
+	saasClient := saas.NewClient(saasConfig, zap.L(), "")
+	serviceAdapter := saas.NewServiceAdapter(service)
+	if err := saasClient.Initialize(serviceAdapter, service); err != nil {
+		logger.Warn("Failed to initialize SaaS client", zap.Error(err))
+	} else {
+		logger.Info("SaaS client initialized",
+			zap.String("server", saasConfig.ServerURL),
+			zap.Bool("provisioned", saasConfig.IsProvisioned()))
+
+		// Register SaaS API handler
+		saasHandler := api.NewSaaSHandler(saasClient)
+		handler.SetSaaSHandler(saasHandler)
+
+		// Start SaaS connection in background if enabled
+		if saasConfig.Enabled {
+			go func() {
+				if err := saasClient.Start(); err != nil {
+					logger.Error("SaaS connection failed", zap.Error(err))
+				}
+			}()
+
+			// Ensure graceful shutdown
+			defer saasClient.Stop()
+		}
+	}
+
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
 		AppName: "EdgeFlow v" + Version,
@@ -153,6 +182,32 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func getSaaSConfig() *saas.Config {
+	config := saas.DefaultConfig()
+
+	// Read from environment variables
+	if enabled := os.Getenv("EDGEFLOW_SAAS_ENABLED"); enabled == "true" || enabled == "1" {
+		config.Enabled = true
+	}
+	if serverURL := os.Getenv("EDGEFLOW_SAAS_URL"); serverURL != "" {
+		config.ServerURL = serverURL
+	}
+	if deviceID := os.Getenv("EDGEFLOW_DEVICE_ID"); deviceID != "" {
+		config.DeviceID = deviceID
+	}
+	if apiKey := os.Getenv("EDGEFLOW_API_KEY"); apiKey != "" {
+		config.APIKey = apiKey
+	}
+	if provCode := os.Getenv("EDGEFLOW_PROVISIONING_CODE"); provCode != "" {
+		config.ProvisioningCode = provCode
+	}
+	if tls := os.Getenv("EDGEFLOW_SAAS_TLS"); tls == "false" || tls == "0" {
+		config.EnableTLS = false
+	}
+
+	return config
 }
 
 func registerModules(registry *node.Registry) {

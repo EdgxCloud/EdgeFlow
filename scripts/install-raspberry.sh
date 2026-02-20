@@ -463,7 +463,7 @@ setup_systemd_service() {
     cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<SVCEOF
 [Unit]
 Description=EdgeFlow - Edge & IoT Automation Platform
-Documentation=https://docs.edgeflow.io
+Documentation=https://edgx.cloud/docs
 After=network-online.target
 Wants=network-online.target
 

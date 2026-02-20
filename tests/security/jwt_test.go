@@ -188,7 +188,7 @@ func TestJWTClaims(t *testing.T) {
 	secretKey := []byte("test-secret-key-for-jwt-signing-12345")
 
 	t.Run("Extract username from token", func(t *testing.T) {
-		username := "admin@edgeflow.io"
+		username := "admin@edgx.cloud"
 		expiresAt := time.Now().Add(1 * time.Hour)
 
 		token, err := middleware.GenerateJWT(username, expiresAt, secretKey)

@@ -131,8 +131,10 @@ export default function DebugPanel({ className }: DebugPanelProps) {
         pausedRef.current = []
         isLiveRef.current = true
       } else if (data.action === 'stopped') {
-        // Flow stopped — stop accepting new messages, keep existing data frozen
+        // Flow stopped — stop accepting new messages, clear old data
         isLiveRef.current = false
+        setMessages([])
+        pausedRef.current = []
       }
     }
 

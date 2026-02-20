@@ -36,8 +36,9 @@ var marketplaceHTTPClient = &http.Client{
 
 // Handler holds the service dependencies for HTTP handlers
 type Handler struct {
-	service   *Service
-	moduleAPI *ModuleAPI
+	service     *Service
+	moduleAPI   *ModuleAPI
+	saasHandler *SaaSHandler
 }
 
 // NewHandler creates a new HTTP handler
@@ -47,6 +48,11 @@ func NewHandler(service *Service) *Handler {
 		service:   service,
 		moduleAPI: moduleAPI,
 	}
+}
+
+// SetSaaSHandler sets the SaaS handler (called from main after SaaS client initialization)
+func (h *Handler) SetSaaSHandler(saasHandler *SaaSHandler) {
+	h.saasHandler = saasHandler
 }
 
 // SetupRoutes configures all API routes with the handler
@@ -133,6 +139,17 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 	api.Put("/settings", h.saveSettings)
 	api.Post("/system/reboot", h.rebootSystem)
 	api.Post("/system/restart-service", h.restartService)
+
+	// SaaS routes
+	if h.saasHandler != nil {
+		saasRoutes := api.Group("/saas")
+		saasRoutes.Get("/config", h.saasHandler.GetConfig)
+		saasRoutes.Put("/config", h.saasHandler.UpdateConfig)
+		saasRoutes.Get("/status", h.saasHandler.GetStatus)
+		saasRoutes.Post("/provision", h.saasHandler.Provision)
+		saasRoutes.Post("/connect", h.saasHandler.Connect)
+		saasRoutes.Post("/disconnect", h.saasHandler.Disconnect)
+	}
 
 	// Terminal WebSocket for shell access (must be registered before /ws to avoid prefix match conflict)
 	app.Use("/ws/terminal", func(c *fiber.Ctx) error {

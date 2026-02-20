@@ -178,6 +178,20 @@ func (s *Service) ListFlows() ([]*engine.Flow, error) {
 	return storageFlowsToEngine(storageFlows), nil
 }
 
+// GetFlows is an alias for ListFlows (for SaaS interface compatibility)
+func (s *Service) GetFlows() ([]interface{}, error) {
+	flows, err := s.ListFlows()
+	if err != nil {
+		return nil, err
+	}
+	// Convert to []interface{}
+	result := make([]interface{}, len(flows))
+	for i, f := range flows {
+		result[i] = f
+	}
+	return result, nil
+}
+
 // UpdateFlow updates an existing flow
 func (s *Service) UpdateFlow(flow *engine.Flow) error {
 	storageFlow := engineFlowToStorage(flow)

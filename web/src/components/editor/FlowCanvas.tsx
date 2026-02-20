@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { useCallback, useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import {
   ReactFlow,
   Background,
@@ -41,6 +41,7 @@ export interface FlowCanvasRef {
   handleSelectAll: () => void
   getFlowData: () => { nodes: any[]; connections: any[] }
   loadFlowData: (nodes: any[], connections: any[]) => void
+  markSaving: () => void
   canUndo: boolean
   canRedo: boolean
   canPaste: boolean
@@ -75,54 +76,65 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
   // Undo/Redo functionality
   const [historyState, undoRedoActions] = useUndoRedo({ nodes, edges })
 
-  // Track if we've loaded this specific flow
-  const [loadedFlowId, setLoadedFlowId] = useState<string | null>(null)
-
-  // Reset loadedFlowId when flowId prop changes
-  useEffect(() => {
-    if (flowId !== loadedFlowId) {
-      setLoadedFlowId(null)
-    }
-  }, [flowId])
+  // Track which data source we last loaded from to avoid redundant reloads.
+  // We skip reload only if the exact same nodes object reference was already loaded.
+  // This lets fetchFlow data through (new reference) while blocking updateFlow echoes.
+  const loadedNodesRef = useRef<unknown>(null)
+  // Also track if we're the ones who triggered the update (via save)
+  const savingRef = useRef(false)
 
   useEffect(() => {
-    const nodesData = currentFlow?.nodes
-    const nodeArray = nodesData
-      ? (Array.isArray(nodesData) ? nodesData : Object.values(nodesData))
-      : []
+    if (!currentFlow?.nodes) return
 
-    const flowHasNodes = nodeArray.length > 0
-    const isNewFlow = currentFlow?.id !== loadedFlowId
+    const nodesData = currentFlow.nodes
+    const nodeArray = Array.isArray(nodesData) ? nodesData : Object.values(nodesData)
+    if (nodeArray.length === 0) return
 
-    if (currentFlow && flowHasNodes && isNewFlow) {
-      const flowNodes: Node[] = nodeArray.map((node: any, index) => ({
-        id: node.id,
-        type: 'custom',
-        position: node.position
-          ? toObjectPosition(node.position)
-          : { x: 100 + (index % 3) * 300, y: 100 + Math.floor(index / 3) * 150 },
-        data: {
-          label: node.name || node.type,
-          nodeType: node.type,
-          config: node.config || {},
-        },
-      }))
-      setNodes(flowNodes)
-
-      const connections = currentFlow.connections || []
-      const flowEdges: Edge[] = connections.map((conn: any, index) => ({
-        id: conn.id || `edge-${conn.source}-${conn.target}-${index}`,
-        source: conn.source,
-        target: conn.target,
-        type: 'default',
-        animated: false,
-        style: { stroke: '#3b82f6', strokeWidth: 2 },
-      }))
-      setEdges(flowEdges)
-
-      setLoadedFlowId(currentFlow.id)
+    // Skip if this is the response from our own save
+    if (savingRef.current) {
+      savingRef.current = false
+      loadedNodesRef.current = nodesData
+      return
     }
-  }, [currentFlow?.id, currentFlow?.nodes, currentFlow?.connections, flowId])
+
+    // Skip if we already loaded this exact object (same reference)
+    if (nodesData === loadedNodesRef.current) return
+
+    console.log('[FlowCanvas] Loading nodes from store, flow:', currentFlow.id)
+    nodeArray.forEach((n: any) => {
+      if (n.type === 'inject') {
+        console.log('[FlowCanvas] Inject node config:', n.id, JSON.stringify(n.config))
+      }
+    })
+
+    const flowNodes: Node[] = nodeArray.map((node: any, index) => ({
+      id: node.id,
+      type: 'custom',
+      position: node.position
+        ? toObjectPosition(node.position)
+        : { x: 100 + (index % 3) * 300, y: 100 + Math.floor(index / 3) * 150 },
+      data: {
+        label: node.name || node.type,
+        nodeType: node.type,
+        config: node.config || {},
+      },
+    }))
+    setNodes(flowNodes)
+
+    const connections = currentFlow.connections || []
+    const flowEdges: Edge[] = connections.map((conn: any, index) => ({
+      id: conn.id || `edge-${conn.source}-${conn.target}-${index}`,
+      source: conn.source,
+      target: conn.target,
+      type: 'default',
+      animated: false,
+      style: { stroke: '#3b82f6', strokeWidth: 2 },
+    }))
+    setEdges(flowEdges)
+
+    loadedNodesRef.current = nodesData
+    console.log('[FlowCanvas] Loaded', flowNodes.length, 'nodes onto canvas')
+  }, [currentFlow?.id, currentFlow?.nodes, currentFlow?.connections, flowId, setNodes, setEdges])
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -380,6 +392,9 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
   }, [setNodes, setEdges, fitView])
 
   // Expose handlers to parent via ref
+  // Signal that we're about to save — prevents the store update from reloading the canvas
+  const markSaving = useCallback(() => { savingRef.current = true }, [])
+
   useImperativeHandle(ref, () => ({
     handleCopy,
     handlePaste: () => handlePaste(),
@@ -391,11 +406,12 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
     handleSelectAll,
     getFlowData,
     loadFlowData,
+    markSaving,
     canUndo: undoRedoActions.canUndo,
     canRedo: undoRedoActions.canRedo,
     canPaste,
     hasSelection,
-  }), [handleCopy, handlePaste, handleCut, handleDelete, handleDuplicate, handleUndo, handleRedo, handleSelectAll, getFlowData, loadFlowData, undoRedoActions.canUndo, undoRedoActions.canRedo, canPaste, hasSelection])
+  }), [handleCopy, handlePaste, handleCut, handleDelete, handleDuplicate, handleUndo, handleRedo, handleSelectAll, getFlowData, loadFlowData, markSaving, undoRedoActions.canUndo, undoRedoActions.canRedo, canPaste, hasSelection])
 
   // Keyboard shortcuts
   const handleKeyDown = useKeyboardShortcuts(
@@ -437,44 +453,9 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
     await updateFlow(flowId, { nodes: flowNodes, connections })
   }
 
-  // Track if initial load sync has happened
-  const [initialSyncDone, setInitialSyncDone] = useState(false)
-
-  useEffect(() => {
-    if (loadedFlowId && (nodes.length > 0 || edges.length > 0) && !initialSyncDone) {
-      setInitialSyncDone(true)
-    }
-  }, [loadedFlowId, nodes.length, edges.length, initialSyncDone])
-
-  useEffect(() => {
-    if (flowId !== loadedFlowId) {
-      setInitialSyncDone(false)
-    }
-  }, [flowId, loadedFlowId])
-
-  // Sync nodes/edges to currentFlow
-  useEffect(() => {
-    if (currentFlow && flowId && loadedFlowId && initialSyncDone && nodes.length > 0) {
-      const flowNodes = nodes.map((node) => ({
-        id: node.id,
-        type: node.data.nodeType || 'unknown',
-        name: node.data.label || node.data.nodeType,
-        config: node.data.config || {},
-        position: toArrayPosition(node.position),
-      }))
-
-      const connections = edges.map((edge) => ({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        sourceOutput: edge.sourceHandle ? parseInt(edge.sourceHandle) : 0,
-      }))
-
-      currentFlow.nodes = flowNodes
-      currentFlow.connections = connections
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, flowId, loadedFlowId, initialSyncDone])
+  // Note: No sync from canvas → currentFlow needed.
+  // handleSave/getFlowData reads directly from React Flow's nodes state.
+  // handleNodeSettingsSave persists to backend immediately.
 
   // ========== Node events ==========
 
@@ -494,6 +475,8 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
   }, [])
 
   const handleNodeSettingsSave = useCallback((nodeId: string, config: any) => {
+    console.log('[FlowCanvas] handleNodeSettingsSave called:', nodeId, JSON.stringify(config))
+
     // Update React Flow node state with new config
     const currentNodes = getNodes()
     const updatedNodes = currentNodes.map((node) => {
@@ -515,12 +498,21 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
         config: node.data.config || {},
         position: toArrayPosition(node.position),
       }))
+
+      // Debug: log exactly what we're sending to backend
+      flowNodes.forEach((n) => {
+        if (n.type === 'inject') {
+          console.log('[FlowCanvas] Saving inject config to backend:', JSON.stringify(n.config))
+        }
+      })
+
       const connections = getEdges().map((edge) => ({
         id: edge.id,
         source: edge.source,
         target: edge.target,
         sourceOutput: edge.sourceHandle ? parseInt(edge.sourceHandle) : 0,
       }))
+      savingRef.current = true
       updateFlow(flowId, { nodes: flowNodes, connections })
     }
   }, [setNodes, undoRedoActions, getNodes, getEdges, flowId, updateFlow])

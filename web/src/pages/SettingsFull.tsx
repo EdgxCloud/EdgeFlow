@@ -38,6 +38,8 @@ import {
   Zap,
   Download,
   Upload,
+  Cloud,
+  ArrowRight,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -549,6 +551,30 @@ export default function SettingsFull() {
           navigate('/editor')
         }}
       />
+
+      {/* SaaS Connection */}
+      <div className="bg-gradient-to-r from-cyan-500 to-blue-600 rounded-lg shadow p-5 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <Cloud className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">SaaS Cloud Connection</h2>
+              <p className="text-white/80 text-sm">
+                Connect to EdgeFlow SaaS for remote monitoring and control
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => navigate('/settings/saas')}
+            className="bg-white text-cyan-600 hover:bg-white/90"
+          >
+            <Settings2 className="w-4 h-4 mr-2" />
+            Configure
+          </Button>
+        </div>
+      </div>
 
       {/* ============== Network Configuration ============== */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
