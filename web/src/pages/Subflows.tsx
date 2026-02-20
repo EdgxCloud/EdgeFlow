@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { SubflowEditor } from '@/components/Subflow/SubflowEditor'
 
 interface SubflowDefinition {
@@ -56,8 +56,6 @@ export function Subflows() {
   const [editingSubflow, setEditingSubflow] = useState<SubflowDefinition | null>(null)
   const [newSubflowName, setNewSubflowName] = useState('')
   const [newSubflowCategory, setNewSubflowCategory] = useState('general')
-  const { toast } = useToast()
-
   useEffect(() => {
     loadSubflows()
     loadCategories()
@@ -74,11 +72,7 @@ export function Subflows() {
       const data = await response.json()
       setSubflows(data.subflows || [])
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load subflows',
-        variant: 'destructive',
-      })
+      toast.error('Failed to load subflows')
     } finally {
       setIsLoading(false)
     }
@@ -116,11 +110,7 @@ export function Subflows() {
 
   const handleCreateNew = async () => {
     if (!newSubflowName.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please enter a subflow name',
-        variant: 'destructive',
-      })
+      toast.error('Please enter a subflow name')
       return
     }
 
@@ -142,21 +132,14 @@ export function Subflows() {
       })
 
       if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Subflow created successfully',
-        })
+        toast.success('Subflow created successfully')
         setShowNewDialog(false)
         setNewSubflowName('')
         loadSubflows()
         loadCategories()
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create subflow',
-        variant: 'destructive',
-      })
+      toast.error('Failed to create subflow')
     }
   }
 
@@ -171,19 +154,12 @@ export function Subflows() {
       })
 
       if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Subflow deleted successfully',
-        })
+        toast.success('Subflow deleted successfully')
         loadSubflows()
         loadCategories()
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete subflow',
-        variant: 'destructive',
-      })
+      toast.error('Failed to delete subflow')
     }
   }
 
@@ -199,18 +175,11 @@ export function Subflows() {
       })
 
       if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Subflow cloned successfully',
-        })
+        toast.success('Subflow cloned successfully')
         loadSubflows()
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to clone subflow',
-        variant: 'destructive',
-      })
+      toast.error('Failed to clone subflow')
     }
   }
 
@@ -225,11 +194,7 @@ export function Subflows() {
       a.click()
       window.URL.revokeObjectURL(url)
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to export subflow',
-        variant: 'destructive',
-      })
+      toast.error('Failed to export subflow')
     }
   }
 
@@ -244,20 +209,13 @@ export function Subflows() {
       })
 
       if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Subflow imported successfully',
-        })
+        toast.success('Subflow imported successfully')
         setShowImportDialog(false)
         loadSubflows()
         loadCategories()
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to import subflow',
-        variant: 'destructive',
-      })
+      toast.error('Failed to import subflow')
     }
   }
 

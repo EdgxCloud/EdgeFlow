@@ -1,18 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
-import Dashboard from './pages/Dashboard'
-import Workflows from './pages/Workflows'
-import EditorFull from './pages/EditorFull'
-import ExecutionsFull from './pages/ExecutionsFull'
-import SettingsFull from './pages/SettingsFull'
-import SaaSSettings from './pages/SaaSSettings'
-import ModuleManager from './pages/ModuleManager'
-import TestComponents from './pages/TestComponents'
-import { SetupWizard } from './components/SetupWizard'
 import type { SetupConfig } from './components/SetupWizard/types'
+
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Workflows = lazy(() => import('./pages/Workflows'))
+const EditorFull = lazy(() => import('./pages/EditorFull'))
+const ExecutionsFull = lazy(() => import('./pages/ExecutionsFull'))
+const SettingsFull = lazy(() => import('./pages/SettingsFull'))
+const SaaSSettings = lazy(() => import('./pages/SaaSSettings'))
+const ModuleManager = lazy(() => import('./pages/ModuleManager'))
+const TestComponents = lazy(() => import('./pages/TestComponents'))
+const SetupWizard = lazy(() => import('./components/SetupWizard').then(m => ({ default: m.SetupWizard })))
 
 const SETUP_COMPLETE_KEY = 'edgeflow_setup_complete'
 
@@ -66,20 +67,22 @@ function App() {
       <Toaster position="top-right" richColors closeButton />
       <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
         <FirstRunWizard />
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="workflows" element={<Workflows />} />
-            <Route path="executions" element={<ExecutionsFull />} />
-            <Route path="modules" element={<ModuleManager />} />
-            <Route path="settings" element={<SettingsFull />} />
-            <Route path="settings/saas" element={<SaaSSettings />} />
-            <Route path="test" element={<TestComponents />} />
-          </Route>
-          {/* Editor route outside Layout to remove navbar */}
-          <Route path="editor/:id?" element={<EditorFull />} />
-        </Routes>
+        <Suspense fallback={<div className="flex items-center justify-center h-screen text-muted-foreground">Loading...</div>}>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="workflows" element={<Workflows />} />
+              <Route path="executions" element={<ExecutionsFull />} />
+              <Route path="modules" element={<ModuleManager />} />
+              <Route path="settings" element={<SettingsFull />} />
+              <Route path="settings/saas" element={<SaaSSettings />} />
+              <Route path="test" element={<TestComponents />} />
+            </Route>
+            {/* Editor route outside Layout to remove navbar */}
+            <Route path="editor/:id?" element={<EditorFull />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </ErrorBoundary>
   )

@@ -65,6 +65,9 @@ func main() {
 	registry := node.GetGlobalRegistry()
 	registerModules(registry)
 
+	// Seed default example flows if data directory is empty
+	seedDefaultFlows(storageBackend)
+
 	// Initialize WebSocket hub
 	wsHub := websocket.NewHub()
 	go wsHub.Run()

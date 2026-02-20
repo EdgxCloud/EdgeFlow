@@ -15,7 +15,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Icon:        "cloud",
 		Properties: []node.PropertySchema{
 			{Name: "credentials", Label: "Credentials", Type: "string", Default: "", Required: true},
-			{Name: "token", Label: "Token", Type: "string", Default: "", Required: false},
+			{Name: "token", Label: "Token", Type: "password", Default: "", Required: false},
 			{Name: "folderId", Label: "Folder ID", Type: "string", Default: "", Required: false},
 		},
 		Inputs: []node.PortSchema{
@@ -38,8 +38,8 @@ func RegisterAllNodes(registry *node.Registry) {
 		Icon:        "cloud",
 		Properties: []node.PropertySchema{
 			{Name: "region", Label: "Region", Type: "string", Default: "us-east-1", Required: true},
-			{Name: "accessKey", Label: "Access Key", Type: "string", Default: "", Required: true},
-			{Name: "secretKey", Label: "Secret Key", Type: "string", Default: "", Required: true},
+			{Name: "accessKey", Label: "Access Key", Type: "password", Default: "", Required: true},
+			{Name: "secretKey", Label: "Secret Key", Type: "password", Default: "", Required: true},
 			{Name: "bucket", Label: "Bucket", Type: "string", Default: "", Required: true},
 			{Name: "prefix", Label: "Prefix", Type: "string", Default: "", Required: false},
 		},
@@ -66,9 +66,9 @@ func RegisterAllNodes(registry *node.Registry) {
 			{Name: "host", Label: "Host", Type: "string", Default: "localhost", Required: true, Description: "SSH server hostname or IP"},
 			{Name: "port", Label: "Port", Type: "number", Default: 22, Required: true, Description: "SSH port number"},
 			{Name: "username", Label: "Username", Type: "string", Default: "", Required: true, Description: "SSH username"},
-			{Name: "password", Label: "Password", Type: "string", Default: "", Description: "SSH password"},
+			{Name: "password", Label: "Password", Type: "password", Default: "", Description: "SSH password"},
 			{Name: "privateKey", Label: "Private Key", Type: "string", Default: "", Description: "SSH private key (PEM format)"},
-			{Name: "passphrase", Label: "Key Passphrase", Type: "string", Default: "", Description: "Passphrase for encrypted private key"},
+			{Name: "passphrase", Label: "Key Passphrase", Type: "password", Default: "", Description: "Passphrase for encrypted private key"},
 		},
 		Inputs: []node.PortSchema{
 			{Name: "in", Label: "Input", Type: "any"},
@@ -90,7 +90,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Icon:        "cloud",
 		Color:       "#0061FF",
 		Properties: []node.PropertySchema{
-			{Name: "accessToken", Label: "Access Token", Type: "string", Default: "", Required: true, Description: "Dropbox API access token"},
+			{Name: "accessToken", Label: "Access Token", Type: "password", Default: "", Required: true, Description: "Dropbox API access token"},
 			{Name: "rootPath", Label: "Root Path", Type: "string", Default: "", Description: "Root path for operations"},
 		},
 		Inputs: []node.PortSchema{
@@ -113,7 +113,7 @@ func RegisterAllNodes(registry *node.Registry) {
 		Icon:        "cloud",
 		Color:       "#0078D4",
 		Properties: []node.PropertySchema{
-			{Name: "accessToken", Label: "Access Token", Type: "string", Default: "", Required: true, Description: "Microsoft Graph API access token"},
+			{Name: "accessToken", Label: "Access Token", Type: "password", Default: "", Required: true, Description: "Microsoft Graph API access token"},
 			{Name: "driveId", Label: "Drive ID", Type: "string", Default: "", Description: "Drive ID (empty for default)"},
 		},
 		Inputs: []node.PortSchema{
@@ -138,7 +138,7 @@ func RegisterAllNodes(registry *node.Registry) {
 			{Name: "host", Label: "Host", Type: "string", Default: "localhost", Required: true},
 			{Name: "port", Label: "Port", Type: "number", Default: 21, Required: true},
 			{Name: "username", Label: "Username", Type: "string", Default: "anonymous", Required: true},
-			{Name: "password", Label: "Password", Type: "string", Default: "", Required: false},
+			{Name: "password", Label: "Password", Type: "password", Default: "", Required: false},
 		},
 		Inputs: []node.PortSchema{
 			{Name: "in", Label: "Input", Type: "any"},

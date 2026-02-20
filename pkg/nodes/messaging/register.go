@@ -18,7 +18,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 			{
 				Name:        "botToken",
 				Label:       "Bot Token",
-				Type:        "string",
+				Type:        "password",
 				Default:     "",
 				Required:    true,
 				Description: "Telegram bot token",
@@ -89,7 +89,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 			{
 				Name:        "password",
 				Label:       "Password",
-				Type:        "string",
+				Type:        "password",
 				Default:     "",
 				Required:    true,
 				Description: "SMTP password",
@@ -152,7 +152,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 			{
 				Name:        "botToken",
 				Label:       "Bot Token",
-				Type:        "string",
+				Type:        "password",
 				Default:     "",
 				Required:    false,
 				Description: "Slack bot token",

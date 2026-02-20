@@ -251,7 +251,7 @@ type MCP3208Config struct {
 
 // MCP3208Executor is similar to MCP3008 but with 12-bit resolution
 type MCP3208Executor struct {
-	MCP3008Executor
+	*MCP3008Executor
 }
 
 // NewMCP3208Executor creates a new MCP3208 executor
@@ -264,7 +264,7 @@ func NewMCP3208Executor(config map[string]interface{}) (node.Executor, error) {
 	// Convert to MCP3208
 	mcpExec := exec.(*MCP3008Executor)
 	return &MCP3208Executor{
-		MCP3008Executor: *mcpExec,
+		MCP3008Executor: mcpExec,
 	}, nil
 }
 

@@ -228,7 +228,7 @@ func (e *ModbusExecutor) connect() error {
 			return nil // Already connected
 		}
 
-		addr := fmt.Sprintf("%s:%d", e.config.Host, e.config.Port)
+		addr := net.JoinHostPort(e.config.Host, fmt.Sprintf("%d", e.config.Port))
 		conn, err := net.DialTimeout("tcp", addr, time.Duration(e.config.Timeout)*time.Millisecond)
 		if err != nil {
 			return fmt.Errorf("TCP connect failed: %w", err)

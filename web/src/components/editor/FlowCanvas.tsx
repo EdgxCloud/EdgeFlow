@@ -27,7 +27,7 @@ import { toast } from 'sonner'
 import CanvasContextMenu, { ContextMenuState } from './CanvasContextMenu'
 
 const nodeTypes: NodeTypes = {
-  custom: CustomNode,
+  custom: CustomNode as any,
 }
 
 export interface FlowCanvasRef {
@@ -346,9 +346,9 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
   const getFlowData = useCallback(() => {
     const flowNodes = nodes.map((node) => ({
       id: node.id,
-      type: node.data.nodeType || 'unknown',
-      name: node.data.label || node.data.nodeType,
-      config: node.data.config || {},
+      type: (node.data.nodeType || 'unknown') as string,
+      name: (node.data.label || node.data.nodeType) as string,
+      config: (node.data.config || {}) as Record<string, any>,
       position: toArrayPosition(node.position),
     }))
 
@@ -437,9 +437,9 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
 
     const flowNodes = nodes.map((node) => ({
       id: node.id,
-      type: node.data.nodeType || 'unknown',
-      name: node.data.label || node.data.nodeType,
-      config: node.data.config || {},
+      type: (node.data.nodeType || 'unknown') as string,
+      name: (node.data.label || node.data.nodeType) as string,
+      config: (node.data.config || {}) as Record<string, any>,
       position: toArrayPosition(node.position),
     }))
 
@@ -450,7 +450,7 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
       sourceOutput: edge.sourceHandle ? parseInt(edge.sourceHandle) : 0,
     }))
 
-    await updateFlow(flowId, { nodes: flowNodes, connections })
+    await updateFlow(flowId, { nodes: flowNodes as any, connections: connections as any })
   }
 
   // Note: No sync from canvas → currentFlow needed.
@@ -461,7 +461,7 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     if (onNodeSelect) {
-      onNodeSelect(node.id, node.data.label || node.data.nodeType)
+      onNodeSelect(node.id, (node.data.label || node.data.nodeType) as string)
     }
   }, [onNodeSelect])
 
@@ -491,13 +491,16 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
 
     // Persist to backend immediately (outside setNodes to avoid stale closure)
     if (flowId) {
-      const flowNodes = updatedNodes.map((node) => ({
-        id: node.id,
-        type: node.data.nodeType || 'unknown',
-        name: node.data.label || node.data.nodeType,
-        config: node.data.config || {},
-        position: toArrayPosition(node.position),
-      }))
+      const flowNodes = updatedNodes.map((node) => {
+        const d = node.data as Record<string, any>
+        return {
+          id: node.id,
+          type: (d.nodeType || 'unknown') as string,
+          name: (d.label || d.nodeType) as string,
+          config: (d.config || {}) as Record<string, any>,
+          position: toArrayPosition(node.position),
+        }
+      })
 
       // Debug: log exactly what we're sending to backend
       flowNodes.forEach((n) => {
@@ -513,7 +516,7 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
         sourceOutput: edge.sourceHandle ? parseInt(edge.sourceHandle) : 0,
       }))
       savingRef.current = true
-      updateFlow(flowId, { nodes: flowNodes, connections })
+      updateFlow(flowId, { nodes: flowNodes as any, connections: connections as any })
     }
   }, [setNodes, undoRedoActions, getNodes, getEdges, flowId, updateFlow])
 
@@ -643,9 +646,9 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
       <NodeConfigDialog
         node={selectedNode ? {
           id: selectedNode.id,
-          type: selectedNode.data.nodeType,
-          name: selectedNode.data.label,
-          config: selectedNode.data.config || {}
+          type: selectedNode.data.nodeType as string,
+          name: selectedNode.data.label as string,
+          config: (selectedNode.data.config || {}) as Record<string, any>
         } : null}
         flowId={flowId}
         onClose={handleNodeSettingsClose}

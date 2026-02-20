@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { Handle, Position, NodeProps } from '@xyflow/react'
+import { Handle, Position, NodeProps, type Node } from '@xyflow/react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -81,7 +81,7 @@ const categoryTextColors: Record<string, string> = {
   storage: 'text-indigo-600 dark:text-indigo-400',
 }
 
-interface CustomNodeData {
+interface CustomNodeData extends Record<string, unknown> {
   category?: string
   nodeType?: string
   label?: string
@@ -93,7 +93,9 @@ interface CustomNodeData {
   hasOutputs?: boolean
 }
 
-function CustomNode({ data, selected }: NodeProps<CustomNodeData>) {
+type CustomNodeType = Node<CustomNodeData>
+
+function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
   const category = (data?.category as string) || 'core'
   const nodeType = (data?.nodeType as string) || 'unknown'
   const Icon = getNodeIcon(nodeType)

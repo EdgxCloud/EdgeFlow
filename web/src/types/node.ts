@@ -20,6 +20,8 @@ export type PropertyType =
   | 'mqtt-topic'
   | 'mqtt-config' // Full MQTT configuration including broker, topic, QoS, etc.
   | 'payload'     // Key-value payload builder with presets
+  | 'password'    // Masked password input
+  | 'any'         // Generic type, renders as text input
 
 export interface PropertySchema {
   name: string
@@ -48,10 +50,19 @@ export type NodeCategory =
   | 'input'
   | 'output'
   | 'function'
-  | 'storage'
+  | 'processing'
+  | 'gpio'
+  | 'sensors'
+  | 'actuators'
+  | 'communication'
   | 'network'
+  | 'database'
+  | 'storage'
+  | 'messaging'
+  | 'ai'
+  | 'industrial'
+  | 'wireless'
   | 'dashboard'
-  | 'logic'
   | 'parser'
   | 'advanced'
 

@@ -43,7 +43,7 @@ export default function TestComponents() {
 
   // Test states for dashboard editors
   const [chartConfig, setChartConfig] = useState({
-    chartType: 'line',
+    chartType: 'line' as const,
     maxDataSize: 50,
     legend: true,
     series: [
@@ -53,7 +53,7 @@ export default function TestComponents() {
   })
 
   const [gaugeConfig, setGaugeConfig] = useState({
-    gaugeType: 'semi',
+    gaugeType: 'semi' as const,
     min: 0,
     max: 100,
     units: '%',
@@ -71,18 +71,18 @@ export default function TestComponents() {
   const [formConfig, setFormConfig] = useState({
     submitButtonText: 'Submit',
     showResetButton: true,
-    formLayout: 'vertical',
+    formLayout: 'vertical' as const,
     fields: [
       {
         id: 'field1',
-        type: 'text',
+        type: 'text' as const,
         label: 'Username',
         name: 'username',
         required: true,
       },
       {
         id: 'field2',
-        type: 'email',
+        type: 'email' as const,
         label: 'Email',
         name: 'email',
         required: true,
@@ -97,24 +97,24 @@ export default function TestComponents() {
     striped: true,
     bordered: true,
     columns: [
-      { id: 'col1', header: 'ID', key: 'id', type: 'number', align: 'right' },
-      { id: 'col2', header: 'Name', key: 'name', type: 'string', align: 'left' },
-      { id: 'col3', header: 'Status', key: 'status', type: 'badge', align: 'center' },
+      { id: 'col1', header: 'ID', key: 'id', type: 'number' as const, align: 'right' as const },
+      { id: 'col2', header: 'Name', key: 'name', type: 'string' as const, align: 'left' as const },
+      { id: 'col3', header: 'Status', key: 'status', type: 'badge' as const, align: 'center' as const },
     ],
   })
 
   // Test states for specialized editors
   const [gpioConfig, setGpioConfig] = useState({
     pin: 17,
-    mode: 'output',
-    pullMode: 'off',
+    mode: 'output' as const,
+    pullMode: 'off' as const,
     initialValue: false,
     debounceMs: 0,
   })
 
   const [mqttConfig, setMqttConfig] = useState({
     topic: 'home/+/temperature',
-    qos: 0,
+    qos: 0 as 0,
     retain: false,
     wildcardMode: true,
   })
@@ -124,16 +124,16 @@ export default function TestComponents() {
       {
         id: 'rule1',
         property: 'payload',
-        propertyType: 'msg.payload',
-        operator: 'gt',
+        propertyType: 'msg.payload' as const,
+        operator: 'gt' as const,
         value: '100',
         outputIndex: 0,
       },
       {
         id: 'rule2',
         property: 'payload',
-        propertyType: 'msg.payload',
-        operator: 'lte',
+        propertyType: 'msg.payload' as const,
+        operator: 'lte' as const,
         value: '100',
         outputIndex: 1,
       },
@@ -143,14 +143,14 @@ export default function TestComponents() {
   })
 
   const [httpConfig, setHttpConfig] = useState({
-    method: 'POST',
+    method: 'POST' as const,
     url: 'https://api.example.com/data',
     headers: [
       { id: '1', key: 'Content-Type', value: 'application/json', enabled: true },
     ],
-    authType: 'bearer',
+    authType: 'bearer' as const,
     authConfig: { token: 'your-token-here' },
-    bodyType: 'json',
+    bodyType: 'json' as const,
     body: { temperature: 25, humidity: 60 },
     timeout: 30000,
     followRedirects: true,
@@ -161,17 +161,17 @@ export default function TestComponents() {
     rules: [
       {
         id: 'rule1',
-        action: 'set',
+        action: 'set' as const,
         property: 'temperature',
-        propertyType: 'msg',
-        valueType: 'msg',
+        propertyType: 'msg' as const,
+        valueType: 'msg' as const,
         value: 'payload.temp',
       },
       {
         id: 'rule2',
-        action: 'delete',
+        action: 'delete' as const,
         property: 'raw',
-        propertyType: 'msg',
+        propertyType: 'msg' as const,
       },
     ],
   })
@@ -559,7 +559,7 @@ export default function TestComponents() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <GPIOPinSelector config={gpioConfig} onChange={setGpioConfig} />
+                  <GPIOPinSelector value={gpioConfig} onChange={setGpioConfig} />
                   <div className="mt-4 p-4 bg-muted rounded-lg">
                     <p className="text-sm font-semibold mb-2">Current Configuration:</p>
                     <pre className="text-xs overflow-x-auto">{JSON.stringify(gpioConfig, null, 2)}</pre>

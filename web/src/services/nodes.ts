@@ -30,6 +30,7 @@ export interface NodeTypeOutput {
 
 export interface NodeType {
   id: string
+  type?: string
   name: string
   category: string
   description?: string

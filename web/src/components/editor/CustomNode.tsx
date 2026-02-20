@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { Handle, Position, NodeProps } from '@xyflow/react'
+import { Handle, Position, NodeProps, type Node } from '@xyflow/react'
 import {
   Zap,
   Bug,
@@ -25,12 +25,14 @@ import {
   Upload
 } from 'lucide-react'
 
-interface CustomNodeData {
+interface CustomNodeData extends Record<string, unknown> {
   label: string
   nodeType: string
   config?: any
   status?: 'idle' | 'running' | 'error' | 'success'
 }
+
+type CustomNodeType = Node<CustomNodeData>
 
 // Node configuration with icons and colors matching categories
 const NODE_CONFIG: Record<string, { icon: any; color: string; category: string }> = {
@@ -91,7 +93,7 @@ const NODE_CONFIG: Record<string, { icon: any; color: string; category: string }
   ollama: { icon: Bot, color: '#a855f7', category: 'ai' },
 }
 
-function CustomNode({ data, selected }: NodeProps<CustomNodeData>) {
+function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
   const config = NODE_CONFIG[data.nodeType] || {
     icon: Activity,
     color: '#64748b',

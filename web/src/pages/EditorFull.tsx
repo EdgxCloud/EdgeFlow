@@ -140,8 +140,8 @@ export default function EditorFull() {
       // Save nodes and connections to the flow
       await updateFlow(flowId, {
         name: flowName,
-        nodes: nodesToSave,
-        connections: connectionsToSave,
+        nodes: nodesToSave as any,
+        connections: connectionsToSave as any,
         config: currentFlow?.config || {}
       })
 
@@ -294,8 +294,8 @@ export default function EditorFull() {
           // Update with imported nodes and connections
           await updateFlow(newFlow.id, {
             name: imported.name,
-            nodes: imported.nodes,
-            connections: imported.connections || [],
+            nodes: imported.nodes as any,
+            connections: imported.connections as any || [],
           })
 
           toast.success(`Flow "${imported.name}" imported successfully`)

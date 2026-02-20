@@ -47,8 +47,8 @@ export interface NodeType {
   icon: string
   color: string
   properties: PropertySchema[]
-  inputs: PortSchema[]
-  outputs: PortSchema[]
+  inputs: (string | PortSchema)[]
+  outputs: (string | PortSchema)[]
 }
 
 export interface PropertySchema {

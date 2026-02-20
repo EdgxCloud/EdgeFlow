@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 interface SubflowEditorProps {
   subflow: any
@@ -32,8 +32,6 @@ export function SubflowEditor({ subflow: initialSubflow, onClose }: SubflowEdito
   const [subflow, setSubflow] = useState(initialSubflow)
   const [showPropertiesDialog, setShowPropertiesDialog] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const { toast } = useToast()
-
   const handleSave = async () => {
     setIsSaving(true)
     try {
@@ -44,18 +42,13 @@ export function SubflowEditor({ subflow: initialSubflow, onClose }: SubflowEdito
       })
 
       if (response.ok) {
-        toast({
-          title: 'Success',
-          description: 'Subflow saved successfully',
-        })
+        toast.success('Subflow saved successfully')
       } else {
         throw new Error('Failed to save')
       }
     } catch (error) {
-      toast({
-        title: 'Error',
+      toast.error('Failed to save subflow', {
         description: 'Failed to save subflow',
-        variant: 'destructive',
       })
     } finally {
       setIsSaving(false)

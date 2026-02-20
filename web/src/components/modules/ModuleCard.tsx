@@ -184,7 +184,7 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
           {canLoad && (
             <Button
               onClick={() => onLoad(module.name)}
-              variant="primary"
+              variant="default"
               size="sm"
               className="flex-1"
             >

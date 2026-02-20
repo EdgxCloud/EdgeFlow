@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react'
 import {
   Search, ChevronDown, ChevronRight, Zap, Download, Upload, Cpu, Database, Network,
   MessageSquare, Bot, Settings, Gauge, Thermometer, Server, Code, Bug, GitBranch,
-  Clock, Play, Scissors, Link2, AlertTriangle, CheckCircle, Activity, FileText,
-  Terminal, Mail, Send, Sliders, Split, Timer, Workflow, FileCode, Globe,
-  Wifi, Radio, Key, HardDrive, Cloud, Hash, Wind, Droplets, Eye, Lightbulb,
-  ToggleLeft, Power, Gauge as GaugeIcon, Rotate3D, Brain, Sparkles, Binary,
-  FileInput, Webhook, CircuitBoard
+  Clock, Scissors, Link2, AlertTriangle, CheckCircle, Activity, FileText,
+  Terminal, Mail, Send, Sliders, Globe,
+  Wifi, Radio, HardDrive, Cloud, Hash, Eye,
+  Power, Rotate3D, Brain, Sparkles,
+  Webhook, CircuitBoard, Factory, LayoutDashboard, Bluetooth,
+  CreditCard, Smartphone, Camera, Volume2, BarChart3, Type, MousePointer,
+  Keyboard, List, CalendarDays, Bell, Palette, Table, PenLine, Filter,
+  MessageCircle, Lock, Box, Save, Braces, Timer, FileCode
 } from 'lucide-react'
 import { nodeTypesApi, NodeType } from '../../lib/api'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -15,76 +18,186 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 const NODE_ICONS: Record<string, any> = {
   // Input nodes
   'inject': Zap,
+  'schedule': Clock,
   'mqtt-in': Download,
+  'http-webhook': Webhook,
+  'http-in': Webhook,
+  'watch': Eye,
+  'file-in': FileText,
+  'serial-in': Terminal,
+  'websocket-in': Radio,
 
   // Output nodes
   'debug': Bug,
   'mqtt-out': Upload,
-
-  // GPIO nodes (Raspberry Pi)
-  'gpio-in': CircuitBoard,
-  'gpio-out': CircuitBoard,
+  'http-response': Send,
+  'file-out': Save,
+  'serial-out': Terminal,
+  'websocket-out': Send,
 
   // Function nodes
   'function': Code,
-  'change': Settings,
+  'function-node': Code,
+  'change': PenLine,
   'range': Sliders,
   'template': FileCode,
-
-  // Logic nodes
   'switch': GitBranch,
   'if': GitBranch,
   'delay': Clock,
-
-  // Sensors
-  'dht': Thermometer,
-  'ds18b20': Thermometer,
-  'bmp280': Gauge,
-
-  // Actuators
-  'pwm': Activity,
-  'servo': Rotate3D,
-  'relay': Power,
-
-  // Network nodes
-  'http-request': Globe,
-  'http-webhook': Webhook,
-  'webhook': Webhook,
-  'http-in': Webhook,
-  'websocket': Network,
-  'tcp': Wifi,
-  'udp': Radio,
-
-  // Database nodes
-  'mysql': Database,
-  'postgresql': Database,
-  'mongodb': Database,
-  'redis': Hash,
-
-  // Messaging nodes
-  'email': Mail,
-  'telegram': Send,
-  'slack': MessageSquare,
-  'discord': MessageSquare,
-
-  // AI nodes
-  'openai': Brain,
-  'anthropic': Sparkles,
-  'ollama': Bot,
-
-  // Advanced nodes
-  'exec': Terminal,
-  'file': FileText,
   'split': Scissors,
   'join': Link2,
   'catch': AlertTriangle,
   'complete': CheckCircle,
   'status': Activity,
   'set': Settings,
+  'link-in': Link2,
+  'link-out': Link2,
+  'trigger': Timer,
+  'rbe': Filter,
+  'filter': Filter,
+  'comment': MessageSquare,
+
+  // Processing nodes
+  'exec': Terminal,
+  'python': Code,
+  'http-request': Globe,
+  'websocket-client': Network,
+  'tcp-client': Wifi,
+  'udp': Radio,
+  'json-parser': Braces,
+  'xml-parser': Code,
+  'csv-parser': Table,
+  'yaml-parser': FileText,
+  'html': Code,
+
+  // GPIO nodes
+  'gpio-in': CircuitBoard,
+  'gpio-out': CircuitBoard,
+  'pwm': Activity,
+  'i2c': CircuitBoard,
+  'spi': CircuitBoard,
+  'serial': Terminal,
+  'interrupt': Zap,
+  'one-wire': CircuitBoard,
+
+  // Sensors
+  'dht': Thermometer,
+  'ds18b20': Thermometer,
+  'bmp280': Gauge,
+  'bme280': Gauge,
+  'bme680': Gauge,
+  'sht3x': Thermometer,
+  'aht20': Thermometer,
+  'bh1750': Eye,
+  'tsl2561': Eye,
+  'veml7700': Eye,
+  'ccs811': Activity,
+  'sgp30': Activity,
+  'hcsr04': Radio,
+  'vl53l0x': Radio,
+  'vl53l1x': Radio,
+  'pir': Eye,
+  'rcwl0516': Radio,
+  'gps': Globe,
+  'gps_neom8n': Globe,
+  'compass_bn880': Globe,
+  'mcp3008': Sliders,
+  'ads1015': Sliders,
+  'pcf8591': Sliders,
+  'voltage-monitor': Gauge,
+  'current-monitor': Gauge,
+  'max31855': Thermometer,
+  'max31865': Thermometer,
+
+  // Actuators
+  'relay': Power,
+  'servo': Rotate3D,
+  'motor_l298n': Rotate3D,
+  'buzzer': Volume2,
+  'ws2812': Sparkles,
+  'lcd_i2c': Type,
+  'oled_ssd1306': Type,
+
+  // Communication
+  'modbus': Cpu,
+  'lora_sx1276': Radio,
+  'nrf24l01': Radio,
+  'rf433': Radio,
+  'rfid_rc522': CreditCard,
+  'nfc_pn532': Smartphone,
+  'can_mcp2515': Cpu,
+  'pi-camera': Camera,
+  'audio': Volume2,
+
+  // RTC
+  'rtc_ds3231': Clock,
+  'rtc_ds1307': Clock,
+  'rtc_pcf8523': Clock,
+
+  // Database nodes
+  'mysql': Database,
+  'postgresql': Database,
+  'sqlite': Database,
+  'mongodb': Database,
+  'redis': Box,
+  'influxdb': Database,
+
+  // Storage nodes
+  'google-drive': Cloud,
+  'aws-s3': Cloud,
+  'sftp': Lock,
+  'dropbox': Cloud,
+  'onedrive': Cloud,
+  'ftp': Server,
+
+  // Messaging nodes
+  'email': Mail,
+  'telegram': Send,
+  'slack': MessageSquare,
+  'discord': MessageCircle,
+
+  // AI nodes
+  'openai': Brain,
+  'anthropic': Sparkles,
+  'ollama': Bot,
+
+  // Industrial nodes
+  'modbus-tcp': Factory,
+  'modbus-rtu': Factory,
+  'opcua': Server,
+  'bacnet': Factory,
+  'profinet': Network,
+  'can-bus': Cpu,
+
+  // Wireless nodes
+  'ble': Bluetooth,
+  'zigbee': Radio,
+  'zwave': Radio,
+  'lora': Radio,
+  'nrf24': Radio,
+  'rfid': CreditCard,
+  'nfc': Smartphone,
+  'ir': Radio,
+
+  // Dashboard nodes
+  'dashboard-chart': BarChart3,
+  'dashboard-gauge': Gauge,
+  'dashboard-text': Type,
+  'dashboard-button': MousePointer,
+  'dashboard-slider': Sliders,
+  'dashboard-switch': Power,
+  'dashboard-text-input': Keyboard,
+  'dashboard-dropdown': List,
+  'dashboard-form': FileText,
+  'dashboard-date-picker': CalendarDays,
+  'dashboard-notification': Bell,
+  'dashboard-template': Code,
+  'dashboard-color-picker': Palette,
+  'dashboard-table': Table,
 }
 
-// Better categorization based on Node-RED best practices
-const CATEGORY_CONFIG = {
+// Category configuration matching backend
+const CATEGORY_CONFIG: Record<string, { label: string; icon: any; color: string; description: string }> = {
   input: {
     label: 'Input',
     icon: Download,
@@ -101,128 +214,257 @@ const CATEGORY_CONFIG = {
     label: 'Function',
     icon: Code,
     color: '#f59e0b',
-    description: 'Nodes for logic, transformation, and processing'
+    description: 'Logic, transformation, and data processing'
   },
-  logic: {
-    label: 'Logic',
+  processing: {
+    label: 'Processing',
     icon: Cpu,
     color: '#8b5cf6',
-    description: 'Conditional routing and flow control'
+    description: 'Data processing and transformation nodes'
   },
   gpio: {
     label: 'GPIO',
     icon: CircuitBoard,
     color: '#16a34a',
-    description: 'Raspberry Pi GPIO pins input/output'
+    description: 'Raspberry Pi GPIO pins and basic I/O'
   },
   sensors: {
     label: 'Sensors',
     icon: Thermometer,
     color: '#22c55e',
-    description: 'Physical sensors and hardware inputs'
+    description: 'Temperature, humidity, light, and other sensors'
   },
   actuators: {
     label: 'Actuators',
     icon: Gauge,
     color: '#ec4899',
-    description: 'Physical hardware outputs and controls'
+    description: 'Motors, relays, LEDs, and output devices'
+  },
+  communication: {
+    label: 'Communication',
+    icon: Radio,
+    color: '#0ea5e9',
+    description: 'LoRa, NRF24, RF433, and wireless protocols'
   },
   network: {
     label: 'Network',
     icon: Network,
     color: '#06b6d4',
-    description: 'Network protocols and communication'
+    description: 'HTTP, MQTT, WebSocket, TCP/UDP protocols'
   },
   database: {
     label: 'Database',
     icon: Database,
     color: '#3b82f6',
-    description: 'Database storage and queries'
+    description: 'MySQL, PostgreSQL, MongoDB, Redis, InfluxDB'
+  },
+  storage: {
+    label: 'Storage',
+    icon: HardDrive,
+    color: '#6366f1',
+    description: 'File storage, S3, Google Drive, FTP'
   },
   messaging: {
     label: 'Messaging',
     icon: MessageSquare,
     color: '#14b8a6',
-    description: 'Messaging platforms and notifications'
+    description: 'Telegram, Email, Slack, Discord notifications'
   },
   ai: {
     label: 'AI & ML',
-    icon: Bot,
+    icon: Brain,
     color: '#a855f7',
-    description: 'Artificial intelligence and machine learning'
+    description: 'OpenAI, Anthropic, Ollama LLM integration'
+  },
+  industrial: {
+    label: 'Industrial',
+    icon: Factory,
+    color: '#f97316',
+    description: 'Modbus RTU/TCP, OPC-UA, BACnet protocols'
+  },
+  wireless: {
+    label: 'Wireless',
+    icon: Bluetooth,
+    color: '#0082fc',
+    description: 'BLE, Zigbee, Z-Wave, LoRa, RFID, NFC'
+  },
+  dashboard: {
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    color: '#0891b2',
+    description: 'UI widgets, charts, gauges, buttons'
   },
   advanced: {
     label: 'Advanced',
     icon: Settings,
     color: '#64748b',
-    description: 'Advanced nodes and utilities'
+    description: 'System commands, file operations, utilities'
   },
 }
 
-// Improved fallback nodes with better categorization
+// Fallback nodes shown when API is unavailable
 const fallbackNodes: NodeType[] = [
-  // Input nodes
+  // Input
   { type: 'inject', name: 'Inject', description: 'Manually trigger flows or inject timestamps at intervals', category: 'input', color: '#10b981', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'schedule', name: 'Schedule', description: 'Trigger flows based on cron expressions', category: 'input', color: '#10b981', icon: '', inputs: [], outputs: ['output'], properties: [] },
   { type: 'mqtt-in', name: 'MQTT In', description: 'Subscribe to MQTT broker topics and receive messages', category: 'input', color: '#10b981', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'http-webhook', name: 'HTTP Webhook', description: 'Receive HTTP requests via webhook endpoint', category: 'input', color: '#10b981', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'http-in', name: 'HTTP In', description: 'Create an HTTP endpoint to receive requests', category: 'input', color: '#10b981', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'watch', name: 'File Watch', description: 'Monitor file/directory changes', category: 'input', color: '#10b981', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'file-in', name: 'File Read', description: 'Read file contents', category: 'input', color: '#10b981', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'serial-in', name: 'Serial In', description: 'Receive data from serial port', category: 'input', color: '#10b981', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'websocket-in', name: 'WebSocket In', description: 'Accept WebSocket connections and receive messages', category: 'input', color: '#10b981', icon: '', inputs: [], outputs: ['output'], properties: [] },
 
-  // Output nodes
-  { type: 'debug', name: 'Debug', description: 'Display messages in the debug sidebar for troubleshooting', category: 'output', color: '#ef4444', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  // Output
+  { type: 'debug', name: 'Debug', description: 'Display messages in debug sidebar for troubleshooting', category: 'output', color: '#ef4444', icon: '', inputs: ['input'], outputs: [], properties: [] },
   { type: 'mqtt-out', name: 'MQTT Out', description: 'Publish messages to MQTT broker topics', category: 'output', color: '#ef4444', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'http-response', name: 'HTTP Response', description: 'Send HTTP response', category: 'output', color: '#ef4444', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'file-out', name: 'File Write', description: 'Write content to file', category: 'output', color: '#ef4444', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'serial-out', name: 'Serial Out', description: 'Send data to serial port', category: 'output', color: '#ef4444', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'websocket-out', name: 'WebSocket Out', description: 'Send messages to WebSocket clients', category: 'output', color: '#ef4444', icon: '', inputs: ['input'], outputs: [], properties: [] },
 
-  // GPIO nodes (Raspberry Pi)
-  { type: 'gpio-in', name: 'GPIO In', description: 'Read digital values from Raspberry Pi GPIO pins', category: 'gpio', color: '#16a34a', icon: '', inputs: [], outputs: ['output'], properties: [] },
-  { type: 'gpio-out', name: 'GPIO Out', description: 'Write digital or PWM values to Raspberry Pi GPIO pins', category: 'gpio', color: '#16a34a', icon: '', inputs: ['input'], outputs: [], properties: [] },
-
-  // Function nodes
-  { type: 'function', name: 'Function', description: 'Write custom JavaScript code to process messages', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  // Function
+  { type: 'function', name: 'Function', description: 'Execute custom JavaScript code to process messages', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
   { type: 'change', name: 'Change', description: 'Set, change, move or delete message properties', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'range', name: 'Range', description: 'Map and scale numeric values between ranges', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'template', name: 'Template', description: 'Generate text using Mustache template syntax', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'range', name: 'Range', description: 'Scale numeric values between ranges', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'template', name: 'Template', description: 'Render Mustache templates', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'switch', name: 'Switch', description: 'Route messages based on property values and rules', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'if', name: 'If', description: 'Route messages based on conditions', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['true', 'false'], properties: [] },
+  { type: 'delay', name: 'Delay', description: 'Delay message processing', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'split', name: 'Split', description: 'Split messages into multiple parts', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'join', name: 'Join', description: 'Join multiple messages into one', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'catch', name: 'Catch', description: 'Catch errors from other nodes', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'status', name: 'Status', description: 'Monitor node status changes', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'complete', name: 'Complete', description: 'Trigger when node or flow completes', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'set', name: 'Set', description: 'Set, delete, move message properties', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'trigger', name: 'Trigger', description: 'Send message, then optionally send second after delay', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'rbe', name: 'RBE', description: 'Report by exception - only pass changed values', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'filter', name: 'Filter', description: 'Filter messages based on conditions', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['match', 'no_match'], properties: [] },
+  { type: 'link-in', name: 'Link In', description: 'Receive messages from Link Out nodes', category: 'function', color: '#f59e0b', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'link-out', name: 'Link Out', description: 'Send messages to Link In nodes', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'comment', name: 'Comment', description: 'Add documentation notes to flows', category: 'function', color: '#f59e0b', icon: '', inputs: [], outputs: [], properties: [] },
 
-  // Logic nodes
-  { type: 'switch', name: 'Switch', description: 'Route messages based on property values and rules', category: 'logic', color: '#8b5cf6', icon: '', inputs: ['input'], outputs: ['output1', 'output2', 'output3'], properties: [] },
-  { type: 'if', name: 'If', description: 'Simple conditional branching with if-then-else logic', category: 'logic', color: '#8b5cf6', icon: '', inputs: ['input'], outputs: ['true', 'false'], properties: [] },
-  { type: 'delay', name: 'Delay', description: 'Delay messages or limit message rate', category: 'logic', color: '#8b5cf6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  // Processing
+  { type: 'exec', name: 'Exec', description: 'Execute shell commands', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['stdout', 'stderr', 'return'], properties: [] },
+  { type: 'python', name: 'Python', description: 'Execute Python code', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'http-request', name: 'HTTP Request', description: 'Send HTTP requests with all methods', category: 'processing', color: '#8b5cf6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'websocket-client', name: 'WebSocket Client', description: 'Connect to WebSocket server', category: 'processing', color: '#8b5cf6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'tcp-client', name: 'TCP Client', description: 'Connect to TCP server', category: 'processing', color: '#8b5cf6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'udp', name: 'UDP', description: 'Send and receive UDP packets', category: 'processing', color: '#8b5cf6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'json-parser', name: 'JSON Parser', description: 'Convert JSON to object and vice versa', category: 'processing', color: '#8b5cf6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'xml-parser', name: 'XML Parser', description: 'Convert XML to JSON and vice versa', category: 'processing', color: '#8b5cf6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'csv-parser', name: 'CSV Parser', description: 'Convert CSV to JSON and vice versa', category: 'processing', color: '#8b5cf6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'yaml-parser', name: 'YAML Parser', description: 'Convert YAML to JSON and vice versa', category: 'processing', color: '#8b5cf6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'html', name: 'HTML Parser', description: 'Parse HTML with CSS selectors', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+
+  // GPIO
+  { type: 'gpio-in', name: 'GPIO In', description: 'Read digital values from GPIO pins', category: 'gpio', color: '#16a34a', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'gpio-out', name: 'GPIO Out', description: 'Write digital values to GPIO pins', category: 'gpio', color: '#16a34a', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'pwm', name: 'PWM', description: 'Generate pulse width modulation signals', category: 'gpio', color: '#16a34a', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'i2c', name: 'I2C', description: 'I2C bus communication', category: 'gpio', color: '#16a34a', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'spi', name: 'SPI', description: 'SPI bus communication', category: 'gpio', color: '#16a34a', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'serial', name: 'Serial', description: 'Serial port communication', category: 'gpio', color: '#16a34a', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'interrupt', name: 'GPIO Interrupt', description: 'GPIO interrupt detection', category: 'gpio', color: '#16a34a', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'one-wire', name: '1-Wire', description: '1-Wire bus communication', category: 'gpio', color: '#16a34a', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
 
   // Sensors
-  { type: 'dht', name: 'DHT Sensor', description: 'Read temperature and humidity from DHT11/DHT22 sensors', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
-  { type: 'ds18b20', name: 'DS18B20', description: 'Read temperature from DS18B20 digital sensors', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
-  { type: 'bmp280', name: 'BMP280', description: 'Read temperature and pressure from BMP280 sensor', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'dht', name: 'DHT Sensor', description: 'Read temperature/humidity from DHT11/DHT22', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'ds18b20', name: 'DS18B20', description: 'Read temperature from DS18B20', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'bmp280', name: 'BMP280', description: 'Temperature and pressure sensor', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'bme280', name: 'BME280', description: 'Temperature, humidity and pressure sensor', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'bme680', name: 'BME680', description: 'Temperature, humidity, pressure and gas sensor', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'sht3x', name: 'SHT3x', description: 'High-accuracy temperature and humidity', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'aht20', name: 'AHT20', description: 'Temperature and humidity sensor', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'bh1750', name: 'BH1750', description: 'Ambient light sensor (lux)', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'tsl2561', name: 'TSL2561', description: 'Light sensor with IR channel', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'veml7700', name: 'VEML7700', description: 'High-accuracy ambient light sensor', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'ccs811', name: 'CCS811', description: 'CO2 and TVOC air quality sensor', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'sgp30', name: 'SGP30', description: 'Indoor air quality sensor', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'hcsr04', name: 'HC-SR04', description: 'Ultrasonic distance sensor', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'vl53l0x', name: 'VL53L0X', description: 'Laser distance sensor (ToF)', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'vl53l1x', name: 'VL53L1X', description: 'Long-range laser distance sensor', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'pir', name: 'PIR Motion', description: 'Passive infrared motion detector', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'rcwl0516', name: 'RCWL-0516', description: 'Microwave motion sensor', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'gps', name: 'GPS', description: 'GPS location and time data', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'gps_neom8n', name: 'GPS NEO-M8N', description: 'u-blox NEO-M8N GPS module', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'compass_bn880', name: 'BN-880 GPS+Compass', description: 'GPS and compass module', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'mcp3008', name: 'MCP3008', description: '10-bit ADC (8 channels)', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'ads1015', name: 'ADS1015', description: '12-bit ADC with PGA', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'pcf8591', name: 'PCF8591', description: '8-bit ADC/DAC converter', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'voltage-monitor', name: 'Voltage Monitor', description: 'Monitor voltage levels', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'current-monitor', name: 'Current Monitor', description: 'Monitor current draw', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'max31855', name: 'MAX31855', description: 'Thermocouple amplifier (K-type)', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'max31865', name: 'MAX31865', description: 'RTD-to-digital converter (PT100/PT1000)', category: 'sensors', color: '#22c55e', icon: '', inputs: [], outputs: ['output'], properties: [] },
 
   // Actuators
-  { type: 'pwm', name: 'PWM', description: 'Generate pulse width modulation signals', category: 'actuators', color: '#ec4899', icon: '', inputs: ['input'], outputs: [], properties: [] },
-  { type: 'servo', name: 'Servo', description: 'Control servo motor position and angle', category: 'actuators', color: '#ec4899', icon: '', inputs: ['input'], outputs: [], properties: [] },
-  { type: 'relay', name: 'Relay', description: 'Control relay switches for high-power devices', category: 'actuators', color: '#ec4899', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'relay', name: 'Relay', description: 'Control relay switches', category: 'actuators', color: '#ec4899', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'servo', name: 'Servo Motor', description: 'Control servo motor position', category: 'actuators', color: '#ec4899', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'motor_l298n', name: 'Motor L298N', description: 'DC motor driver (H-bridge)', category: 'actuators', color: '#ec4899', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'buzzer', name: 'Buzzer', description: 'Piezo buzzer with tone control', category: 'actuators', color: '#ec4899', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'ws2812', name: 'WS2812 LED Strip', description: 'Addressable RGB LED strip control', category: 'actuators', color: '#ec4899', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'lcd_i2c', name: 'LCD I2C', description: 'I2C LCD display (16x2, 20x4)', category: 'actuators', color: '#ec4899', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'oled_ssd1306', name: 'OLED SSD1306', description: 'SSD1306 OLED display', category: 'actuators', color: '#ec4899', icon: '', inputs: ['input'], outputs: [], properties: [] },
 
-  // Network nodes
-  { type: 'http-request', name: 'HTTP Request', description: 'Make HTTP/HTTPS requests to APIs and web services', category: 'network', color: '#06b6d4', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'http-webhook', name: 'HTTP Webhook', description: 'Create HTTP endpoints to receive incoming webhook requests', category: 'input', color: '#10b981', icon: '', inputs: [], outputs: ['output'], properties: [] },
-  { type: 'websocket', name: 'WebSocket', description: 'Establish bidirectional WebSocket connections', category: 'network', color: '#06b6d4', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'tcp', name: 'TCP', description: 'Create TCP client or server connections', category: 'network', color: '#06b6d4', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'udp', name: 'UDP', description: 'Send and receive UDP network packets', category: 'network', color: '#06b6d4', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  // Database
+  { type: 'mysql', name: 'MySQL', description: 'Execute queries on MySQL', category: 'database', color: '#3b82f6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'postgresql', name: 'PostgreSQL', description: 'Execute queries on PostgreSQL', category: 'database', color: '#3b82f6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'sqlite', name: 'SQLite', description: 'Execute queries on SQLite', category: 'database', color: '#3b82f6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'mongodb', name: 'MongoDB', description: 'MongoDB operations', category: 'database', color: '#3b82f6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'redis', name: 'Redis', description: 'Redis cache operations', category: 'database', color: '#3b82f6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'influxdb', name: 'InfluxDB', description: 'InfluxDB time-series operations', category: 'database', color: '#3b82f6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
 
-  // Database nodes
-  { type: 'mysql', name: 'MySQL', description: 'Execute queries on MySQL/MariaDB databases', category: 'database', color: '#3b82f6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'postgresql', name: 'PostgreSQL', description: 'Execute queries on PostgreSQL databases', category: 'database', color: '#3b82f6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'mongodb', name: 'MongoDB', description: 'Perform operations on MongoDB collections', category: 'database', color: '#3b82f6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'redis', name: 'Redis', description: 'Store and retrieve data from Redis cache', category: 'database', color: '#3b82f6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  // Storage
+  { type: 'google-drive', name: 'Google Drive', description: 'Upload/download files on Google Drive', category: 'storage', color: '#6366f1', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'aws-s3', name: 'AWS S3', description: 'Upload/download objects in AWS S3', category: 'storage', color: '#6366f1', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'sftp', name: 'SFTP', description: 'Upload/download files via SFTP', category: 'storage', color: '#6366f1', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'dropbox', name: 'Dropbox', description: 'Manage files on Dropbox', category: 'storage', color: '#6366f1', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'onedrive', name: 'OneDrive', description: 'Manage files on Microsoft OneDrive', category: 'storage', color: '#6366f1', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'ftp', name: 'FTP', description: 'Upload/download files via FTP', category: 'storage', color: '#6366f1', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
 
-  // Messaging nodes
-  { type: 'email', name: 'Email', description: 'Send emails via SMTP server', category: 'messaging', color: '#14b8a6', icon: '', inputs: ['input'], outputs: [], properties: [] },
-  { type: 'telegram', name: 'Telegram', description: 'Send and receive Telegram bot messages', category: 'messaging', color: '#14b8a6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'slack', name: 'Slack', description: 'Send messages to Slack channels and workspaces', category: 'messaging', color: '#14b8a6', icon: '', inputs: ['input'], outputs: [], properties: [] },
-  { type: 'discord', name: 'Discord', description: 'Send messages to Discord channels via webhooks', category: 'messaging', color: '#14b8a6', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  // Messaging
+  { type: 'email', name: 'Email', description: 'Send email via SMTP', category: 'messaging', color: '#14b8a6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'telegram', name: 'Telegram', description: 'Send/receive Telegram bot messages', category: 'messaging', color: '#14b8a6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'slack', name: 'Slack', description: 'Send messages to Slack', category: 'messaging', color: '#14b8a6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'discord', name: 'Discord', description: 'Send messages to Discord', category: 'messaging', color: '#14b8a6', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
 
-  // AI nodes
-  { type: 'openai', name: 'OpenAI', description: 'Access OpenAI GPT models for text generation', category: 'ai', color: '#a855f7', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'anthropic', name: 'Anthropic', description: 'Use Anthropic Claude for conversations and analysis', category: 'ai', color: '#a855f7', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'ollama', name: 'Ollama', description: 'Run local LLM models with Ollama', category: 'ai', color: '#a855f7', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  // AI
+  { type: 'openai', name: 'OpenAI', description: 'Text generation with OpenAI GPT', category: 'ai', color: '#a855f7', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'anthropic', name: 'Anthropic', description: 'Text generation with Claude', category: 'ai', color: '#a855f7', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'ollama', name: 'Ollama', description: 'Local LLM inference with Ollama', category: 'ai', color: '#a855f7', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
 
-  // Advanced nodes
-  { type: 'exec', name: 'Exec', description: 'Execute system shell commands and scripts', category: 'advanced', color: '#64748b', icon: '', inputs: ['input'], outputs: ['stdout', 'stderr'], properties: [] },
-  { type: 'file', name: 'File', description: 'Read from and write to filesystem files', category: 'advanced', color: '#64748b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'split', name: 'Split', description: 'Split messages into multiple parts', category: 'advanced', color: '#64748b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
-  { type: 'join', name: 'Join', description: 'Join multiple messages into one', category: 'advanced', color: '#64748b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  // Industrial
+  { type: 'modbus-tcp', name: 'Modbus TCP', description: 'Modbus TCP client for PLCs', category: 'industrial', color: '#f97316', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'modbus-rtu', name: 'Modbus RTU', description: 'Modbus RTU over serial port', category: 'industrial', color: '#f97316', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'opcua', name: 'OPC-UA', description: 'OPC-UA client for industrial automation', category: 'industrial', color: '#f97316', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'bacnet', name: 'BACnet', description: 'BACnet/IP for building automation', category: 'industrial', color: '#f97316', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'profinet', name: 'PROFINET', description: 'PROFINET DCP discovery and I/O', category: 'industrial', color: '#f97316', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'can-bus', name: 'CAN Bus', description: 'CAN bus communication via SocketCAN', category: 'industrial', color: '#f97316', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+
+  // Wireless
+  { type: 'ble', name: 'Bluetooth LE', description: 'Bluetooth Low Energy communication', category: 'wireless', color: '#0082fc', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'zigbee', name: 'Zigbee', description: 'Zigbee via zigbee2mqtt or deCONZ', category: 'wireless', color: '#0082fc', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'zwave', name: 'Z-Wave', description: 'Z-Wave via zwave2mqtt', category: 'wireless', color: '#0082fc', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'lora', name: 'LoRa', description: 'LoRa long-range wireless', category: 'wireless', color: '#0082fc', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'nrf24', name: 'NRF24L01', description: 'NRF24L01 2.4GHz transceiver', category: 'wireless', color: '#0082fc', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'rfid', name: 'RFID RC522', description: 'RFID reader for MIFARE cards', category: 'wireless', color: '#0082fc', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'nfc', name: 'NFC PN532', description: 'NFC reader/writer', category: 'wireless', color: '#0082fc', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'ir', name: 'IR Transceiver', description: 'Infrared transmit/receive', category: 'wireless', color: '#0082fc', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+
+  // Dashboard
+  { type: 'dashboard-chart', name: 'Chart', description: 'Display data as charts', category: 'dashboard', color: '#0891b2', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'dashboard-gauge', name: 'Gauge', description: 'Display numeric values as gauges', category: 'dashboard', color: '#0891b2', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'dashboard-text', name: 'Text Display', description: 'Display text on dashboard', category: 'dashboard', color: '#0891b2', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'dashboard-button', name: 'Button', description: 'Interactive button widget', category: 'dashboard', color: '#0891b2', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'dashboard-slider', name: 'Slider', description: 'Interactive slider input', category: 'dashboard', color: '#0891b2', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'dashboard-switch', name: 'Switch', description: 'Interactive toggle switch', category: 'dashboard', color: '#0891b2', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'dashboard-text-input', name: 'Text Input', description: 'Text input field', category: 'dashboard', color: '#0891b2', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'dashboard-dropdown', name: 'Dropdown', description: 'Dropdown select input', category: 'dashboard', color: '#0891b2', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'dashboard-form', name: 'Form', description: 'Form builder with multiple fields', category: 'dashboard', color: '#0891b2', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'dashboard-date-picker', name: 'Date Picker', description: 'Date and time picker', category: 'dashboard', color: '#0891b2', icon: '', inputs: [], outputs: ['output'], properties: [] },
+  { type: 'dashboard-notification', name: 'Notification', description: 'Display toast notifications', category: 'dashboard', color: '#0891b2', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'dashboard-template', name: 'Template', description: 'Custom HTML template content', category: 'dashboard', color: '#0891b2', icon: '', inputs: ['input'], outputs: [], properties: [] },
+  { type: 'dashboard-color-picker', name: 'Color Picker', description: 'Color picker input', category: 'dashboard', color: '#0891b2', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'dashboard-table', name: 'Table', description: 'Data table with sorting and filtering', category: 'dashboard', color: '#0891b2', icon: '', inputs: ['input'], outputs: [], properties: [] },
 ]
 
 export default function NodePalette() {
@@ -291,8 +533,8 @@ export default function NodePalette() {
     groupedNodes[category].sort((a, b) => a.name.localeCompare(b.name))
   })
 
-  // Sort categories by predefined order
-  const categoryOrder = ['input', 'output', 'gpio', 'function', 'logic', 'sensors', 'actuators', 'network', 'database', 'messaging', 'ai', 'advanced']
+  // Sort categories by predefined order (matches backend)
+  const categoryOrder = ['input', 'output', 'function', 'processing', 'gpio', 'sensors', 'actuators', 'communication', 'network', 'database', 'storage', 'messaging', 'ai', 'industrial', 'wireless', 'dashboard', 'advanced']
   const sortedCategories = Object.keys(groupedNodes).sort((a, b) => {
     const indexA = categoryOrder.indexOf(a)
     const indexB = categoryOrder.indexOf(b)
@@ -330,7 +572,7 @@ export default function NodePalette() {
             </div>
           ) : (
             sortedCategories.map((category) => {
-              const config = CATEGORY_CONFIG[category as keyof typeof CATEGORY_CONFIG] || {
+              const config = CATEGORY_CONFIG[category] || {
                 label: category,
                 icon: Settings,
                 color: '#64748b',
@@ -380,7 +622,6 @@ export default function NodePalette() {
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
                                   e.preventDefault()
-                                  // Could trigger drag or provide alternative interaction
                                 }
                               }}
                             >

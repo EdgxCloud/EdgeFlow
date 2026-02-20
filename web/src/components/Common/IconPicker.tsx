@@ -128,8 +128,9 @@ export function IconPicker({ value, onChange, label, disabled = false }: IconPic
     }
   }
 
-  const IconComponent = value && LucideIcons[value as keyof typeof LucideIcons]
-    ? LucideIcons[value as keyof typeof LucideIcons]
+  const iconLookup = value ? LucideIcons[value as keyof typeof LucideIcons] : null
+  const IconComponent: React.ComponentType<{ className?: string }> = (iconLookup && typeof iconLookup === 'object')
+    ? iconLookup as unknown as React.ComponentType<{ className?: string }>
     : ImageIcon
 
   return (
@@ -143,7 +144,7 @@ export function IconPicker({ value, onChange, label, disabled = false }: IconPic
             className="w-full h-11 justify-start gap-3"
             disabled={disabled}
           >
-            {typeof IconComponent === 'function' && <IconComponent className="w-5 h-5" />}
+            <IconComponent className="w-5 h-5" />
             <span className="font-mono text-sm">{value || 'Select icon'}</span>
           </Button>
         </PopoverTrigger>
@@ -167,8 +168,8 @@ export function IconPicker({ value, onChange, label, disabled = false }: IconPic
                 <Label className="text-xs font-semibold mb-2 block">Recent Icons</Label>
                 <div className="grid grid-cols-6 gap-2">
                   {recentIcons.map((iconName) => {
-                    const Icon = LucideIcons[iconName as keyof typeof LucideIcons]
-                    if (typeof Icon !== 'function') return null
+                    const IconComp = LucideIcons[iconName as keyof typeof LucideIcons] as React.ComponentType<{ className?: string }> | undefined
+                    if (!IconComp || typeof IconComp !== 'object') return null
                     return (
                       <button
                         key={iconName}
@@ -181,7 +182,7 @@ export function IconPicker({ value, onChange, label, disabled = false }: IconPic
                         )}
                         title={iconName}
                       >
-                        <Icon className="w-5 h-5 mx-auto" />
+                        <IconComp className="w-5 h-5 mx-auto" />
                       </button>
                     )
                   })}
@@ -201,8 +202,8 @@ export function IconPicker({ value, onChange, label, disabled = false }: IconPic
                 <TabsContent value={activeCategory} className="mt-0">
                   <div className="grid grid-cols-6 gap-2 pr-4">
                     {filteredIcons.map((iconName) => {
-                      const Icon = LucideIcons[iconName as keyof typeof LucideIcons]
-                      if (typeof Icon !== 'function') return null
+                      const IconComp = LucideIcons[iconName as keyof typeof LucideIcons] as React.ComponentType<{ className?: string }> | undefined
+                      if (!IconComp || typeof IconComp !== 'object') return null
                       return (
                         <button
                           key={iconName}
@@ -215,7 +216,7 @@ export function IconPicker({ value, onChange, label, disabled = false }: IconPic
                           )}
                           title={iconName}
                         >
-                          <Icon className="w-5 h-5 mx-auto" />
+                          <IconComp className="w-5 h-5 mx-auto" />
                         </button>
                       )
                     })}

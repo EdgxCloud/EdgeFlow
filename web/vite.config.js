@@ -12,6 +12,7 @@ export default defineConfig({
             '@': resolve(__dirname, './src'),
         },
     },
+    // @ts-expect-error vitest extends vite config
     test: {
         globals: true,
         environment: 'jsdom',
@@ -24,6 +25,10 @@ export default defineConfig({
                 target: 'http://localhost:8080',
                 changeOrigin: true,
             },
+            '/ws/terminal': {
+                target: 'ws://localhost:8080',
+                ws: true,
+            },
             '/ws': {
                 target: 'ws://localhost:8080',
                 ws: true,
@@ -34,12 +39,30 @@ export default defineConfig({
         target: 'es2015',
         minify: 'terser',
         sourcemap: false,
+        chunkSizeWarningLimit: 520,
         rollupOptions: {
             output: {
-                manualChunks: {
-                    'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-                    'flow-vendor': ['@xyflow/react'],
-                    'ui-vendor': ['lucide-react', 'sonner'],
+                manualChunks: function (id) {
+                    if (id.includes('node_modules')) {
+                        if (id.includes('react-dom') || id.includes('react-router-dom') || id.includes('react-i18next'))
+                            return 'react-vendor';
+                        if (id.includes('/react/'))
+                            return 'react-vendor';
+                        if (id.includes('@xyflow'))
+                            return 'flow-vendor';
+                        if (id.includes('lucide-react'))
+                            return 'icons';
+                        if (id.includes('@radix-ui'))
+                            return 'radix-ui';
+                        if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('/zod/'))
+                            return 'form-vendor';
+                        if (id.includes('i18next'))
+                            return 'i18n-vendor';
+                        if (id.includes('@monaco-editor') || id.includes('monaco-editor'))
+                            return 'monaco';
+                        if (id.includes('zustand') || id.includes('axios') || id.includes('lodash') || id.includes('date-fns'))
+                            return 'data-vendor';
+                    }
                 },
             },
         },

@@ -101,9 +101,8 @@ function validateFlow(flow: any): Flow {
     description: flow.description || '',
     nodes: validatedNodes,
     connections: validatedConnections,
-    enabled: flow.enabled !== false,
-    created: flow.created || new Date().toISOString(),
-    modified: flow.modified || new Date().toISOString(),
+    createdAt: flow.created || flow.createdAt || new Date().toISOString(),
+    updatedAt: flow.modified || flow.updatedAt || new Date().toISOString(),
   };
 }
 

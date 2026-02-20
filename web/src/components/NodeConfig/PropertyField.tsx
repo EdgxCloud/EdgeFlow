@@ -4,6 +4,7 @@
  * Generic property field renderer based on property schema
  */
 
+import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -22,6 +23,7 @@ import { IconPicker } from '@/components/Common/IconPicker'
 import { CronBuilder } from '@/components/Common/CronBuilder'
 import { MQTTTopicBuilder } from '@/components/NodeConfig/Specialized/MQTTTopicBuilder'
 import { PayloadBuilder } from '@/components/NodeConfig/Specialized/PayloadBuilder'
+import { Eye, EyeOff } from 'lucide-react'
 import type { PropertySchema } from '@/types/node'
 import { cn } from '@/lib/utils'
 
@@ -42,9 +44,12 @@ export function PropertyField({
 }: PropertyFieldProps) {
   const { name, label, type, required, placeholder, min, max, step, options, description } = schema
 
+  const [showPassword, setShowPassword] = useState(false)
+
   const renderInput = () => {
     switch (type) {
       case 'string':
+      case 'any':
         return (
           <Input
             id={name}
@@ -55,6 +60,29 @@ export function PropertyField({
             disabled={disabled}
             className={cn('h-11', error && 'border-red-500')}
           />
+        )
+
+      case 'password':
+        return (
+          <div className="relative">
+            <Input
+              id={name}
+              type={showPassword ? 'text' : 'password'}
+              value={value || ''}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              disabled={disabled}
+              className={cn('h-11 pr-10', error && 'border-red-500')}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
         )
 
       case 'number':

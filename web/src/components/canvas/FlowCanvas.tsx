@@ -34,7 +34,7 @@ console.log('🚀 FlowCanvas.tsx FILE LOADED')
 console.log('🚀 CustomNode imported:', CustomNode)
 
 const nodeTypes: NodeTypes = {
-  custom: CustomNode,
+  custom: CustomNode as any,
 }
 
 console.log('🚀 nodeTypes registered:', nodeTypes)
@@ -628,9 +628,9 @@ export default function FlowCanvas({ flowId, flowName = 'Untitled Flow', classNa
       <NodeConfigDialog
         node={selectedNode ? {
           id: selectedNode.id,
-          type: selectedNode.data.nodeType,
-          name: selectedNode.data.label,
-          config: selectedNode.data.config || {}
+          type: selectedNode.data.nodeType as string,
+          name: selectedNode.data.label as string,
+          config: (selectedNode.data.config || {}) as Record<string, any>
         } : null}
         flowId={flowId}
         onClose={handleNodeSettingsClose}

@@ -332,7 +332,7 @@ export function SampleFlowsLibrary({ onImport }: SampleFlowsLibraryProps) {
               <h4 className="font-semibold mb-2">Flow Details:</h4>
               <ul className="space-y-1">
                 <li>Nodes: {selectedFlow?.flow.nodes.length}</li>
-                <li>Edges: {selectedFlow?.flow.edges.length}</li>
+                <li>Connections: {selectedFlow?.flow.connections?.length ?? 0}</li>
                 <li>Category: {selectedFlow?.category}</li>
               </ul>
             </div>

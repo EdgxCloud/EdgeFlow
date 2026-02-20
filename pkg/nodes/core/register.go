@@ -31,6 +31,8 @@ func RegisterAllNodes(registry *node.Registry) error {
 				Default:     1,
 				Required:    true,
 				Description: "Enter value based on selected interval type",
+				Min:         node.FloatPtr(1),
+				Step:        node.FloatPtr(1),
 			},
 			{
 				Name:        "repeat",
@@ -349,6 +351,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 				Default:     "",
 				Required:    true,
 				Description: "Shell command to execute",
+				Placeholder: "e.g. ls -la",
 			},
 			{
 				Name:        "appendPayload",
@@ -373,6 +376,8 @@ func RegisterAllNodes(registry *node.Registry) error {
 				Default:     10,
 				Required:    false,
 				Description: "Maximum execution time (seconds)",
+				Min:         node.FloatPtr(1),
+				Max:         node.FloatPtr(3600),
 			},
 		},
 		Inputs: []node.PortSchema{
@@ -442,6 +447,8 @@ func RegisterAllNodes(registry *node.Registry) error {
 				Default:     30,
 				Required:    false,
 				Description: "Maximum execution time (seconds)",
+				Min:         node.FloatPtr(1),
+				Max:         node.FloatPtr(3600),
 			},
 			{
 				Name:        "useVirtualEnv",

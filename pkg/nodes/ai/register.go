@@ -18,7 +18,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 			{
 				Name:        "apiKey",
 				Label:       "API Key",
-				Type:        "string",
+				Type:        "password",
 				Default:     "",
 				Required:    true,
 				Description: "OpenAI API key",
@@ -39,6 +39,9 @@ func RegisterAllNodes(registry *node.Registry) error {
 				Default:     0.7,
 				Required:    false,
 				Description: "Temperature (0-2)",
+				Min:         node.FloatPtr(0),
+				Max:         node.FloatPtr(2),
+				Step:        node.FloatPtr(0.1),
 			},
 			{
 				Name:        "maxTokens",
@@ -47,6 +50,8 @@ func RegisterAllNodes(registry *node.Registry) error {
 				Default:     1000,
 				Required:    false,
 				Description: "Maximum tokens",
+				Min:         node.FloatPtr(1),
+				Max:         node.FloatPtr(128000),
 			},
 		},
 		Inputs: []node.PortSchema{
@@ -84,7 +89,7 @@ func RegisterAllNodes(registry *node.Registry) error {
 			{
 				Name:        "apiKey",
 				Label:       "API Key",
-				Type:        "string",
+				Type:        "password",
 				Default:     "",
 				Required:    true,
 				Description: "Anthropic API key",
@@ -105,6 +110,9 @@ func RegisterAllNodes(registry *node.Registry) error {
 				Default:     1.0,
 				Required:    false,
 				Description: "Temperature (0-1)",
+				Min:         node.FloatPtr(0),
+				Max:         node.FloatPtr(1),
+				Step:        node.FloatPtr(0.1),
 			},
 			{
 				Name:        "maxTokens",
@@ -171,6 +179,9 @@ func RegisterAllNodes(registry *node.Registry) error {
 				Default:     0.7,
 				Required:    false,
 				Description: "Temperature (0-2)",
+				Min:         node.FloatPtr(0),
+				Max:         node.FloatPtr(2),
+				Step:        node.FloatPtr(0.1),
 			},
 			{
 				Name:        "stream",

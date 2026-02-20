@@ -22,15 +22,26 @@ type NodeInfo struct {
 	Factory     NodeFactory            `json:"-"`
 }
 
+// FloatPtr returns a pointer to a float64 value, used for optional Min/Max/Step fields
+func FloatPtr(v float64) *float64 {
+	return &v
+}
+
 // PropertySchema defines a configurable property of a node
 type PropertySchema struct {
 	Name        string      `json:"name"`
 	Label       string      `json:"label"`
-	Type        string      `json:"type"` // string, number, boolean, select, etc.
+	Type        string      `json:"type"` // string, number, boolean, select, password, code, payload, etc.
 	Default     interface{} `json:"default"`
 	Required    bool        `json:"required"`
 	Description string      `json:"description"`
-	Options     []string    `json:"options,omitempty"` // For select type
+	Options     []string    `json:"options,omitempty"`     // For select type
+	Placeholder string      `json:"placeholder,omitempty"` // Placeholder text for input fields
+	Min         *float64    `json:"min,omitempty"`         // Minimum value for number fields
+	Max         *float64    `json:"max,omitempty"`         // Maximum value for number fields
+	Step        *float64    `json:"step,omitempty"`        // Step increment for number fields
+	Group       string      `json:"group,omitempty"`       // Group name for organizing properties in UI
+	Validation  string      `json:"validation,omitempty"`  // Regex validation pattern
 }
 
 // PortSchema defines an input or output port

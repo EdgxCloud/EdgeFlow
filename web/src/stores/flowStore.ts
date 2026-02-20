@@ -39,6 +39,7 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
           status: 'stopped',
           nodes: {},
           connections: [],
+          config: {},
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
@@ -76,6 +77,10 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
               id: 'inject-1',
               type: 'inject',
               name: 'Every 30 Seconds Trigger',
+              category: 'input' as const,
+              inputs: [],
+              outputs: ['gpio-temp-1'],
+              status: 'idle' as const,
               config: {
                 interval: 30,
                 payload: { timestamp: '{{timestamp}}', device: 'raspberry-pi-5' },
@@ -86,6 +91,10 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
               id: 'gpio-temp-1',
               type: 'ds18b20',
               name: 'DS18B20 Temperature Sensor',
+              category: 'input' as const,
+              inputs: ['inject-1'],
+              outputs: ['function-1', 'mqtt-out-1'],
+              status: 'idle' as const,
               config: {
                 pin: 'GPIO4',
                 sensorId: '28-00000xxxxx',
@@ -98,6 +107,10 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
               id: 'function-1',
               type: 'function',
               name: 'Process Temperature Data',
+              category: 'function' as const,
+              inputs: ['gpio-temp-1'],
+              outputs: ['switch-1', 'debug-1'],
+              status: 'idle' as const,
               config: {
                 code: "const temp = msg.payload.temperature;\nconst timestamp = new Date().toISOString();\n\nmsg.payload = {\n  device: 'raspberry-pi-5',\n  sensor: 'ds18b20',\n  temperature: temp,\n  unit: 'celsius',\n  timestamp: timestamp,\n  status: temp > 30 ? 'warning' : 'normal'\n};\n\nif (temp > 35) {\n  msg.alert = true;\n  msg.alertLevel = 'critical';\n}\n\nreturn msg;"
               }
@@ -106,6 +119,10 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
               id: 'switch-1',
               type: 'switch',
               name: 'Temperature Router',
+              category: 'processing' as const,
+              inputs: ['function-1'],
+              outputs: ['gpio-out-1'],
+              status: 'idle' as const,
               config: {
                 property: 'payload.temperature',
                 rules: [
@@ -119,6 +136,10 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
               id: 'gpio-out-1',
               type: 'gpio-out',
               name: 'Red LED (High Temp)',
+              category: 'output' as const,
+              inputs: ['switch-1'],
+              outputs: [],
+              status: 'idle' as const,
               config: {
                 pin: 17,
                 mode: 'output',
@@ -131,6 +152,10 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
               id: 'mqtt-out-1',
               type: 'mqtt-out',
               name: 'Publish to MQTT',
+              category: 'output' as const,
+              inputs: ['gpio-temp-1'],
+              outputs: [],
+              status: 'idle' as const,
               config: {
                 broker: 'mqtt://localhost:1883',
                 topic: 'home/raspberry-pi-5/temperature',
@@ -143,6 +168,10 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
               id: 'debug-1',
               type: 'debug',
               name: 'Temperature Debug',
+              category: 'output' as const,
+              inputs: ['function-1'],
+              outputs: [],
+              status: 'idle' as const,
               config: {
                 output: 'console',
                 active: true,
@@ -151,13 +180,14 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
             },
           },
           connections: [
-            { source: 'inject-1', target: 'gpio-temp-1' },
-            { source: 'gpio-temp-1', target: 'function-1' },
-            { source: 'gpio-temp-1', target: 'mqtt-out-1' },
-            { source: 'function-1', target: 'switch-1' },
-            { source: 'function-1', target: 'debug-1' },
-            { source: 'switch-1', target: 'gpio-out-1', sourceOutput: 0 },
+            { id: 'conn-1', source_id: 'inject-1', target_id: 'gpio-temp-1' },
+            { id: 'conn-2', source_id: 'gpio-temp-1', target_id: 'function-1' },
+            { id: 'conn-3', source_id: 'gpio-temp-1', target_id: 'mqtt-out-1' },
+            { id: 'conn-4', source_id: 'function-1', target_id: 'switch-1' },
+            { id: 'conn-5', source_id: 'function-1', target_id: 'debug-1' },
+            { id: 'conn-6', source_id: 'switch-1', target_id: 'gpio-out-1' },
           ],
+          config: {},
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }
