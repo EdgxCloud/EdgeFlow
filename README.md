@@ -16,9 +16,11 @@
   <a href="https://react.dev"><img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white" alt="React"></a>
   <a href="https://github.com/EdgxCloud/EdgeFlow/stargazers"><img src="https://img.shields.io/github/stars/EdgxCloud/EdgeFlow?style=flat" alt="Stars"></a>
   <a href="https://github.com/EdgxCloud/EdgeFlow/issues"><img src="https://img.shields.io/github/issues/EdgxCloud/EdgeFlow" alt="Issues"></a>
+  <a href="https://edgx.cloud"><img src="https://img.shields.io/badge/Website-edgx.cloud-blue?style=flat&logo=google-chrome&logoColor=white" alt="Website"></a>
 </p>
 
 <p align="center">
+  <a href="https://edgx.cloud">Website</a> &middot;
   <a href="#features">Features</a> &middot;
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#tech-stack">Tech Stack</a> &middot;
