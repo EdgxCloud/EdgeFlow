@@ -1,7 +1,7 @@
 <a id="readme-top"></a>
 
 <p align="center">
-  <img src="docs/images/edgeflow-logo.png" alt="EdgeFlow" width="200">
+  <img src="https://edgx.cloud/edgxcloud.png" alt="EdgeFlow" width="200">
 </p>
 
 <h1 align="center">EdgeFlow Platform</h1>

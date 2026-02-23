@@ -33,7 +33,8 @@ interface TextEditorProps {
   onChange: (config: any) => void
 }
 
-export function TextEditor({ config, onChange }: TextEditorProps) {
+export function TextEditor({ config: rawConfig, value, onChange }: TextEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const text = config.text || ''
   const fontSize = config.fontSize || 14
   const fontWeight = config.fontWeight || 'normal'
@@ -164,7 +165,8 @@ interface ButtonEditorProps {
   onChange: (config: any) => void
 }
 
-export function ButtonEditor({ config, onChange }: ButtonEditorProps) {
+export function ButtonEditor({ config: rawConfig, value, onChange }: ButtonEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const buttonLabel = config.buttonLabel || 'Click Me'
   const icon = config.icon || ''
   const bgColor = config.bgColor || '#3b82f6'
@@ -280,7 +282,8 @@ interface SliderEditorProps {
   onChange: (config: any) => void
 }
 
-export function SliderEditor({ config, onChange }: SliderEditorProps) {
+export function SliderEditor({ config: rawConfig, value, onChange }: SliderEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const min = config.min ?? 0
   const max = config.max ?? 100
   const step = config.step ?? 1
@@ -421,7 +424,8 @@ interface SwitchEditorProps {
   onChange: (config: any) => void
 }
 
-export function SwitchEditor({ config, onChange }: SwitchEditorProps) {
+export function SwitchEditor({ config: rawConfig, value, onChange }: SwitchEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const onLabel = config.onLabel || 'On'
   const offLabel = config.offLabel || 'Off'
   const defaultValue = config.defaultValue ?? false
@@ -504,7 +508,8 @@ interface TextInputEditorProps {
   onChange: (config: any) => void
 }
 
-export function TextInputEditor({ config, onChange }: TextInputEditorProps) {
+export function TextInputEditor({ config: rawConfig, value, onChange }: TextInputEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const placeholder = config.placeholder || ''
   const defaultValue = config.defaultValue || ''
   const inputType = config.inputType || 'text'
@@ -632,7 +637,8 @@ interface DropdownEditorProps {
   onChange: (config: any) => void
 }
 
-export function DropdownEditor({ config, onChange }: DropdownEditorProps) {
+export function DropdownEditor({ config: rawConfig, value, onChange }: DropdownEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const options = config.options || []
   const defaultValue = config.defaultValue || ''
   const placeholder = config.placeholder || 'Select an option'
@@ -727,7 +733,8 @@ interface NotificationEditorProps {
   onChange: (config: any) => void
 }
 
-export function NotificationEditor({ config, onChange }: NotificationEditorProps) {
+export function NotificationEditor({ config: rawConfig, value, onChange }: NotificationEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const position = config.position || 'top-right'
   const duration = config.duration ?? 5000
   const showCloseButton = config.showCloseButton ?? true
@@ -839,7 +846,8 @@ interface TemplateEditorProps {
   onChange: (config: any) => void
 }
 
-export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
+export function TemplateEditor({ config: rawConfig, value, onChange }: TemplateEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const template = config.template || ''
   const templateEngine = config.templateEngine || 'mustache'
   const outputFormat = config.outputFormat || 'text'

@@ -84,7 +84,8 @@ const FIELD_TYPES: { value: FormFieldType; label: string; hasOptions?: boolean }
   { value: 'range', label: 'Range Slider' },
 ]
 
-export function FormBuilderEditor({ config, onChange }: FormBuilderEditorProps) {
+export function FormBuilderEditor({ config: rawConfig, value, onChange }: FormBuilderEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const submitButtonText = config.submitButtonText || 'Submit'
   const resetButtonText = config.resetButtonText || 'Reset'
   const showResetButton = config.showResetButton ?? true

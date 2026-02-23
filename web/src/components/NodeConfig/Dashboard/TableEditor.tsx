@@ -62,7 +62,8 @@ const COLUMN_TYPES: { value: ColumnType; label: string; description: string }[] 
   { value: 'link', label: 'Link', description: 'Clickable hyperlink' },
 ]
 
-export function TableEditor({ config, onChange }: TableEditorProps) {
+export function TableEditor({ config: rawConfig, value, onChange }: TableEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const maxRows = config.maxRows || 100
   const pagination = config.pagination ?? true
   const pageSize = config.pageSize || 10

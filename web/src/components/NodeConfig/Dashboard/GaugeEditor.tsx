@@ -58,7 +58,8 @@ const DEFAULT_SECTOR_COLORS = [
   '#ef4444', // red (danger zone)
 ]
 
-export function GaugeEditor({ config, onChange }: GaugeEditorProps) {
+export function GaugeEditor({ config: rawConfig, value, onChange }: GaugeEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const gaugeType = config.gaugeType || 'semi'
   const min = config.min ?? 0
   const max = config.max ?? 100

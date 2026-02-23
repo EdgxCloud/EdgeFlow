@@ -60,7 +60,8 @@ const DEFAULT_COLORS = [
   '#f97316', // orange
 ]
 
-export function ChartEditor({ config, onChange }: ChartEditorProps) {
+export function ChartEditor({ config: rawConfig, value, onChange }: ChartEditorProps & { value?: any }) {
+  const config = rawConfig || value || {}
   const chartType = config.chartType || 'line'
   const xAxisLabel = config.xAxisLabel || ''
   const yAxisLabel = config.yAxisLabel || ''
