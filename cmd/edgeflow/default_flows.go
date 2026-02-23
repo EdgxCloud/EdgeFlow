@@ -16,8 +16,11 @@ func seedDefaultFlows(store *storage.FileStorage) {
 		logger.Warn("Could not list flows for seeding", zap.Error(err))
 		return
 	}
-	if len(flows) > 0 {
-		return // already have flows, skip seeding
+	// Only count actual flows (with an ID), not other JSON files in the data dir
+	for _, f := range flows {
+		if f.ID != "" {
+			return // already have flows, skip seeding
+		}
 	}
 
 	logger.Info("No flows found — seeding default example workflows...")
@@ -42,7 +45,7 @@ func seedDefaultFlows(store *storage.FileStorage) {
 // -----------------------------------------------------------------------
 // Flow 1: Temperature Monitoring & Alerting
 // -----------------------------------------------------------------------
-// Inject (every 10s) → Function-Node (simulate temp) → If (>35°C)
+// Inject (every 10s, with temp data) → Function (pass-through) → If (>35°C)
 //   → true:  Template (alert) → Debug
 //   → false: Debug (normal)
 // + Comment
@@ -66,7 +69,7 @@ func temperatureMonitoringFlow() *storage.Flow {
 	return &storage.Flow{
 		ID:          flowID,
 		Name:        "Temperature Monitoring & Alerting",
-		Description: "Simulates an IoT temperature sensor that triggers alerts when readings exceed 35°C. Demonstrates inject, function-node, conditional routing, template formatting, and debug output.",
+		Description: "Simulates an IoT temperature sensor that triggers alerts when readings exceed 35°C. Demonstrates inject with payload, function node, conditional routing, template formatting, and debug output.",
 		Status:      "idle",
 		Nodes: []map[string]interface{}{
 			{
@@ -77,17 +80,22 @@ func temperatureMonitoringFlow() *storage.Flow {
 					"intervalType":  "seconds",
 					"intervalValue": 10,
 					"repeat":        true,
-					"payload":       map[string]interface{}{},
-					"topic":         "sensor/temperature",
-					"position":      map[string]interface{}{"x": 100, "y": 200},
+					"payload": map[string]interface{}{
+						"temperature": 38.5,
+						"sensor_id":   "TMP-001",
+						"unit":        "C",
+						"location":    "Server Room A",
+					},
+					"topic":    "sensor/temperature",
+					"position": map[string]interface{}{"x": 100, "y": 200},
 				},
 			},
 			{
 				"id":   nFunc,
-				"type": "function-node",
-				"name": "Simulate Temperature",
+				"type": "function",
+				"name": "Process Reading",
 				"config": map[string]interface{}{
-					"code": "msg.payload.temperature = 15 + msg.payload._ts * 0\nset sensor_id = \"TMP-001\"\nset unit = \"C\"\nset location = \"Server Room A\"\nreturn msg",
+					"rules":    []interface{}{},
 					"position": map[string]interface{}{"x": 300, "y": 200},
 				},
 			},
@@ -138,7 +146,7 @@ func temperatureMonitoringFlow() *storage.Flow {
 				"type": "comment",
 				"name": "About This Flow",
 				"config": map[string]interface{}{
-					"text":     "Temperature Monitoring & Alerting\n\nThis flow simulates an IoT temperature sensor.\n- Inject node triggers every 10 seconds\n- Function generates simulated temperature data\n- If node checks if temperature exceeds 35°C\n- Alerts are formatted and sent to debug output\n\nTo test: Click Deploy, then check the Debug panel.",
+					"text":     "Temperature Monitoring & Alerting\n\nThis flow simulates an IoT temperature sensor.\n- Inject node sends temperature data every 10 seconds\n- Function node processes the reading (pass-through)\n- If node checks if temperature exceeds 35°C\n- Alerts are formatted and sent to debug output\n\nTo test: Start the flow, then check the Debug panel.\nChange the temperature in Inject payload to test different scenarios.",
 					"color":    "#3b82f6",
 					"position": map[string]interface{}{"x": 100, "y": 400},
 				},
@@ -157,7 +165,7 @@ func temperatureMonitoringFlow() *storage.Flow {
 // -----------------------------------------------------------------------
 // Flow 2: Data Processing Pipeline
 // -----------------------------------------------------------------------
-// Inject (every 30s) → Function-Node (multi-sensor) → Change (enrich) → Filter (humidity>80)
+// Inject (every 30s, with sensor data) → Function (pass-through) → Change (enrich) → Filter (humidity>80)
 //   → match:    Template (warning) → Debug
 //   → no_match: Debug (normal)
 // + Comment
@@ -183,7 +191,7 @@ func dataProcessingPipelineFlow() *storage.Flow {
 	return &storage.Flow{
 		ID:          flowID,
 		Name:        "Data Processing Pipeline",
-		Description: "Multi-sensor data enrichment and filtering pipeline. Demonstrates inject, function-node for data generation, change node for property enrichment, and filter-based routing.",
+		Description: "Multi-sensor data enrichment and filtering pipeline. Demonstrates inject with payload, function node, change node for property enrichment, and filter-based routing.",
 		Status:      "idle",
 		Nodes: []map[string]interface{}{
 			{
@@ -194,17 +202,22 @@ func dataProcessingPipelineFlow() *storage.Flow {
 					"intervalType":  "seconds",
 					"intervalValue": 30,
 					"repeat":        true,
-					"payload":       map[string]interface{}{},
-					"topic":         "sensors/array",
-					"position":      map[string]interface{}{"x": 100, "y": 200},
+					"payload": map[string]interface{}{
+						"temperature": 22.5,
+						"humidity":    65,
+						"pressure":    1013.25,
+						"light":       450,
+					},
+					"topic":    "sensors/array",
+					"position": map[string]interface{}{"x": 100, "y": 200},
 				},
 			},
 			{
 				"id":   nFunc,
-				"type": "function-node",
-				"name": "Generate Sensor Data",
+				"type": "function",
+				"name": "Process Sensor Data",
 				"config": map[string]interface{}{
-					"code": "set temperature = 22.5\nset humidity = 65\nset pressure = 1013.25\nset light = 450\nreturn msg",
+					"rules":    []interface{}{},
 					"position": map[string]interface{}{"x": 300, "y": 200},
 				},
 			},
@@ -215,22 +228,22 @@ func dataProcessingPipelineFlow() *storage.Flow {
 				"config": map[string]interface{}{
 					"rules": []interface{}{
 						map[string]interface{}{
-							"t":    "set",
-							"p":    "device_id",
-							"to":   "EDGE-001",
-							"tot":  "str",
+							"t":   "set",
+							"p":   "device_id",
+							"to":  "EDGE-001",
+							"tot": "str",
 						},
 						map[string]interface{}{
-							"t":    "set",
-							"p":    "location",
-							"to":   "Building A - Floor 2",
-							"tot":  "str",
+							"t":   "set",
+							"p":   "location",
+							"to":  "Building A - Floor 2",
+							"tot": "str",
 						},
 						map[string]interface{}{
-							"t":    "set",
-							"p":    "status",
-							"to":   "active",
-							"tot":  "str",
+							"t":   "set",
+							"p":   "status",
+							"to":  "active",
+							"tot": "str",
 						},
 					},
 					"position": map[string]interface{}{"x": 500, "y": 200},
@@ -284,7 +297,7 @@ func dataProcessingPipelineFlow() *storage.Flow {
 				"type": "comment",
 				"name": "About This Flow",
 				"config": map[string]interface{}{
-					"text":     "Data Processing Pipeline\n\nThis flow demonstrates a multi-stage data processing pipeline.\n- Inject triggers every 30 seconds\n- Function generates multi-sensor readings\n- Change node enriches data with device info\n- Filter routes based on humidity threshold (>80%)\n\nTry modifying the humidity value in the function node to trigger warnings.",
+					"text":     "Data Processing Pipeline\n\nThis flow demonstrates a multi-stage data processing pipeline.\n- Inject sends sensor readings every 30 seconds\n- Function node processes the data (pass-through)\n- Change node enriches data with device info\n- Filter routes based on humidity threshold (>80%)\n\nTry modifying the sensor values in the Inject payload to trigger warnings.",
 					"color":    "#10b981",
 					"position": map[string]interface{}{"x": 100, "y": 400},
 				},
@@ -304,7 +317,7 @@ func dataProcessingPipelineFlow() *storage.Flow {
 // -----------------------------------------------------------------------
 // Flow 3: Heartbeat & System Monitor
 // -----------------------------------------------------------------------
-// Schedule (every minute) → Function-Node (status) → RBE (change detect)
+// Schedule (every minute, with system data) → Function (pass-through) → RBE (change detect)
 //   → Template (format) → Debug
 // + Comment
 func heartbeatSystemMonitorFlow() *storage.Flow {
@@ -325,7 +338,7 @@ func heartbeatSystemMonitorFlow() *storage.Flow {
 	return &storage.Flow{
 		ID:          flowID,
 		Name:        "Heartbeat & System Monitor",
-		Description: "Periodic system health check with change detection. Demonstrates scheduled triggers, system status simulation, RBE (Report By Exception) filtering, and template-based reporting.",
+		Description: "Periodic system health check with change detection. Demonstrates scheduled triggers, function node, RBE (Report By Exception) filtering, and template-based reporting.",
 		Status:      "idle",
 		Nodes: []map[string]interface{}{
 			{
@@ -333,8 +346,15 @@ func heartbeatSystemMonitorFlow() *storage.Flow {
 				"type": "schedule",
 				"name": "Every Minute",
 				"config": map[string]interface{}{
-					"cron":     "0 * * * * *",
-					"payload":  map[string]interface{}{},
+					"cron": "0 * * * * *",
+					"payload": map[string]interface{}{
+						"status":         "healthy",
+						"cpu_percent":    42,
+						"memory_percent": 68,
+						"disk_percent":   55,
+						"uptime_hours":   720,
+						"hostname":       "edgeflow-pi",
+					},
 					"topic":    "system/heartbeat",
 					"timezone": "Local",
 					"position": map[string]interface{}{"x": 100, "y": 200},
@@ -342,10 +362,10 @@ func heartbeatSystemMonitorFlow() *storage.Flow {
 			},
 			{
 				"id":   nFunc,
-				"type": "function-node",
+				"type": "function",
 				"name": "System Status",
 				"config": map[string]interface{}{
-					"code": "set status = \"healthy\"\nset cpu_percent = 42\nset memory_percent = 68\nset disk_percent = 55\nset uptime_hours = 720\nset hostname = \"edgeflow-pi\"\nreturn msg",
+					"rules":    []interface{}{},
 					"position": map[string]interface{}{"x": 300, "y": 200},
 				},
 			},
@@ -387,7 +407,7 @@ func heartbeatSystemMonitorFlow() *storage.Flow {
 				"type": "comment",
 				"name": "About This Flow",
 				"config": map[string]interface{}{
-					"text":     "Heartbeat & System Monitor\n\nThis flow demonstrates a periodic health monitoring pattern.\n- Schedule node triggers every minute via cron\n- Function generates simulated system metrics\n- RBE (Report By Exception) only passes messages when the status changes\n- Template formats a readable status report\n\nThe RBE node prevents flooding: only the first message and status changes are reported.",
+					"text":     "Heartbeat & System Monitor\n\nThis flow demonstrates a periodic health monitoring pattern.\n- Schedule node triggers every minute via cron with system metrics\n- Function node processes the data (pass-through)\n- RBE (Report By Exception) only passes messages when the status changes\n- Template formats a readable status report\n\nThe RBE node prevents flooding: only the first message and status changes are reported.",
 					"color":    "#f59e0b",
 					"position": map[string]interface{}{"x": 100, "y": 400},
 				},

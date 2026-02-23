@@ -30,6 +30,7 @@ import {
   HTTPRequestBuilder,
   HTTPWebhookBuilder,
   ChangeTransformBuilder,
+  FunctionTransformBuilder,
 } from './Specialized'
 
 interface EditorProps {
@@ -77,6 +78,7 @@ const NODE_EDITORS: Record<string, NodeEditorComponent> = {
   // Logic Nodes
   switch: SwitchRuleBuilder as any,
   change: ChangeTransformBuilder as any,
+  function: FunctionTransformBuilder as any,
 }
 
 /**
@@ -88,6 +90,7 @@ const PROPERTY_EDITORS: Record<string, NodeEditorComponent> = {
   'switch-rules': SwitchRuleBuilder as any,
   'http-request': HTTPRequestBuilder as any,
   'change-rules': ChangeTransformBuilder as any,
+  'function-rules': FunctionTransformBuilder as any,
 }
 
 /**
@@ -138,7 +141,7 @@ export function shouldUseNodeEditor(nodeType: string): boolean {
     nodeType.startsWith('mqtt-') ||
     nodeType.startsWith('gpio-') ||
     nodeType.startsWith('http-') ||
-    ['switch', 'change', 'webhook'].includes(nodeType)
+    ['switch', 'change', 'webhook', 'function'].includes(nodeType)
   )
 }
 
@@ -167,8 +170,8 @@ export function renderNodeEditor(
     return <Editor value={config} onChange={onChange} disabled={disabled} mode={getMQTTMode(nodeType)} />
   }
 
-  // All specialized editors use 'value' prop, not 'config'
-  return <Editor value={config} onChange={onChange} disabled={disabled} />
+  // Dashboard editors use 'config' prop, other editors use 'value'
+  return <Editor value={config} config={config} onChange={onChange} disabled={disabled} />
 }
 
 /**

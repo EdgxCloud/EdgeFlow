@@ -291,25 +291,16 @@ func RegisterAllNodes(registry *node.Registry) error {
 		Type:        "function",
 		Name:        "Function",
 		Category:    node.NodeTypeFunction,
-		Description: "Execute custom JavaScript code",
+		Description: "Transform message data using rules (set, delete properties)",
 		Icon:        "code",
-		Color:       "#ec4899",
+		Color:       "#7c3aed",
 		Properties: []node.PropertySchema{
 			{
-				Name:        "code",
-				Label:       "Code",
-				Type:        "code",
-				Default:     "// return msg;\n",
-				Required:    true,
-				Description: "JavaScript code to execute",
-			},
-			{
-				Name:        "output_key",
-				Label:       "Output Key",
-				Type:        "string",
-				Default:     "result",
-				Required:    false,
-				Description: "Key to store result in payload",
+				Name:        "rules",
+				Label:       "Transform Rules",
+				Type:        "function-rules",
+				Default:     []interface{}{},
+				Description: "List of transformation rules to apply to message payload",
 			},
 		},
 		Inputs: []node.PortSchema{
@@ -1192,31 +1183,6 @@ func RegisterAllNodes(registry *node.Registry) error {
 		return err
 	}
 
-	// Register Function Node (Advanced)
-	if err := registry.Register(&node.NodeInfo{
-		Type:        "function-node",
-		Name:        "Function Node",
-		Category:    node.NodeTypeFunction,
-		Description: "Process messages with custom code transformations",
-		Icon:        "code",
-		Color:       "#7c3aed",
-		Properties: []node.PropertySchema{
-			{Name: "code", Label: "Code", Type: "code", Default: "// Transform msg.payload\nreturn msg", Required: true, Description: "Transformation code"},
-			{Name: "outputs", Label: "Outputs", Type: "number", Default: 1, Description: "Number of outputs"},
-			{Name: "initCode", Label: "Init Code", Type: "code", Default: "", Description: "Initialization code (runs once)"},
-		},
-		Inputs: []node.PortSchema{
-			{Name: "input", Label: "Input", Type: "any", Description: "Message input"},
-		},
-		Outputs: []node.PortSchema{
-			{Name: "output", Label: "Output", Type: "any", Description: "Processed message"},
-		},
-		Factory: func() node.Executor {
-			return NewFunctionNodeExecutor()
-		},
-	}); err != nil {
-		return err
-	}
 
 	// Register Comment Node
 	if err := registry.Register(&node.NodeInfo{

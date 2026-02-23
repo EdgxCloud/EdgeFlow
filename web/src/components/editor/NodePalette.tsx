@@ -37,7 +37,6 @@ const NODE_ICONS: Record<string, any> = {
 
   // Function nodes
   'function': Code,
-  'function-node': Code,
   'change': PenLine,
   'range': Sliders,
   'template': FileCode,
@@ -324,7 +323,7 @@ const fallbackNodes: NodeType[] = [
   { type: 'websocket-out', name: 'WebSocket Out', description: 'Send messages to WebSocket clients', category: 'output', color: '#ef4444', icon: '', inputs: ['input'], outputs: [], properties: [] },
 
   // Function
-  { type: 'function', name: 'Function', description: 'Execute custom JavaScript code to process messages', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
+  { type: 'function', name: 'Function', description: 'Transform message data using rules (set, delete properties)', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
   { type: 'change', name: 'Change', description: 'Set, change, move or delete message properties', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
   { type: 'range', name: 'Range', description: 'Scale numeric values between ranges', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
   { type: 'template', name: 'Template', description: 'Render Mustache templates', category: 'function', color: '#f59e0b', icon: '', inputs: ['input'], outputs: ['output'], properties: [] },
