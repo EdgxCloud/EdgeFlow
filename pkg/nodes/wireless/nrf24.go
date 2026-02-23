@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // NRF24Executor provides NRF24L01 2.4GHz wireless communication

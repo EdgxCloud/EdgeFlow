@@ -77,7 +77,7 @@ detect_platform() {
 download_binary() {
     print_info "Downloading EdgeFlow $EDGEFLOW_VERSION..."
 
-    DOWNLOAD_URL="https://github.com/edgeflow/edgeflow/releases/download/${EDGEFLOW_VERSION}/edgeflow-${OS}-${ARCH}"
+    DOWNLOAD_URL="https://github.com/EdgxCloud/EdgeFlow/releases/download/${EDGEFLOW_VERSION}/edgeflow-${OS}-${ARCH}"
 
     if ! curl -fsSL "$DOWNLOAD_URL" -o "/tmp/$BINARY_NAME"; then
         print_error "Failed to download EdgeFlow"
@@ -102,7 +102,7 @@ build_from_source() {
     # Clone repository
     cd /tmp
     rm -rf edgeflow
-    git clone https://github.com/edgeflow/edgeflow.git
+    git clone https://github.com/EdgxCloud/EdgeFlow.git
     cd edgeflow
 
     # Build

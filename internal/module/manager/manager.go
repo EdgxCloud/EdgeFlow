@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/module/adapter"
-	"github.com/edgeflow/edgeflow/internal/module/parser"
-	"github.com/edgeflow/edgeflow/internal/module/validator"
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/module/adapter"
+	"github.com/EdgxCloud/EdgeFlow/internal/module/parser"
+	"github.com/EdgxCloud/EdgeFlow/internal/module/validator"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // ModuleStatus represents the status of a module

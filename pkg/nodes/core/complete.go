@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // CompleteNode triggers when a node or flow completes processing

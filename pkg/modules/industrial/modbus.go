@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // ModbusReadConfig configuration for Modbus Read node

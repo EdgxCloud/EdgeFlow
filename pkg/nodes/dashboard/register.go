@@ -1,7 +1,7 @@
 package dashboard
 
 import (
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // RegisterAll registers all dashboard widgets with the node registry

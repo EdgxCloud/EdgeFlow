@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // AudioConfig configuration for Raspberry Pi Audio node

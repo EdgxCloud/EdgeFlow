@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // OneWireNode provides generic 1-Wire bus communication via sysfs

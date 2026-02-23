@@ -14,8 +14,8 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
   <a href="https://go.dev"><img src="https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white" alt="Go"></a>
   <a href="https://react.dev"><img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white" alt="React"></a>
-  <a href="https://github.com/edgeflow/edgeflow/stargazers"><img src="https://img.shields.io/github/stars/edgeflow/edgeflow?style=flat" alt="Stars"></a>
-  <a href="https://github.com/edgeflow/edgeflow/issues"><img src="https://img.shields.io/github/issues/edgeflow/edgeflow" alt="Issues"></a>
+  <a href="https://github.com/EdgxCloud/EdgeFlow/stargazers"><img src="https://img.shields.io/github/stars/EdgxCloud/EdgeFlow?style=flat" alt="Stars"></a>
+  <a href="https://github.com/EdgxCloud/EdgeFlow/issues"><img src="https://img.shields.io/github/issues/EdgxCloud/EdgeFlow" alt="Issues"></a>
 </p>
 
 <p align="center">
@@ -85,8 +85,8 @@ Think Node-RED, but lighter, faster, and purpose-built for edge devices.
 
 ```bash
 # Clone
-git clone https://github.com/edgeflow/edgeflow.git
-cd edgeflow
+git clone https://github.com/EdgxCloud/EdgeFlow.git
+cd EdgeFlow
 
 # Build & run backend
 make run
@@ -246,7 +246,7 @@ Base URL: `/api/v1`
 - [ ] Mobile companion app
 - [ ] Visual rule engine for complex conditions
 
-See the [open issues](https://github.com/edgeflow/edgeflow/issues) for a full list of proposed features and known issues.
+See the [open issues](https://github.com/EdgxCloud/EdgeFlow/issues) for a full list of proposed features and known issues.
 
 ## Contributing
 
@@ -260,8 +260,8 @@ Contributions are welcome! Whether it's bug reports, feature requests, or pull r
 
 ## Community
 
-- [GitHub Issues](https://github.com/edgeflow/edgeflow/issues) — Bug reports and feature requests
-- [GitHub Discussions](https://github.com/edgeflow/edgeflow/discussions) — Questions and ideas
+- [GitHub Issues](https://github.com/EdgxCloud/EdgeFlow/issues) — Bug reports and feature requests
+- [GitHub Discussions](https://github.com/EdgxCloud/EdgeFlow/discussions) — Questions and ideas
 
 <!-- Uncomment when available:
 - [Discord](https://discord.gg/edgeflow) — Chat with the community

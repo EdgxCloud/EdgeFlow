@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/logger"
+	"github.com/EdgxCloud/EdgeFlow/internal/logger"
 	"go.uber.org/zap"
 )
 

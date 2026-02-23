@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/hal"
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/hal"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // MotorL298NConfig configuration for L298N motor driver

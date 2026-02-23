@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/module/manager"
-	"github.com/edgeflow/edgeflow/internal/module/parser"
-	"github.com/edgeflow/edgeflow/internal/module/validator"
+	"github.com/EdgxCloud/EdgeFlow/internal/module/manager"
+	"github.com/EdgxCloud/EdgeFlow/internal/module/parser"
+	"github.com/EdgxCloud/EdgeFlow/internal/module/validator"
 	"github.com/gofiber/fiber/v2"
 )
 

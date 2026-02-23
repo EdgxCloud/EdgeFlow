@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // MathNode performs mathematical operations

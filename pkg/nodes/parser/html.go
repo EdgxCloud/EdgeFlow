@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 	"golang.org/x/net/html"
 )
 

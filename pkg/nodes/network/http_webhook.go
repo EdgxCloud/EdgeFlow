@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 	"github.com/gofiber/fiber/v2"
 )
 

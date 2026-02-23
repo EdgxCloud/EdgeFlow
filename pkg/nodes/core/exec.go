@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // ExecNode executes shell commands

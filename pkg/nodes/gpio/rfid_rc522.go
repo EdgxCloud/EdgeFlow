@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/hal"
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/hal"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // RC522 Register addresses

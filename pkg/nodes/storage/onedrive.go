@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // OneDriveNode handles Microsoft OneDrive operations via Graph API

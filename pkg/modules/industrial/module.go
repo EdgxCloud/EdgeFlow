@@ -3,8 +3,8 @@
 package industrial
 
 import (
-	"github.com/edgeflow/edgeflow/internal/node"
-	"github.com/edgeflow/edgeflow/internal/plugin"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/plugin"
 )
 
 // IndustrialModule is the industrial module that provides industrial protocol nodes

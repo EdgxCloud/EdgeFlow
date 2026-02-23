@@ -1,8 +1,8 @@
 package saas
 
 import (
-	"github.com/edgeflow/edgeflow/internal/hal"
-	"github.com/edgeflow/edgeflow/internal/resources"
+	"github.com/EdgxCloud/EdgeFlow/internal/hal"
+	"github.com/EdgxCloud/EdgeFlow/internal/resources"
 )
 
 // SystemServiceAdapter adapts api.Service to SystemService interface

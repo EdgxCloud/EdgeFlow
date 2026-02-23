@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // DropboxNode handles Dropbox cloud storage operations via REST API

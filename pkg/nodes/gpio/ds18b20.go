@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 type DS18B20Node struct {

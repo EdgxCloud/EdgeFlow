@@ -5,7 +5,7 @@ import (
 	"context"
 	"html/template"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // TemplateNode displays custom HTML/template content

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // TriggerNode sends a message, then optionally sends a second message after a delay

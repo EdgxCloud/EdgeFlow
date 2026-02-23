@@ -3,9 +3,9 @@
 package core
 
 import (
-	"github.com/edgeflow/edgeflow/internal/node"
-	"github.com/edgeflow/edgeflow/internal/plugin"
-	"github.com/edgeflow/edgeflow/pkg/nodes/core"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/plugin"
+	"github.com/EdgxCloud/EdgeFlow/pkg/nodes/core"
 )
 
 // CoreModule is the core module that provides essential nodes

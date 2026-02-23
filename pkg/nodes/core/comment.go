@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // CommentNode is a display-only node for adding documentation to flows

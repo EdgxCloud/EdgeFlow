@@ -3,9 +3,9 @@
 package messaging
 
 import (
-	"github.com/edgeflow/edgeflow/internal/node"
-	"github.com/edgeflow/edgeflow/internal/plugin"
-	"github.com/edgeflow/edgeflow/pkg/nodes/messaging"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/plugin"
+	"github.com/EdgxCloud/EdgeFlow/pkg/nodes/messaging"
 )
 
 // MessagingModule is the messaging module that provides notification and messaging nodes

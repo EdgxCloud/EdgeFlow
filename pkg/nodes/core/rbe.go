@@ -6,7 +6,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // RBENode (Report By Exception) only passes messages when value changes

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/module/parser"
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/module/parser"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // JavaScriptAdapter executes Node-RED JavaScript nodes

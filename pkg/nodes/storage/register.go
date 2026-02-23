@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // RegisterAllNodes registers all storage nodes

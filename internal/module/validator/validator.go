@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/edgeflow/edgeflow/internal/module/parser"
+	"github.com/EdgxCloud/EdgeFlow/internal/module/parser"
 )
 
 // ValidationResult contains validation results

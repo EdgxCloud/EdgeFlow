@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // AnthropicConfig configuration for the Anthropic node

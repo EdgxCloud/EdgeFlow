@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // ModbusTCPNode implements Modbus TCP client for industrial communication

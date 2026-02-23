@@ -1,7 +1,7 @@
 package database
 
 import (
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // RegisterAllNodes registers all database nodes

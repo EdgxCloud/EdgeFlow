@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // SwitchNode routes messages based on property values

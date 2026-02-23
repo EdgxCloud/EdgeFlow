@@ -3,10 +3,10 @@ package api
 import (
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/engine"
-	"github.com/edgeflow/edgeflow/internal/logger"
-	"github.com/edgeflow/edgeflow/internal/node"
-	"github.com/edgeflow/edgeflow/internal/storage"
+	"github.com/EdgxCloud/EdgeFlow/internal/engine"
+	"github.com/EdgxCloud/EdgeFlow/internal/logger"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/storage"
 	"go.uber.org/zap"
 )
 

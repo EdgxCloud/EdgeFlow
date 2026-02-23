@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/edgeflow/edgeflow/internal/hal"
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/hal"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // PWMConfig PWM node configuration

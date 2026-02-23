@@ -3,7 +3,7 @@ package dashboard
 import (
 	"context"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // DropdownOption represents a dropdown option

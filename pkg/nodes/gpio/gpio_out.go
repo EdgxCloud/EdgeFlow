@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/edgeflow/edgeflow/internal/hal"
-	"github.com/edgeflow/edgeflow/internal/logger"
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/hal"
+	"github.com/EdgxCloud/EdgeFlow/internal/logger"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 	"go.uber.org/zap"
 )
 

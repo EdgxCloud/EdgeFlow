@@ -6,13 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/engine"
-	"github.com/edgeflow/edgeflow/internal/hal"
-	"github.com/edgeflow/edgeflow/internal/logger"
-	"github.com/edgeflow/edgeflow/internal/node"
-	"github.com/edgeflow/edgeflow/internal/resources"
-	"github.com/edgeflow/edgeflow/internal/storage"
-	"github.com/edgeflow/edgeflow/internal/websocket"
+	"github.com/EdgxCloud/EdgeFlow/internal/engine"
+	"github.com/EdgxCloud/EdgeFlow/internal/hal"
+	"github.com/EdgxCloud/EdgeFlow/internal/logger"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/resources"
+	"github.com/EdgxCloud/EdgeFlow/internal/storage"
+	"github.com/EdgxCloud/EdgeFlow/internal/websocket"
 	"go.uber.org/zap"
 )
 

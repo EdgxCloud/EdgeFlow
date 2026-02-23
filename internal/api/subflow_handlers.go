@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/edgeflow/edgeflow/internal/subflow"
+	"github.com/EdgxCloud/EdgeFlow/internal/subflow"
 	"github.com/gofiber/fiber/v2"
 )
 

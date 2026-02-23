@@ -7,7 +7,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // ColorPickerConfig configuration for color picker widget

@@ -1,8 +1,8 @@
 package plugin
 
 import (
-	"github.com/edgeflow/edgeflow/internal/node"
-	coreNodes "github.com/edgeflow/edgeflow/pkg/nodes/core"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
+	coreNodes "github.com/EdgxCloud/EdgeFlow/pkg/nodes/core"
 )
 
 // CorePlugin core plugin (always loaded)

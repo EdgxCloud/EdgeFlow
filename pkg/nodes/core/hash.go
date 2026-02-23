@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // HashNode computes cryptographic hashes

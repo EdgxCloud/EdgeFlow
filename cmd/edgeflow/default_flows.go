@@ -3,8 +3,8 @@ package main
 import (
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/logger"
-	"github.com/edgeflow/edgeflow/internal/storage"
+	"github.com/EdgxCloud/EdgeFlow/internal/logger"
+	"github.com/EdgxCloud/EdgeFlow/internal/storage"
 	"go.uber.org/zap"
 )
 

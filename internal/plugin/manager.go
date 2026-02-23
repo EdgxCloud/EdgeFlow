@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/edgeflow/edgeflow/internal/logger"
-	"github.com/edgeflow/edgeflow/internal/node"
-	"github.com/edgeflow/edgeflow/internal/resources"
+	"github.com/EdgxCloud/EdgeFlow/internal/logger"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/resources"
 	"go.uber.org/zap"
 )
 

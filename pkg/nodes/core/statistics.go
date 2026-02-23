@@ -7,7 +7,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // StatisticsNode computes statistical measures

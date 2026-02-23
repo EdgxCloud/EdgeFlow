@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 	"github.com/jlaffaye/ftp"
 )
 

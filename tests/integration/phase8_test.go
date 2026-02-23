@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/engine"
-	"github.com/edgeflow/edgeflow/internal/node"
-	"github.com/edgeflow/edgeflow/pkg/nodes/core"
+	"github.com/EdgxCloud/EdgeFlow/internal/engine"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/pkg/nodes/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

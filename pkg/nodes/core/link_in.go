@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // LinkInNode receives messages from Link Out nodes with matching link ID

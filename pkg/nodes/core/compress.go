@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // CompressNode compresses or decompresses data

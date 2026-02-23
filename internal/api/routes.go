@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/edgeflow/edgeflow/internal/logger"
+	"github.com/EdgxCloud/EdgeFlow/internal/logger"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 )

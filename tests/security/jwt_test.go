@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edgeflow/edgeflow/internal/api/middleware"
+	"github.com/EdgxCloud/EdgeFlow/internal/api/middleware"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

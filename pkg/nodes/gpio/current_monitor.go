@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 	"periph.io/x/conn/v3/physic"
 	"periph.io/x/devices/v3/ads1x15"
 	"periph.io/x/conn/v3/i2c/i2creg"

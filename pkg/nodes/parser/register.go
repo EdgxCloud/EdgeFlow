@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // RegisterNodes registers all parser nodes with the registry

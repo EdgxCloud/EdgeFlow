@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/edgeflow/edgeflow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
 )
 
 // SplitNode splits arrays, objects, or strings into separate messages

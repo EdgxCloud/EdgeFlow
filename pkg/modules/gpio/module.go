@@ -3,9 +3,9 @@
 package gpio
 
 import (
-	"github.com/edgeflow/edgeflow/internal/node"
-	"github.com/edgeflow/edgeflow/internal/plugin"
-	"github.com/edgeflow/edgeflow/pkg/nodes/gpio"
+	"github.com/EdgxCloud/EdgeFlow/internal/node"
+	"github.com/EdgxCloud/EdgeFlow/internal/plugin"
+	"github.com/EdgxCloud/EdgeFlow/pkg/nodes/gpio"
 )
 
 // GPIOModule is the GPIO module that provides hardware interaction nodes
