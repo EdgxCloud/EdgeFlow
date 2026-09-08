@@ -279,7 +279,12 @@ func (m *ModuleManager) Load(name string) error {
 		return fmt.Errorf("module not found: %s", name)
 	}
 
-	if module.Status == StatusLoaded {
+	// Status is persisted in the manifest, but the node registry lives only in
+	// memory and starts empty on every run. Trusting the stored status alone
+	// meant that after a restart Load() returned success while registering
+	// nothing, leaving the module's nodes permanently missing and impossible to
+	// recover -- so confirm the node types are really present before skipping.
+	if module.Status == StatusLoaded && m.nodesRegistered(module) {
 		return nil // Already loaded
 	}
 
@@ -429,6 +434,22 @@ func (m *ModuleManager) Get(name string) (*InstalledModule, bool) {
 
 	mod, ok := m.modules[name]
 	return mod, ok
+}
+
+// nodesRegistered reports whether every node type a module provides is present
+// in the node registry. Used to tell a genuinely loaded module from one that is
+// merely recorded as loaded in the on-disk manifest.
+func (m *ModuleManager) nodesRegistered(module *InstalledModule) bool {
+	if module.Info == nil || len(module.Info.Nodes) == 0 {
+		return false
+	}
+	for _, nodeInfo := range module.Info.Nodes {
+		nodeType := fmt.Sprintf("%s/%s", module.Info.Name, nodeInfo.Type)
+		if _, err := m.nodeRegistry.Get(nodeType); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // LoadAll loads all enabled modules

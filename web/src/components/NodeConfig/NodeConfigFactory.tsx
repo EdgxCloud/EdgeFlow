@@ -135,14 +135,13 @@ export function getMQTTMode(nodeType: string): 'publish' | 'subscribe' {
  * instead of generic PropertyField rendering
  */
 export function shouldUseNodeEditor(nodeType: string): boolean {
-  // Dashboard widgets and some nodes render their entire config
-  return (
-    nodeType.startsWith('dashboard-') ||
-    nodeType.startsWith('mqtt-') ||
-    nodeType.startsWith('gpio-') ||
-    nodeType.startsWith('http-') ||
-    ['switch', 'change', 'webhook', 'function'].includes(nodeType)
-  )
+  // Only claim a node when an editor actually exists for it. Matching on
+  // prefixes ('dashboard-', 'gpio-', ...) over-matched: node types such as
+  // dashboard-color-picker, dashboard-date-picker and http-response were routed
+  // to an editor that was never registered, so renderNodeEditor returned null
+  // and their config dialog came up blank -- with the "no properties" fallback
+  // suppressed as well, leaving them impossible to configure.
+  return getNodeEditor(nodeType) !== null
 }
 
 /**

@@ -103,7 +103,13 @@ func (n *FilterNode) Execute(ctx context.Context, msg node.Message) (node.Messag
 	}
 
 	msg.Payload["_matchedFilter"] = matched
-	return msg, nil
+
+	// Port 0 is the "match" output, port 1 the "no_match" output. Without an
+	// explicit route both branches would receive every message.
+	if matched {
+		return msg.RouteTo(0), nil
+	}
+	return msg.RouteTo(1), nil
 }
 
 // Cleanup releases resources

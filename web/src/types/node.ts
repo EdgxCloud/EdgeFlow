@@ -9,6 +9,7 @@ export type PropertyType =
   | 'number'
   | 'boolean'
   | 'select'
+  | 'multiselect' // Pick several of the offered options; value is an array
   | 'array'
   | 'object'
   | 'color'
@@ -19,6 +20,7 @@ export type PropertyType =
   | 'gpio-pin'
   | 'mqtt-topic'
   | 'mqtt-config' // Full MQTT configuration including broker, topic, QoS, etc.
+  | 'function-rules' // Transform-rule builder used by the function node
   | 'payload'     // Key-value payload builder with presets
   | 'password'    // Masked password input
   | 'any'         // Generic type, renders as text input

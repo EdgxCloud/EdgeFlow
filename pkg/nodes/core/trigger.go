@@ -67,8 +67,9 @@ func (n *TriggerNode) Init(config map[string]interface{}) error {
 		n.secondPayload = payload
 	}
 
-	// Parse delay
-	if delayStr, ok := config["delay"].(string); ok {
+	// Parse delay. An empty string means "not configured" and leaves the default
+	// in place; parsing it would fail and reject an otherwise valid node.
+	if delayStr, ok := config["delay"].(string); ok && delayStr != "" {
 		duration, err := time.ParseDuration(delayStr)
 		if err != nil {
 			return fmt.Errorf("invalid delay duration: %w", err)
@@ -78,8 +79,9 @@ func (n *TriggerNode) Init(config map[string]interface{}) error {
 		n.delay = time.Duration(delayMs) * time.Millisecond
 	}
 
-	// Parse duration (for send-then-send mode)
-	if durationStr, ok := config["duration"].(string); ok {
+	// Parse duration (for send-then-send mode). The schema default is an empty
+	// string, which must fall through to "duration = delay" rather than error.
+	if durationStr, ok := config["duration"].(string); ok && durationStr != "" {
 		duration, err := time.ParseDuration(durationStr)
 		if err != nil {
 			return fmt.Errorf("invalid duration: %w", err)

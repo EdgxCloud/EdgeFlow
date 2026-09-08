@@ -136,6 +136,56 @@ export function PropertyField({
           </Select>
         )
 
+      case 'multiselect': {
+        // The backend expects an array of the selected option values; the plain
+        // text fallback produced a string, which was silently discarded and the
+        // node fell back to its defaults.
+        const selected: string[] = Array.isArray(value) ? value : []
+        const toggle = (option: string) => {
+          onChange(
+            selected.includes(option)
+              ? selected.filter((v) => v !== option)
+              : [...selected, option]
+          )
+        }
+        return (
+          <div
+            className={cn(
+              'flex flex-wrap gap-2 rounded-md border p-3',
+              error && 'border-red-500'
+            )}
+          >
+            {options?.map((option) => {
+              const optionValue = typeof option === 'string' ? option : option.value
+              const optionLabel = typeof option === 'string' ? option : option.label
+              const isSelected = selected.includes(optionValue)
+              return (
+                <button
+                  key={optionValue}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={isSelected}
+                  disabled={disabled}
+                  onClick={() => toggle(optionValue)}
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-sm transition-colors',
+                    'disabled:cursor-not-allowed disabled:opacity-50',
+                    isSelected
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-input bg-background hover:bg-accent'
+                  )}
+                >
+                  {optionLabel}
+                </button>
+              )
+            })}
+            {!options?.length && (
+              <p className="text-xs text-muted-foreground">No options available</p>
+            )}
+          </div>
+        )
+      }
+
       case 'object':
       case 'json':
         return (

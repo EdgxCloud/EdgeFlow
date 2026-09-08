@@ -1710,6 +1710,18 @@ type nodeRedCatalogModule struct {
 	Types       []string `json:"types"`
 }
 
+// packageName returns the npm package name of a catalogue entry.
+//
+// catalogue.nodered.org carries the package name in "id" and has no "name"
+// field at all, so relying on Name left every search result blank and made a
+// search by package name -- the obvious thing to type -- match nothing.
+func (m nodeRedCatalogModule) packageName() string {
+	if m.ID != "" {
+		return m.ID
+	}
+	return m.Name
+}
+
 // searchNodeRED searches the Node-RED catalog
 func (h *Handler) searchNodeRED(c *fiber.Ctx) error {
 	query := strings.ToLower(c.Query("q"))
@@ -1731,14 +1743,14 @@ func (h *Handler) searchNodeRED(c *fiber.Ctx) error {
 	for _, mod := range catalog {
 		if matchesQuery(mod, query) {
 			results = append(results, fiber.Map{
-				"name":        mod.Name,
+				"name":        mod.packageName(),
 				"version":     mod.Version,
 				"description": mod.Description,
 				"keywords":    mod.Keywords,
 				"types":       mod.Types,
 				"updated":     mod.Updated,
 				"source":      "node-red",
-				"url":         fmt.Sprintf("https://flows.nodered.org/node/%s", mod.Name),
+				"url":         fmt.Sprintf("https://flows.nodered.org/node/%s", mod.packageName()),
 			})
 		}
 		if len(results) >= 50 {
@@ -1798,7 +1810,7 @@ func getNodeRedCatalog() ([]nodeRedCatalogModule, error) {
 }
 
 func matchesQuery(mod nodeRedCatalogModule, query string) bool {
-	if strings.Contains(strings.ToLower(mod.Name), query) {
+	if strings.Contains(strings.ToLower(mod.packageName()), query) {
 		return true
 	}
 	if strings.Contains(strings.ToLower(mod.Description), query) {

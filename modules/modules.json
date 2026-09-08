@@ -45,7 +45,7 @@
       "config": {},
       "source_path": "modules\\@blokcert\\node-red-contrib-delayed-job"
     },
-    "status": "installed",
+    "status": "loaded",
     "installed_at": "2026-02-10T23:23:02.4039862+03:30",
     "updated_at": "2026-02-10T23:23:02.4039862+03:30",
     "enabled": true,
@@ -86,6 +86,10 @@
         ]
       }
     },
+    "loaded_nodes": [
+      "@blokcert/node-red-contrib-delayed-job/delayed-job-redis",
+      "@blokcert/node-red-contrib-delayed-job/delayed-job"
+    ],
     "license_info": {
       "license": "MIT",
       "license_type": "permissive",
@@ -154,9 +158,9 @@
       "config": {},
       "source_path": "modules\\node-red-node-random"
     },
-    "status": "installed",
+    "status": "loaded",
     "installed_at": "2026-01-24T15:47:53.5871122+03:30",
-    "updated_at": "2026-01-24T16:10:37.9652587+03:30",
+    "updated_at": "2026-09-08T10:17:04.7764712+03:30",
     "enabled": true,
     "validation": {
       "valid": true,
@@ -198,6 +202,9 @@
         ]
       }
     },
+    "loaded_nodes": [
+      "node-red-node-random/random"
+    ],
     "license_info": {
       "license": "Apache-2.0",
       "license_type": "permissive",
@@ -272,7 +279,7 @@
       "config": {},
       "source_path": "modules\\node-red-node-smooth"
     },
-    "status": "installed",
+    "status": "loaded",
     "installed_at": "2026-02-10T23:10:46.8394843+03:30",
     "updated_at": "2026-02-10T23:10:46.8394843+03:30",
     "enabled": true,
@@ -316,6 +323,9 @@
         ]
       }
     },
+    "loaded_nodes": [
+      "node-red-node-smooth/smooth"
+    ],
     "license_info": {
       "license": "Apache-2.0",
       "license_type": "permissive",

@@ -12,7 +12,8 @@ import (
 )
 
 // JavaScriptAdapter executes Node-RED JavaScript nodes
-// Uses the existing goja runtime from pkg/nodes/core/function.go
+// NOTE: EdgeFlow embeds no JavaScript engine, so these nodes are parsed and
+// registered but cannot execute; see ImportedFunctionExecutor.Execute.
 type JavaScriptAdapter struct {
 	timeout time.Duration
 }
@@ -78,8 +79,8 @@ func (e *JavaScriptExecutor) Execute(ctx context.Context, msg node.Message) (nod
 	execCtx, cancel := context.WithTimeout(ctx, e.adapter.timeout)
 	defer cancel()
 
-	// Use the existing function node's JavaScript runtime
-	// This leverages the goja engine already in the codebase
+	// No JavaScript runtime is available; this reports a clear error rather
+	// than silently passing the message through unchanged.
 	result, err := e.executeWithFunctionNode(execCtx, msg)
 	if err != nil {
 		return msg, err
@@ -191,11 +192,21 @@ func (f *ImportedFunctionExecutor) Init(config map[string]interface{}) error {
 	return nil
 }
 
-// Execute runs the JavaScript code
+// Execute runs the JavaScript code.
+//
+// EdgeFlow embeds no JavaScript engine, so the body of an imported Node-RED node
+// cannot be run. This previously returned the message unchanged, which made an
+// imported node a silent no-op: it appeared in the palette, wired into a flow
+// and reported success while quietly passing data straight through. Reporting an
+// error instead surfaces the node as failed in the debug view and node status,
+// so the flow does not look healthy while doing nothing.
+//
+// Executing these nodes for real needs a JS runtime (goja or similar) plus a
+// Node-RED compatibility layer for registerType/node.on/node.send.
 func (f *ImportedFunctionExecutor) Execute(ctx context.Context, msg node.Message) (node.Message, error) {
-	// This is a placeholder - the actual execution uses goja from function.go
-	// For now, pass through with basic JSON transformation
-	return msg, nil
+	return msg, fmt.Errorf(
+		"imported Node-RED nodes cannot run: EdgeFlow has no JavaScript engine, " +
+			"so this node's source was not executed")
 }
 
 // Cleanup releases resources

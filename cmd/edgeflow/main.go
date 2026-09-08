@@ -4,6 +4,7 @@ import (
 	"fmt"
 	stdlog "log"
 	"os"
+	"strings"
 
 	"github.com/EdgxCloud/EdgeFlow/internal/api"
 	"github.com/EdgxCloud/EdgeFlow/internal/logger"
@@ -128,14 +129,22 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
 
-	// Root endpoint
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"message": "Welcome to EdgeFlow!",
-			"version": Version,
-			"status":  "running",
+	// Locate the frontend build up front: when it exists the SPA owns "/",
+	// so the JSON welcome payload must not be registered there and shadow it.
+	webDist := getEnv("EDGEFLOW_WEB_DIR", "./web/dist")
+	_, webDistErr := os.Stat(webDist)
+	frontendAvailable := webDistErr == nil
+
+	// Root endpoint (API-only mode; with a frontend build, "/" serves the SPA)
+	if !frontendAvailable {
+		app.Get("/", func(c *fiber.Ctx) error {
+			return c.JSON(fiber.Map{
+				"message": "Welcome to EdgeFlow!",
+				"version": Version,
+				"status":  "running",
+			})
 		})
-	})
+	}
 
 	// Legacy health check (for compatibility)
 	app.Get("/api/health", func(c *fiber.Ctx) error {
@@ -149,14 +158,24 @@ func main() {
 	handler.SetupRoutes(app)
 
 	// Serve frontend static files from ./web/dist (production build)
-	webDist := getEnv("EDGEFLOW_WEB_DIR", "./web/dist")
-	if _, err := os.Stat(webDist); err == nil {
+	if frontendAvailable {
 		app.Static("/", webDist, fiber.Static{
 			Index:    "index.html",
 			Compress: true,
 		})
-		// SPA fallback: serve index.html for all non-API, non-WS routes
-		app.Get("/*", func(c *fiber.Ctx) error {
+		// SPA fallback: serve index.html for all non-API, non-WS routes.
+		// API and WebSocket paths must return a JSON 404 instead of falling
+		// through to index.html, otherwise clients get HTML with a 200 status
+		// and fail on an opaque JSON parse error.
+		app.Use(func(c *fiber.Ctx) error {
+			path := c.Path()
+			if path == "/api" || strings.HasPrefix(path, "/api/") ||
+				path == "/ws" || strings.HasPrefix(path, "/ws/") {
+				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+					"error": "endpoint not found",
+					"path":  path,
+				})
+			}
 			return c.SendFile(webDist + "/index.html")
 		})
 		logger.Info("Serving frontend", zap.String("dir", webDist))

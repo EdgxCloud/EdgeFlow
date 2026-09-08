@@ -39,6 +39,9 @@ type Connection struct {
 	ID       string `json:"id"`
 	SourceID string `json:"source_id"`
 	TargetID string `json:"target_id"`
+	// SourcePort is the output port on the source node this link leaves from.
+	// Multi-output nodes (switch, if) use it to route selectively.
+	SourcePort int `json:"source_port"`
 }
 
 // NewFlow creates a new flow instance
@@ -95,8 +98,13 @@ func (f *Flow) RemoveNode(nodeID string) error {
 	return nil
 }
 
-// Connect creates a connection between two nodes
+// Connect creates a connection between two nodes on the source's default output.
 func (f *Flow) Connect(sourceID, targetID string) error {
+	return f.ConnectPort(sourceID, targetID, 0)
+}
+
+// ConnectPort creates a connection from a specific output port of the source node.
+func (f *Flow) ConnectPort(sourceID, targetID string, sourcePort int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -111,13 +119,14 @@ func (f *Flow) Connect(sourceID, targetID string) error {
 	}
 
 	// Create connection
-	sourceNode.Connect(targetNode)
+	sourceNode.ConnectPort(targetNode, sourcePort)
 
 	// Record connection
 	conn := Connection{
-		ID:       uuid.New().String(),
-		SourceID: sourceID,
-		TargetID: targetID,
+		ID:         uuid.New().String(),
+		SourceID:   sourceID,
+		TargetID:   targetID,
+		SourcePort: sourcePort,
 	}
 	f.Connections = append(f.Connections, conn)
 

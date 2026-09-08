@@ -13,10 +13,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/EdgxCloud/EdgeFlow/internal/logger"
 	"github.com/EdgxCloud/EdgeFlow/internal/module/manager"
 	"github.com/EdgxCloud/EdgeFlow/internal/module/parser"
 	"github.com/EdgxCloud/EdgeFlow/internal/module/validator"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
 // HTTP client with timeout for module downloads
@@ -49,6 +51,15 @@ func NewModuleAPI(modulesDir string) (*ModuleAPI, error) {
 	mgr, err := manager.NewModuleManager(modulesDir)
 	if err == nil {
 		api.manager = mgr
+
+		// Register the nodes of already-installed modules. The manifest survives
+		// a restart but the node registry is rebuilt empty, so without this any
+		// flow using an imported node fails to load its node after a restart.
+		// A module that fails to load is reported by its own status; one bad
+		// module must not stop the server from starting.
+		if err := mgr.LoadAll(); err != nil {
+			logger.Warn("Some modules failed to load", zap.Error(err))
+		}
 	}
 
 	return api, nil

@@ -13,20 +13,20 @@ import (
 
 // MQTTInConfig configuration for the MQTT In node
 type MQTTInConfig struct {
-	Broker        string `json:"broker"`        // MQTT broker URL (e.g., tcp://localhost:1883)
-	Topic         string `json:"topic"`         // Topic to subscribe (supports wildcards)
-	QoS           byte   `json:"qos"`           // Quality of Service (0, 1, 2)
-	ClientID      string `json:"clientId"`      // Client ID (optional)
-	Username      string `json:"username"`      // Username (optional)
-	Password      string `json:"password"`      // Password (optional)
-	CleanSession  bool   `json:"cleanSession"`  // Clean session flag
-	AutoReconnect bool   `json:"autoReconnect"` // Auto reconnect
+	Broker        string   `json:"broker"`        // MQTT broker URL (e.g., tcp://localhost:1883)
+	Topic         string   `json:"topic"`         // Topic to subscribe (supports wildcards)
+	QoS           QoSLevel `json:"qos"`           // Quality of Service (0, 1, 2)
+	ClientID      string   `json:"clientId"`      // Client ID (optional)
+	Username      string   `json:"username"`      // Username (optional)
+	Password      string   `json:"password"`      // Password (optional)
+	CleanSession  bool     `json:"cleanSession"`  // Clean session flag
+	AutoReconnect bool     `json:"autoReconnect"` // Auto reconnect
 
 	// Last Will and Testament (LWT) configuration
-	WillTopic   string `json:"willTopic"`   // LWT topic
-	WillPayload string `json:"willPayload"` // LWT message payload
-	WillQoS     byte   `json:"willQos"`     // LWT QoS (0, 1, 2)
-	WillRetain  bool   `json:"willRetain"`  // LWT retain flag
+	WillTopic   string   `json:"willTopic"`   // LWT topic
+	WillPayload string   `json:"willPayload"` // LWT message payload
+	WillQoS     QoSLevel `json:"willQos"`     // LWT QoS (0, 1, 2)
+	WillRetain  bool     `json:"willRetain"`  // LWT retain flag
 
 	// Connection settings
 	KeepAlive       int  `json:"keepAlive"`       // Keep alive interval in seconds
@@ -137,7 +137,7 @@ func (e *MQTTInExecutor) connect() error {
 
 	// Configure Last Will and Testament (LWT)
 	if e.config.WillTopic != "" {
-		opts.SetWill(e.config.WillTopic, e.config.WillPayload, e.config.WillQoS, e.config.WillRetain)
+		opts.SetWill(e.config.WillTopic, e.config.WillPayload, byte(e.config.WillQoS), e.config.WillRetain)
 	}
 
 	// Set connection handlers
@@ -147,7 +147,7 @@ func (e *MQTTInExecutor) connect() error {
 		e.mu.Unlock()
 
 		// Subscribe to topic
-		token := c.Subscribe(e.config.Topic, e.config.QoS, e.messageHandler)
+		token := c.Subscribe(e.config.Topic, byte(e.config.QoS), e.messageHandler)
 		token.Wait()
 	})
 

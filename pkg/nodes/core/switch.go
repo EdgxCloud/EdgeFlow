@@ -128,16 +128,19 @@ func (n *SwitchNode) Execute(ctx context.Context, msg node.Message) (node.Messag
 
 	// If repair mode and no matches, don't forward
 	if n.repair && !anyMatch {
-		return msg, nil // Don't forward message
+		return msg.RouteTo(), nil // Don't forward message
 	}
 
-	// TODO: In actual implementation, send to multiple outputs based on matchedOutputs
-	// For now, just store matched outputs in message metadata
-	if em, ok := interface{}(msg).(*node.EnhancedMessage); ok {
-		em.Metadata["_switchOutputs"] = matchedOutputs
+	// Route the message to exactly the outputs whose rules matched. Rule i owns
+	// output port i, so a message only reaches the branch it selected.
+	ports := make([]int, 0, len(matchedOutputs))
+	for i, matched := range matchedOutputs {
+		if matched {
+			ports = append(ports, i)
+		}
 	}
 
-	return msg, nil
+	return msg.RouteTo(ports...), nil
 }
 
 // Cleanup stops the switch node

@@ -13,21 +13,21 @@ import (
 
 // MQTTOutConfig configuration for the MQTT Out node
 type MQTTOutConfig struct {
-	Broker        string `json:"broker"`        // MQTT broker URL
-	Topic         string `json:"topic"`         // Topic to publish
-	QoS           byte   `json:"qos"`           // Quality of Service (0, 1, 2)
-	Retain        bool   `json:"retain"`        // Retain flag
-	ClientID      string `json:"clientId"`      // Client ID (optional)
-	Username      string `json:"username"`      // Username (optional)
-	Password      string `json:"password"`      // Password (optional)
-	CleanSession  bool   `json:"cleanSession"`  // Clean session flag
-	AutoReconnect bool   `json:"autoReconnect"` // Auto reconnect
+	Broker        string   `json:"broker"`        // MQTT broker URL
+	Topic         string   `json:"topic"`         // Topic to publish
+	QoS           QoSLevel `json:"qos"`           // Quality of Service (0, 1, 2)
+	Retain        bool     `json:"retain"`        // Retain flag
+	ClientID      string   `json:"clientId"`      // Client ID (optional)
+	Username      string   `json:"username"`      // Username (optional)
+	Password      string   `json:"password"`      // Password (optional)
+	CleanSession  bool     `json:"cleanSession"`  // Clean session flag
+	AutoReconnect bool     `json:"autoReconnect"` // Auto reconnect
 
 	// Last Will and Testament (LWT) configuration
-	WillTopic   string `json:"willTopic"`   // LWT topic
-	WillPayload string `json:"willPayload"` // LWT message payload
-	WillQoS     byte   `json:"willQos"`     // LWT QoS (0, 1, 2)
-	WillRetain  bool   `json:"willRetain"`  // LWT retain flag
+	WillTopic   string   `json:"willTopic"`   // LWT topic
+	WillPayload string   `json:"willPayload"` // LWT message payload
+	WillQoS     QoSLevel `json:"willQos"`     // LWT QoS (0, 1, 2)
+	WillRetain  bool     `json:"willRetain"`  // LWT retain flag
 
 	// Connection settings
 	KeepAlive      int `json:"keepAlive"`      // Keep alive interval in seconds
@@ -126,14 +126,14 @@ func (e *MQTTOutExecutor) Execute(ctx context.Context, msg node.Message) (node.M
 	retain := e.config.Retain
 
 	if qosFromMsg, ok := msg.Payload["qos"].(float64); ok {
-		qos = byte(qosFromMsg)
+		qos = QoSLevel(qosFromMsg)
 	}
 	if retainFromMsg, ok := msg.Payload["retain"].(bool); ok {
 		retain = retainFromMsg
 	}
 
 	// Publish message
-	token := e.client.Publish(topic, qos, retain, payloadBytes)
+	token := e.client.Publish(topic, byte(qos), retain, payloadBytes)
 	token.Wait()
 
 	if token.Error() != nil {
@@ -191,7 +191,7 @@ func (e *MQTTOutExecutor) connect() error {
 
 	// Configure Last Will and Testament (LWT)
 	if e.config.WillTopic != "" {
-		opts.SetWill(e.config.WillTopic, e.config.WillPayload, e.config.WillQoS, e.config.WillRetain)
+		opts.SetWill(e.config.WillTopic, e.config.WillPayload, byte(e.config.WillQoS), e.config.WillRetain)
 	}
 
 	// Set connection handlers

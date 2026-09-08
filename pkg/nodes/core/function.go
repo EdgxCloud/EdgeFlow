@@ -224,6 +224,21 @@ func processLine(line string, payload map[string]interface{}) error {
 	return nil
 }
 
+// fnArithmeticOps are the binary operators the legacy DSL understands. They are
+// matched with surrounding spaces so that negative literals and keys containing
+// a dash are not mistaken for expressions.
+var fnArithmeticOps = []string{" + ", " - ", " * ", " / "}
+
+// fnHasArithmetic reports whether s looks like a binary arithmetic expression.
+func fnHasArithmetic(s string) bool {
+	for _, op := range fnArithmeticOps {
+		if strings.Contains(s, op) {
+			return true
+		}
+	}
+	return false
+}
+
 // fnParseValue parses a string value into the appropriate Go type
 func fnParseValue(s string, payload map[string]interface{}) interface{} {
 	s = strings.TrimSpace(s)
@@ -242,7 +257,13 @@ func fnParseValue(s string, payload map[string]interface{}) interface{} {
 	}
 
 	// Reference to another payload value: msg.payload.X
-	if strings.HasPrefix(s, "msg.payload.") {
+	//
+	// Only a bare reference is resolved here. An expression such as
+	// "msg.payload.value * 2" also carries this prefix, and treating it as a
+	// reference would look up a key literally named "value * 2", miss, and
+	// silently yield nil -- so anything containing an operator falls through to
+	// the arithmetic handling below.
+	if strings.HasPrefix(s, "msg.payload.") && !fnHasArithmetic(s) {
 		key := strings.TrimPrefix(s, "msg.payload.")
 		if val, ok := payload[key]; ok {
 			return val
@@ -263,7 +284,7 @@ func fnParseValue(s string, payload map[string]interface{}) interface{} {
 	}
 
 	// Simple arithmetic: value + N or value - N or value * N or value / N
-	for _, op := range []string{" + ", " - ", " * ", " / "} {
+	for _, op := range fnArithmeticOps {
 		if strings.Contains(s, op) {
 			parts := strings.SplitN(s, op, 2)
 			left := fnParseValue(parts[0], payload)

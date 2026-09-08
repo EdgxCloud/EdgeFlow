@@ -1,6 +1,7 @@
 package api
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/EdgxCloud/EdgeFlow/internal/engine"
@@ -39,6 +40,9 @@ func engineFlowToStorage(f *engine.Flow) *storage.Flow {
 			"id":     conn.ID,
 			"source": conn.SourceID,
 			"target": conn.TargetID,
+			// Preserved so a save/load round-trip keeps switch/if branches wired
+			// to the correct output port.
+			"sourceOutput": conn.SourcePort,
 		})
 	}
 
@@ -122,7 +126,10 @@ func storageFlowToEngine(f *storage.Flow) *engine.Flow {
 			flowLog.Debug("Skipping connection with empty source/target")
 			continue
 		}
-		if err := flow.Connect(sourceID, targetID); err != nil {
+		// The editor records which output port an edge leaves from; without it
+		// every branch of a switch/if node would receive every message.
+		sourcePort := connSourcePort(connData)
+		if err := flow.ConnectPort(sourceID, targetID, sourcePort); err != nil {
 			flowLog.Error("Failed to connect nodes", zap.String("source", sourceID), zap.String("target", targetID), zap.Error(err))
 		}
 	}
@@ -138,4 +145,44 @@ func storageFlowsToEngine(flows []*storage.Flow) []*engine.Flow {
 		result[i] = storageFlowToEngine(f)
 	}
 	return result
+}
+
+// connSourcePort extracts the source output port from a stored connection.
+// The editor writes it as "sourceOutput"; "sourcePort" and the React Flow
+// "sourceHandle" string are accepted as well. Anything unrecognised is port 0,
+// which keeps single-output nodes working.
+func connSourcePort(connData map[string]interface{}) int {
+	for _, key := range []string{"sourceOutput", "sourcePort"} {
+		if v, ok := connData[key]; ok {
+			if p, ok := toPortInt(v); ok {
+				return p
+			}
+		}
+	}
+	if v, ok := connData["sourceHandle"]; ok {
+		if p, ok := toPortInt(v); ok {
+			return p
+		}
+	}
+	return 0
+}
+
+func toPortInt(v interface{}) (int, bool) {
+	switch t := v.(type) {
+	case float64: // JSON numbers decode as float64
+		return int(t), true
+	case int:
+		return t, true
+	case string:
+		if t == "" {
+			return 0, false
+		}
+		p, err := strconv.Atoi(t)
+		if err != nil {
+			return 0, false
+		}
+		return p, true
+	default:
+		return 0, false
+	}
 }

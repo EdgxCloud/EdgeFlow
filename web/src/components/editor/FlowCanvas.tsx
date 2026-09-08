@@ -125,6 +125,9 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
     const flowEdges: Edge[] = connections.map((conn: any, index) => ({
       id: conn.id || `edge-${conn.source}-${conn.target}-${index}`,
       source: conn.source,
+      // Restore the output port the edge leaves from; without it a saved
+      // switch/if branch would snap back to port 0 on the next save.
+      sourceHandle: conn.sourceOutput !== undefined ? String(conn.sourceOutput) : (conn.sourceHandle ?? null),
       target: conn.target,
       type: 'default',
       animated: false,
@@ -242,6 +245,9 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
       const flowEdges: Edge[] = (imported.connections || []).map((conn: any, index) => ({
         id: conn.id || `edge-${conn.source}-${conn.target}-${index}`,
         source: conn.source,
+        // Restore the output port the edge leaves from; without it a saved
+        // switch/if branch would snap back to port 0 on the next save.
+        sourceHandle: conn.sourceOutput !== undefined ? String(conn.sourceOutput) : (conn.sourceHandle ?? null),
         target: conn.target,
         type: 'default',
         animated: false,
@@ -381,6 +387,9 @@ const FlowCanvas = forwardRef<FlowCanvasRef, FlowCanvasProps>(({ flowId, isRunni
     const flowEdges: Edge[] = (importedConnections || []).map((conn: any, index) => ({
       id: conn.id || `edge-${conn.source}-${conn.target}-${index}`,
       source: conn.source,
+      // Restore the output port the edge leaves from; without it a saved
+      // switch/if branch would snap back to port 0 on the next save.
+      sourceHandle: conn.sourceOutput !== undefined ? String(conn.sourceOutput) : (conn.sourceHandle ?? null),
       target: conn.target,
       type: 'default',
       animated: false,

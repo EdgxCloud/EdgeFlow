@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { Handle, Position, NodeProps, type Node } from '@xyflow/react'
+import { useOutputPorts } from '@/services/nodeCatalog'
 import {
   Zap,
   Bug,
@@ -94,6 +95,7 @@ const NODE_CONFIG: Record<string, { icon: any; color: string; category: string }
 }
 
 function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
+  const outputPorts = useOutputPorts(data.nodeType)
   const config = NODE_CONFIG[data.nodeType] || {
     icon: Activity,
     color: '#64748b',
@@ -187,15 +189,37 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
           left: -8
         }}
       />
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!w-4 !h-4 !border-2 !border-white dark:!border-gray-800 transition-all hover:!scale-125"
-        style={{
-          background: config.color,
-          right: -8
-        }}
-      />
+      {/*
+        One source handle per declared output port. Routing nodes (if, switch,
+        filter) send a message only to the port their rules matched, so each port
+        needs its own handle -- with a single handle every edge is created on
+        port 0 and the remaining branches never receive anything.
+        The handle id is the port index, which FlowCanvas reads back as
+        `sourceOutput`.
+      */}
+      {outputPorts.map((portName, index) => {
+        const spacing = 100 / (outputPorts.length + 1)
+        return (
+          <Handle
+            key={index}
+            id={String(index)}
+            type="source"
+            position={Position.Right}
+            className="!w-4 !h-4 !border-2 !border-white dark:!border-gray-800 transition-all hover:!scale-125"
+            style={{
+              background: config.color,
+              right: -8,
+              top: `${spacing * (index + 1)}%`,
+            }}
+          >
+            {outputPorts.length > 1 && (
+              <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 whitespace-nowrap text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                {portName || index}
+              </span>
+            )}
+          </Handle>
+        )
+      })}
 
       {/* Subtle category badge on hover */}
       <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">

@@ -334,6 +334,23 @@ func (w *BaseWidget) GetOutputChannel() <-chan node.Message {
 
 // SendOutput sends a message to the output channel
 func (w *BaseWidget) SendOutput(msg node.Message) {
+	if w.outputChan == nil {
+		return
+	}
+
+	// Start is not part of the node.Executor interface, so when a widget is
+	// driven by the node runtime nothing ever sets ctx. Every case of a select
+	// is evaluated, so reading w.ctx.Done() on a nil context would panic and
+	// take the process down; fall back to a plain non-blocking send.
+	if w.ctx == nil {
+		select {
+		case w.outputChan <- msg:
+		default:
+			// Skip if channel full
+		}
+		return
+	}
+
 	select {
 	case w.outputChan <- msg:
 	case <-w.ctx.Done():

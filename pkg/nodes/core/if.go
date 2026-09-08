@@ -60,7 +60,12 @@ func (n *IfNode) Execute(ctx context.Context, msg node.Message) (node.Message, e
 		"false": !result,
 	}
 
-	return msg, nil
+	// Port 0 is the true branch, port 1 the false branch. Without this the
+	// message would be broadcast to both branches regardless of the condition.
+	if result {
+		return msg.RouteTo(0), nil
+	}
+	return msg.RouteTo(1), nil
 }
 
 // Cleanup stops the if node
