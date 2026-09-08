@@ -153,11 +153,15 @@ func temperatureMonitoringFlow() *storage.Flow {
 			},
 		},
 		Connections: []map[string]interface{}{
-			{"id": cInFunc, "source": nInject, "target": nFunc},
-			{"id": cFuncIf, "source": nFunc, "target": nIf},
-			{"id": cIfTmpl, "source": nIf, "target": nTemplate},
-			{"id": cTmplDbg, "source": nTemplate, "target": nDbgAlert},
-			{"id": cIfNorm, "source": nIf, "target": nDbgNorm},
+			{"id": cInFunc, "source": nInject, "target": nFunc, "sourceOutput": 0},
+			{"id": cFuncIf, "source": nFunc, "target": nIf, "sourceOutput": 0},
+			// The if node routes by port: 0 is the true branch, 1 the false one.
+			// Without an explicit port both edges sit on port 0, so the alert and
+			// the normal path would both fire whenever the condition is true and
+			// neither would fire when it is false.
+			{"id": cIfTmpl, "source": nIf, "target": nTemplate, "sourceOutput": 0},
+			{"id": cTmplDbg, "source": nTemplate, "target": nDbgAlert, "sourceOutput": 0},
+			{"id": cIfNorm, "source": nIf, "target": nDbgNorm, "sourceOutput": 1},
 		},
 	}
 }
@@ -304,12 +308,13 @@ func dataProcessingPipelineFlow() *storage.Flow {
 			},
 		},
 		Connections: []map[string]interface{}{
-			{"id": cInFunc, "source": nInject, "target": nFunc},
-			{"id": cFuncChg, "source": nFunc, "target": nChange},
-			{"id": cChgFilt, "source": nChange, "target": nFilter},
-			{"id": cFiltTmpl, "source": nFilter, "target": nTemplate},
-			{"id": cTmplDbg, "source": nTemplate, "target": nDbgWarn},
-			{"id": cFiltNorm, "source": nFilter, "target": nDbgNorm},
+			{"id": cInFunc, "source": nInject, "target": nFunc, "sourceOutput": 0},
+			{"id": cFuncChg, "source": nFunc, "target": nChange, "sourceOutput": 0},
+			{"id": cChgFilt, "source": nChange, "target": nFilter, "sourceOutput": 0},
+			// The filter node routes by port: 0 is "match", 1 is "no_match".
+			{"id": cFiltTmpl, "source": nFilter, "target": nTemplate, "sourceOutput": 0},
+			{"id": cTmplDbg, "source": nTemplate, "target": nDbgWarn, "sourceOutput": 0},
+			{"id": cFiltNorm, "source": nFilter, "target": nDbgNorm, "sourceOutput": 1},
 		},
 	}
 }
@@ -414,10 +419,10 @@ func heartbeatSystemMonitorFlow() *storage.Flow {
 			},
 		},
 		Connections: []map[string]interface{}{
-			{"id": cSchFunc, "source": nSchedule, "target": nFunc},
-			{"id": cFuncRBE, "source": nFunc, "target": nRBE},
-			{"id": cRBETmpl, "source": nRBE, "target": nTemplate},
-			{"id": cTmplDbg, "source": nTemplate, "target": nDebug},
+			{"id": cSchFunc, "source": nSchedule, "target": nFunc, "sourceOutput": 0},
+			{"id": cFuncRBE, "source": nFunc, "target": nRBE, "sourceOutput": 0},
+			{"id": cRBETmpl, "source": nRBE, "target": nTemplate, "sourceOutput": 0},
+			{"id": cTmplDbg, "source": nTemplate, "target": nDebug, "sourceOutput": 0},
 		},
 	}
 }
